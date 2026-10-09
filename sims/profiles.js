@@ -13,10 +13,10 @@ const sectorByProject = new Map(Object.entries({
 function fiveSectorsOfFive() {
   const board = BOARD.map(tile => ({ ...tile, next: tile.next.map(value => typeof value === "object" ? { ...value } : value) }));
   const newProjects = [
-    { type: "property", visual: "landmark", name: "钱塘会展中心", next: [30], price: 280, rent: 78, group: "钱塘发展", inner: "water", x: 37, y: 32 },
-    { type: "property", visual: "landmark", name: "运河运动公园", next: [34], price: 230, rent: 62, group: "生态文体", inner: "water", x: 41, y: 64 },
-    { type: "property", visual: "landmark", name: "滨江国际社区", next: [39], price: 270, rent: 74, group: "钱塘发展", inner: "metro", x: 70, y: 49 },
-    { type: "property", visual: "landmark", name: "大运河艺术馆", next: [43], price: 220, rent: 58, group: "生态文体", inner: "metro", x: 62, y: 25 }
+    { type: "property", visual: "project_expo", name: "钱塘会展中心", next: [30], price: 280, rent: 78, group: "钱塘发展", inner: "water", x: 48, y: 27 },
+    { type: "property", visual: "project_sports", name: "运河运动公园", next: [34], price: 230, rent: 62, group: "生态文体", inner: "water", x: 47, y: 70 },
+    { type: "property", visual: "project_community", name: "滨江国际社区", next: [39], price: 270, rent: 74, group: "钱塘发展", inner: "metro", x: 78, y: 44 },
+    { type: "property", visual: "project_art", name: "大运河艺术馆", next: [43], price: 220, rent: 58, group: "生态文体", inner: "metro", x: 70, y: 29 }
   ];
   board[29].next = [45];
   board[33].next = [46];
@@ -70,6 +70,7 @@ const profiles = {
       sectorBonuses: { ...sharedCandidate.sectorBonuses, rentMultiplier: 1.1 },
       rentMultiplierByLevel: [0, 1, 1.75, 3],
       upgrade: { costMode: "ratio", ratioByCurrentLevel: { 1: 0.45, 2: 0.7 }, level3RequiresCompleteGroup: true }
+      ,botPolicy: { partnershipRate: 0.2, upgradeEnabled: true, upgradeAfterRound: 6, maxUpgradesPerPlayer: 2, reserveCash: 425 }
     },
     botPolicy: { partnershipRate: 0.2, upgradeEnabled: true, upgradeAfterRound: 6, maxUpgradesPerPlayer: 2, reserveCash: 425 }
   },

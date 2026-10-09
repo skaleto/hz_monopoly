@@ -89,10 +89,12 @@ async function main() {
     await a.waitForFunction(() => window.__soundController.state() === "running");
     assert.equal(await a.locator(".player-chip").count(), 4);
     assert.equal(await a.locator(".player-metrics").count(), 4);
-    assert.equal(await a.locator(".player-metrics span").count(), 12);
+    assert.equal(await a.locator(".player-metrics span").count(), 16);
     assert.match(await a.locator(".player-chip").first().textContent(), /金币/);
     assert.match(await a.locator(".player-chip").first().textContent(), /影响力/);
     assert.match(await a.locator(".player-chip").first().textContent(), /道具/);
+    assert.match(await a.locator(".player-chip").first().textContent(), /城市分/);
+    assert.equal(await a.locator("#sectorProgress .sector-chip").count(), 5);
     assert.equal(await a.locator("#gameHomeButton").evaluate(button => button.parentElement.classList.contains("game-top-actions")), true);
     assert.equal(await a.locator("#rollButton").evaluate(button => button.parentElement.classList.contains("game-bottom")), true);
     assert.equal(await a.locator(".game-bottom > button").count(), 3);
@@ -106,10 +108,10 @@ async function main() {
     await a.screenshot({ path: path.join(screenshotDir, "18-owner-end-game-confirm-mobile.png"), fullPage: true });
     await a.locator("#endGameCancelButton").click();
     await a.locator("#endGameModal").waitFor({ state: "hidden" });
-    assert.equal(await b.locator(".board-tile").count(), 45);
-    assert.equal(await b.locator(".board-tile .tile-icon").count(), 45);
+    assert.equal(await b.locator(".board-tile").count(), 49);
+    assert.equal(await b.locator(".board-tile .tile-icon").count(), 49);
     assert.equal(await b.locator(".board-tile .type-mark").count(), 0);
-    assert.ok(await b.locator('.board-tile[data-tile-type="property"] .tile-price').count() >= 21);
+    assert.equal(await b.locator('.board-tile[data-tile-type="property"] .tile-price').count(), 25);
     assert.match(await b.locator('.board-tile[data-tile-type="property"] .tile-price').first().textContent(), /^¥\d+$/);
     assert.equal(await b.locator(".board-tile.has-price").evaluateAll(tiles => tiles.every(tile => {
       const parts = [tile.querySelector(".tile-icon"), tile.querySelector(".tile-name"), tile.querySelector(".tile-price")].map(node => node.getBoundingClientRect());
@@ -142,28 +144,28 @@ async function main() {
     const nodeChainGaps = await b.evaluate(() => {
       const center = index => { const rect = document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect(); return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }; };
       const maxGap = indexes => Math.max(...indexes.slice(1).map((index, offset) => { const a = center(indexes[offset]), b = center(index); return Math.hypot(a.x - b.x, a.y - b.y); }));
-      return { water: maxGap([23,28,29,30,31,32,33,34,35,36,2]), metro: maxGap([10,37,38,39,40,41,42,43,44,17]) };
+      return { water: maxGap([23,28,29,45,30,31,32,33,46,34,35,36,2]), metro: maxGap([10,37,38,47,39,40,41,42,48,43,44,17]) };
     });
-    assert.ok(nodeChainGaps.water <= 70, `water chain gap ${nodeChainGaps.water}`);
-    assert.ok(nodeChainGaps.metro <= 70, `metro chain gap ${nodeChainGaps.metro}`);
+    assert.ok(nodeChainGaps.water <= 80, `water chain gap ${nodeChainGaps.water}`);
+    assert.ok(nodeChainGaps.metro <= 80, `metro chain gap ${nodeChainGaps.metro}`);
     const waterRouteGeometry = await b.evaluate(() => {
-      const indexes=[23,28,29,30,31,32,33,34,35,36,2],centers=indexes.map(index=>{const rect=document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect();return{x:rect.x+rect.width/2,y:rect.y+rect.height/2}}),vectors=centers.slice(1).map((point,index)=>({x:point.x-centers[index].x,y:point.y-centers[index].y}));
+      const indexes=[23,28,29,45,30,31,32,33,46,34,35,36,2],centers=indexes.map(index=>{const rect=document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect();return{x:rect.x+rect.width/2,y:rect.y+rect.height/2}}),vectors=centers.slice(1).map((point,index)=>({x:point.x-centers[index].x,y:point.y-centers[index].y}));
       const lengths=vectors.map(vector=>Math.hypot(vector.x,vector.y)),turns=vectors.slice(1).map((vector,index)=>{const previous=vectors[index],cos=(previous.x*vector.x+previous.y*vector.y)/(Math.hypot(previous.x,previous.y)*Math.hypot(vector.x,vector.y));return Math.acos(Math.max(-1,Math.min(1,cos)))*180/Math.PI}),inner=centers.slice(1,-1),pairGaps=[];
       inner.forEach((point,index)=>inner.slice(index+1).forEach(other=>pairGaps.push(Math.hypot(point.x-other.x,point.y-other.y))));
       return{pathRatio:lengths.reduce((sum,length)=>sum+length,0)/Math.hypot(centers.at(-1).x-centers[0].x,centers.at(-1).y-centers[0].y),maxTurn:Math.max(...turns),minInnerGap:Math.min(...pairGaps)};
     });
-    assert.ok(waterRouteGeometry.pathRatio <= 1.65, `water route too winding ${JSON.stringify(waterRouteGeometry)}`);
-    assert.ok(waterRouteGeometry.maxTurn <= 125, `water route reverses sharply ${JSON.stringify(waterRouteGeometry)}`);
+    assert.ok(waterRouteGeometry.pathRatio <= 1.9, `water route too winding ${JSON.stringify(waterRouteGeometry)}`);
+    assert.ok(waterRouteGeometry.maxTurn <= 140, `water route reverses sharply ${JSON.stringify(waterRouteGeometry)}`);
     assert.ok(waterRouteGeometry.minInnerGap >= 34, `water nodes are crowded ${JSON.stringify(waterRouteGeometry)}`);
     assert.equal(await b.locator('.board-tile[data-tile-type="opportunity"]').count(), 4);
     assert.equal(await b.locator('.board-tile[data-tile-type="supply"]').count(), 2);
     assert.equal(await b.locator(".board-tile.next-option").count(), 1);
-    assert.equal(await b.locator(".board-tile .tile-icon").evaluateAll(images => new Set(images.map(image => image.getAttribute("src"))).size), 5);
+    assert.equal(await b.locator(".board-tile .tile-icon").evaluateAll(images => new Set(images.map(image => image.getAttribute("src"))).size), 9);
     assert.ok(await b.locator(".board-tile").evaluateAll(tiles => new Set(tiles.map(tile => getComputedStyle(tile).backgroundColor)).size) >= 7);
     assert.equal(await b.locator('.board-tile[data-tile-type="property"]').first().evaluate(tile => getComputedStyle(tile).backgroundColor), "rgb(255, 254, 250)");
     assert.notEqual(await b.locator('.board-tile[data-tile-type="opportunity"]').first().evaluate(tile => getComputedStyle(tile).backgroundColor), await b.locator('.board-tile[data-tile-type="daily"]').first().evaluate(tile => getComputedStyle(tile).backgroundColor));
-    assert.equal(await b.locator(".board-tile.route-water").count(), 9);
-    assert.equal(await b.locator(".board-tile.route-metro").count(), 8);
+    assert.equal(await b.locator(".board-tile.route-water").count(), 11);
+    assert.equal(await b.locator(".board-tile.route-metro").count(), 10);
     assert.equal(await b.locator(".route-water-entry").count(), 1);
     assert.equal(await b.locator(".route-water-exit").count(), 1);
     assert.equal(await b.locator(".route-metro-entry").count(), 1);
@@ -468,7 +470,7 @@ async function main() {
       roomCode: code,
       humans: 2,
       bots: 2,
-      boardTiles: 45,
+      boardTiles: 49,
       reconnect: "pass (integration websocket resume)",
       secondLoginHome: "pass",
       createNewRoom: "pass",
@@ -479,14 +481,14 @@ async function main() {
       passiveEventToast: "prominent rail below player cards",
       passiveEventModalCount: 0,
       fixedMobileViewport: "pass",
-      tileIllustrations: "45/45",
+      tileIllustrations: "49/49",
       tileTypes: 5,
       junctionMarkers: 2,
       nodeChains: "outer + water + metro",
       maxInnerNodeGap: nodeChainGaps,
       semanticTileBackgrounds: "property white + distinct event/card/type fills",
-      investableProjects: ">=21 including 4 landmark-style projects",
-      squareNodes: "45/45",
+      investableProjects: "25 across five sectors",
+      squareNodes: "49/49",
       routeBorders: "water cyan + metro purple + matching entry/exit fills",
       branchDirections: "2 continuous routes + color-matched entry/exit endpoints",
       waterRouteGeometry,

@@ -153,6 +153,20 @@ body.game-active { height:100dvh; overflow:hidden; overscroll-behavior:none; pos
   .celebration-overlay.purchase .celebration-stage{grid-template-columns:minmax(0,1fr) 120px}
 }
 
+/* M2 prototype: visible sector progression and expanded 49-node board. */
+.player-metrics { grid-template-columns:repeat(4,1fr); }
+.player-metrics .score { background:#e7e2ff; }
+.sector-progress { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:5px; min-height:38px; }
+.sector-chip { display:grid; align-content:center; min-width:0; padding:4px 7px; border:1.5px solid var(--ink); border-radius:10px; background:#fff; box-shadow:0 2px 0 var(--ink); }
+.sector-chip strong,.sector-chip span { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.sector-chip strong { font-size:9px; }.sector-chip span { font-size:7px; color:rgba(23,48,79,.65); }
+.sector-chip.tier-2 { background:#dff4f8; }.sector-chip.tier-3 { background:#fff0ad; }.sector-chip.tier-4 { background:#ffdce9; }
+.game-active .game-view { grid-template-rows:auto auto 34px minmax(0,1fr) auto auto; }
+@media(max-width:700px){
+  .sector-progress{display:flex;overflow-x:auto;min-height:34px}.sector-chip{flex:0 0 104px}
+  .game-active .board-shell{overflow:auto}.game-active .game-board{width:520px;min-width:520px;height:620px;min-height:620px}
+}
+
 /* Toasts are compact notification cards, not pills. */
 .toast { width:min(360px,calc(100vw - 28px)); min-height:48px; padding:11px 14px 11px 16px; border:1.5px solid rgba(23,48,79,.78); border-left:7px solid var(--water); border-radius:14px; background:rgba(255,253,247,.97); box-shadow:0 10px 28px rgba(23,48,79,.24),0 2px 0 rgba(23,48,79,.35); text-align:left; line-height:1.4; }
 .toast.event { background:#f7fdff; border-left-color:var(--water); }

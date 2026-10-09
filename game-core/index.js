@@ -2,7 +2,7 @@
 
 const crypto = require("node:crypto");
 
-const CURRENT_RULESET_VERSION = "hangzhou-v1.3";
+const CURRENT_RULESET_VERSION = "hangzhou-v2-sector-cautious";
 
 const BOARD = [
   { type: "start", name: "我的公寓", next: [1] },
@@ -138,6 +138,7 @@ function migrateGameState(inputState) {
     diceBonus: Number(player.diceBonus ?? 0),
     rentShield: Boolean(player.rentShield),
     reviewTurns: Number(player.reviewTurns ?? 0),
+    lastUpgradeRound: Number(player.lastUpgradeRound ?? 0),
     trustee: Boolean(player.trustee)
   }));
   state.log = Array.isArray(state.log) ? state.log : [];
@@ -164,6 +165,7 @@ function createGame(playerInputs, options = {}) {
     diceBonus: 0,
     rentShield: false,
     reviewTurns: 0,
+    lastUpgradeRound: 0,
     trustee: false
   }));
   return {
@@ -172,7 +174,7 @@ function createGame(playerInputs, options = {}) {
     version: 0,
     round: 1,
     maxRounds: options.maxRounds || balance.maxRounds,
-    currentSeat: 0,
+    currentSeat: Number.isInteger(options.firstSeat) ? options.firstSeat : 0,
     phase: "roll",
     pending: null,
     movement: null,
@@ -180,7 +182,7 @@ function createGame(playerInputs, options = {}) {
     winnerId: null,
     players,
     board: (options.board || BOARD).map((tile, index) => ({ ...tile, index, ownerId: null, partnerId: null, level: 0 })),
-    log: [{ type: "GAME_STARTED", text: `${players[0].nickname} 先手` }]
+    log: [{ type: "GAME_STARTED", text: `${players[Number.isInteger(options.firstSeat) ? options.firstSeat : 0].nickname} 先手` }]
   };
 }
 
@@ -489,6 +491,7 @@ function applyCommand(inputState, actorId, command, payload = {}, context = {}) 
     if (player.cash < cost) throw new Error("INSUFFICIENT_FUNDS");
     player.cash -= cost;
     tile.level += 1;
+    player.lastUpgradeRound = state.round;
     log(state, events, "PROPERTY_UPGRADED", `${player.nickname} 将 ${tile.name} 建设到 ${tile.level} 级`, { playerId: actorId, tileIndex: tile.index, level: tile.level, cost });
   } else if (command === "CHOOSE_OPPORTUNITY") {
     if (state.phase !== "decision" || state.pending?.type !== "opportunity" || state.pending.actorId !== actorId) throw new Error("INVALID_PHASE");
@@ -539,12 +542,26 @@ function getBotCommand(state, playerId, random = Math.random) {
   if (!player || (player.kind !== "bot" && !player.trustee)) return null;
   if (state.phase === "roll" && currentPlayer(state).id === playerId) {
     if ((player.items || []).length) return { command: "USE_ITEM", payload: { itemId: player.items[0] } };
+    const policy = balanceOf(state).botPolicy;
+    if (policy?.upgradeEnabled && state.round >= policy.upgradeAfterRound) {
+      const upgrades = state.board.filter(tile => [tile.ownerId, tile.partnerId].includes(playerId)).reduce((sum, tile) => sum + Math.max(0, tile.level - 1), 0);
+      if (upgrades < policy.maxUpgradesPerPlayer && player.lastUpgradeRound !== state.round) {
+        const candidate = state.board.find(tile => tile.type === "property" && [tile.ownerId, tile.partnerId].includes(playerId) && tile.level < 3 && player.cash - getUpgradeCost(state, tile) >= policy.reserveCash && (tile.level < 2 || !state.balance.upgrade.level3RequiresCompleteGroup || sectorProjectCount(state, playerId, tile.group) >= state.balance.sectorBonuses.flagshipMinProjects));
+        if (candidate) return { command: "UPGRADE_PROPERTY", payload: { tileIndex: candidate.index } };
+      }
+    }
     return { command: "ROLL_DICE", payload: {} };
   }
   if (state.pending?.actorId === playerId) {
     if (state.pending.type === "route") return { command: "CHOOSE_ROUTE", payload: { to: state.pending.choices[randomInt(random, state.pending.choices.length)].to } };
     if (state.pending.type === "property") {
       const tile = state.board[state.pending.tileIndex];
+      const policy = balanceOf(state).botPolicy;
+      if (policy?.partnershipRate && random() < policy.partnershipRate) {
+        const share = Math.ceil(tile.price / 2);
+        const target = state.players.filter(item => item.id !== playerId && item.cash - share >= policy.reserveCash).sort((a,b)=>b.cash-a.cash)[0];
+        if (target && player.cash - share >= policy.reserveCash) return { command: "INVITE_PARTNER", payload: { targetPlayerId: target.id } };
+      }
       return player.cash - tile.price >= 400 ? { command: "BUY_PROPERTY", payload: {} } : { command: "SKIP_PROPERTY", payload: {} };
     }
     if (state.pending.type === "opportunity") return { command: "CHOOSE_OPPORTUNITY", payload: { choice: player.cash > 500 ? "risk" : "safe" } };
@@ -552,7 +569,9 @@ function getBotCommand(state, playerId, random = Math.random) {
     if (state.pending.type === "vote") return { command: "CHOOSE_VOTE", payload: { choice: "coupon" } };
   }
   if (state.phase === "partner_response" && state.pending?.targetPlayerId === playerId) {
-    return { command: player.cash > 500 ? "ACCEPT_PARTNER" : "DECLINE_PARTNER", payload: {} };
+    const policy = balanceOf(state).botPolicy;
+    const tile = state.board[state.pending.tileIndex], share = Math.ceil(tile.price / 2);
+    return { command: player.cash - share >= (policy?.reserveCash || 400) ? "ACCEPT_PARTNER" : "DECLINE_PARTNER", payload: {} };
   }
   return null;
 }

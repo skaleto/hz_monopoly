@@ -29,6 +29,7 @@ test("web client references versioned WebP instead of PNG", () => {
   assert.match(js, /character_fox\.v3\.webp/);
   assert.doesNotMatch(js, /character_fox\.png/);
   assert.match(js, /node_property\.v1\.webp/);
+  assert.match(js, /project_expo\.v1\.webp/);
   assert.doesNotMatch(js, /node_property\.png/);
   assert.match(html, /id="diceCanvas"/);
   assert.match(html, /dice-renderer\.js\?v=0\.5\.2/);

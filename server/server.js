@@ -6,7 +6,8 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 const { WebSocketServer, WebSocket } = require("ws");
 const { Store } = require("./store");
-const { CURRENT_RULESET_VERSION, createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, stateHash } = require("../game-core");
+const { CURRENT_RULESET_VERSION, createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, stateHash, cityScore, sectorProjectCount } = require("../game-core");
+const { profiles } = require("../sims/profiles");
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "0.0.0.0";
@@ -87,6 +88,14 @@ async function readJson(req) {
 function validPhone(value) { return /^1[3-9]\d{9}$/.test(String(value || "")); }
 function validNickname(value) { return typeof value === "string" && /^[\p{L}\p{N}_\-·]{2,12}$/u.test(value.trim()); }
 function sanitizeRoom(room) {
+  const game = room.game ? {
+    ...room.game,
+    players: room.game.players.map(player => ({
+      ...player,
+      cityScore: cityScore(room.game, player),
+      sectorProgress: [...new Set(room.game.board.filter(tile => tile.type === "property").map(tile => tile.group))].map(group => ({ group, count: sectorProjectCount(room.game, player.id, group) }))
+    }))
+  } : null;
   return {
     id: room.id,
     code: room.code,
@@ -95,7 +104,7 @@ function sanitizeRoom(room) {
     status: room.status,
     players: room.players,
     seq: room.seq || 0,
-    game: room.game || null,
+    game,
     rulesetExpired: isRulesetExpired(room),
     currentRulesetVersion: CURRENT_RULESET_VERSION,
     expiresAt: room.expiresAt
@@ -313,7 +322,8 @@ async function api(req, res, url) {
       if (room.status !== "waiting" || room.players.length < 2 || room.players.length > 4) return json(res, 409, { error: "PLAYER_COUNT_OUT_OF_RANGE" });
       if (room.players.some(player => player.kind === "human" && !player.ready)) return json(res, 409, { error: "PLAYERS_NOT_READY" });
       room.status = "playing";
-      room.game = createGame(room.players);
+      const profile = profiles.cautious;
+      room.game = createGame(room.players, { rulesetVersion: CURRENT_RULESET_VERSION, board: profile.board, balance: profile.balance, firstSeat: process.env.NODE_ENV === "test" ? 0 : crypto.randomInt(room.players.length) });
       room.seq = 0;
       room.processedActionIds = [];
       persist(room); publishRoom(room);

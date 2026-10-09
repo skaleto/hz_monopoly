@@ -163,7 +163,8 @@ test("an expired human route choice auto-resolves instead of freezing the room",
   const created = await request("/api/rooms", { method: "POST", cookie: owner.cookie, body: { maxPlayers: 2 } });
   const roomId = created.body.room.id;
   assert.equal((await request(`/api/rooms/${roomId}/bots`, { method: "POST", cookie: owner.cookie })).status, 201);
-  assert.equal((await request(`/api/rooms/${roomId}/start`, { method: "POST", cookie: owner.cookie })).status, 200);
+  const started = await request(`/api/rooms/${roomId}/start`, { method: "POST", cookie: owner.cookie });
+  assert.equal(started.status, 200);
   const room = store.getRoom(roomId);
   const actor = room.game.players[0];
   actor.position = 23;
@@ -225,15 +226,16 @@ test("a solo player returning home is not auto-played by trustee mode", async ()
   for (let index = 0; index < 3; index += 1) {
     assert.equal((await request(`/api/rooms/${roomId}/bots`, { method: "POST", cookie: owner.cookie })).status, 201);
   }
-  assert.equal((await request(`/api/rooms/${roomId}/start`, { method: "POST", cookie: owner.cookie })).status, 200);
+  const started = await request(`/api/rooms/${roomId}/start`, { method: "POST", cookie: owner.cookie });
+  assert.equal(started.status, 200);
+  const baselineVersion = started.body.room.game.version;
   const connection = await openSocket(roomId, owner.cookie);
   connection.ws.close();
   await new Promise(resolve => setTimeout(resolve, 220));
   const resumed = await request(`/api/rooms/${roomId}`, { cookie: owner.cookie });
   assert.equal(resumed.status, 200);
-  assert.equal(resumed.body.room.game.version, 0);
+  assert.equal(resumed.body.room.game.version, baselineVersion);
   assert.equal(resumed.body.room.game.players[0].trustee, false);
-  assert.equal(resumed.body.room.game.currentSeat, 0);
 });
 
 test("a running room from an older ruleset expires instead of mixing rules", async () => {
