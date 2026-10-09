@@ -200,6 +200,9 @@ async function main() {
     assert.equal(fixedViewport.active, true);
     assert.ok(fixedViewport.scrollHeight <= fixedViewport.height + 1);
     await a.screenshot({ path: path.join(screenshotDir, "03-game-two-humans-two-bots.png"), fullPage: true });
+    await a.locator(".board-shell").evaluate(node => { node.scrollLeft = node.scrollWidth; });
+    await a.screenshot({ path: path.join(screenshotDir, "03b-expanded-board-right.png"), fullPage: true });
+    await a.locator(".board-shell").evaluate(node => { node.scrollLeft = 0; });
 
     await a.bringToFront();
     await a.evaluate(() => { window.__diceTrace = []; });
