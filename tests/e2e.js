@@ -16,6 +16,7 @@ process.env.BASE_PATH = "/hangzhou-partners";
 process.env.NODE_ENV = "test";
 process.env.TEST_DICE_SEQUENCE = "4,1,6";
 process.env.TEST_DICE = "1";
+process.env.TEST_FIRST_SEAT = "0";
 
 const { server, store, close } = require("../server/server");
 const screenshotDir = path.join(__dirname, "..", "screenshots");

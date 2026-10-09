@@ -14,6 +14,7 @@ process.env.APP_SECRET = "integration-test-secret";
 process.env.SMS_MODE = "dev";
 process.env.DEV_SMS_CODE = "123456";
 process.env.RECONNECT_GRACE_MS = "100";
+process.env.TEST_FIRST_SEAT = "0";
 process.env.BASE_PATH = "/hangzhou-partners";
 
 const { server, store, close } = require("../server/server");
@@ -114,6 +115,12 @@ test("phone login, 2-4 seats, bots, websocket sync and reconnect", async () => {
   assert.equal(started.status, 200);
   assert.equal(started.body.room.status, "playing");
   assert.equal(started.body.room.game.players.length, 4);
+  const deterministicRoom = store.getRoom(roomId);
+  deterministicRoom.game.currentSeat = 0;
+  deterministicRoom.game.phase = "roll";
+  deterministicRoom.game.pending = null;
+  deterministicRoom.game.movement = null;
+  store.saveRoom(deterministicRoom, deterministicRoom.inviteTokenHash);
 
   const aSocket = await openSocket(roomId, a.cookie);
   const bSocket = await openSocket(roomId, b.cookie);

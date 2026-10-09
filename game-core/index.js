@@ -216,6 +216,13 @@ function hasCompleteGroup(state, playerId, group) {
 function sectorProjectCount(state, playerId, group) {
   return state.board.filter(tile => tile.type === "property" && tile.group === group && (tile.ownerId === playerId || tile.partnerId === playerId)).length;
 }
+function sectorTier(state, playerId, group) { return Math.min(4, sectorProjectCount(state, playerId, group)); }
+function announceSectorTier(state, player, group, before, events) {
+  const after = sectorTier(state, player.id, group);
+  if (after <= before) return;
+  const labels = ["", "进入板块", "解锁协同分红", "解锁旗舰建设", "成为板块主导"];
+  log(state, events, "SECTOR_TIER_UNLOCKED", `${player.nickname} 在${group}${labels[after]}（${after}/5）`, { playerId: player.id, group, tier: after, count: after });
+}
 
 function getUpgradeCost(state, tile) {
   const upgrade = balanceOf(state).upgrade;
@@ -429,12 +436,14 @@ function applyCommand(inputState, actorId, command, payload = {}, context = {}) 
   } else if (command === "BUY_PROPERTY") {
     if (state.phase !== "decision" || state.pending?.type !== "property" || state.pending.actorId !== actorId) throw new Error("INVALID_PHASE");
     const tile = state.board[state.pending.tileIndex];
+    const sectorBefore = sectorTier(state, player.id, tile.group);
     if (player.cash < tile.price || tile.ownerId) throw new Error("CANNOT_INVEST");
     player.cash -= tile.price;
     player.properties.push(tile.index);
     tile.ownerId = player.id;
     tile.level = 1;
     log(state, events, "PROPERTY_BOUGHT", `${player.nickname} 投资 ${tile.name} 成功`, { playerId: player.id, tileIndex: tile.index, price: tile.price });
+    announceSectorTier(state, player, tile.group, sectorBefore, events);
     state.pending = null;
     state.phase = "turn_end";
     advanceTurn(state, events);
@@ -452,6 +461,7 @@ function applyCommand(inputState, actorId, command, payload = {}, context = {}) 
     const buyer = state.players.find(item => item.id === state.pending.actorId);
     const tile = state.board[state.pending.tileIndex];
     if (command === "ACCEPT_PARTNER") {
+      const buyerTierBefore = sectorTier(state, buyer.id, tile.group), partnerTierBefore = sectorTier(state, player.id, tile.group);
       const share = Math.ceil(tile.price / 2);
       if (buyer.cash < share || player.cash < share) throw new Error("CANNOT_PARTNER");
       buyer.cash -= share;
@@ -462,6 +472,8 @@ function applyCommand(inputState, actorId, command, payload = {}, context = {}) 
       tile.partnerId = player.id;
       tile.level = 1;
       log(state, events, "PARTNERSHIP_ACCEPTED", `${buyer.nickname} 与 ${player.nickname} 合伙建设 ${tile.name}`, { buyerId: buyer.id, partnerId: player.id, tileIndex: tile.index, share });
+      announceSectorTier(state, buyer, tile.group, buyerTierBefore, events);
+      announceSectorTier(state, player, tile.group, partnerTierBefore, events);
       state.pending = null;
       state.phase = "turn_end";
       advanceTurn(state, events);
@@ -594,4 +606,4 @@ function getTimeoutCommand(state) {
 
 function stateHash(state) { return crypto.createHash("sha256").update(JSON.stringify(state)).digest("hex"); }
 
-module.exports = { CURRENT_RULESET_VERSION, DEFAULT_BALANCE, BOARD, DAILY_EVENTS, ITEM_CARDS, createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, getRent, getUpgradeCost, hasCompleteGroup, sectorProjectCount, cityScore, rankings, stateHash };
+module.exports = { CURRENT_RULESET_VERSION, DEFAULT_BALANCE, BOARD, DAILY_EVENTS, ITEM_CARDS, createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, getRent, getUpgradeCost, hasCompleteGroup, sectorProjectCount, sectorTier, cityScore, rankings, stateHash };

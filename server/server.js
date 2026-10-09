@@ -17,6 +17,7 @@ const SMS_MODE = process.env.SMS_MODE || "dev";
 const DEMO_ACCESS_KEY = process.env.DEMO_ACCESS_KEY || "";
 const TEST_DICE = process.env.NODE_ENV === "test" && Number(process.env.TEST_DICE) >= 1 && Number(process.env.TEST_DICE) <= 6 ? Number(process.env.TEST_DICE) : null;
 const TEST_DICE_SEQUENCE = process.env.NODE_ENV === "test" ? String(process.env.TEST_DICE_SEQUENCE || "").split(",").map(Number).filter(value => value >= 1 && value <= 6) : [];
+const TEST_FIRST_SEAT = process.env.NODE_ENV === "test" && Number.isInteger(Number(process.env.TEST_FIRST_SEAT)) ? Number(process.env.TEST_FIRST_SEAT) : null;
 let testDiceIndex = 0;
 const BASE_PATH = (() => {
   const value = String(process.env.BASE_PATH || "").trim();
@@ -323,7 +324,7 @@ async function api(req, res, url) {
       if (room.players.some(player => player.kind === "human" && !player.ready)) return json(res, 409, { error: "PLAYERS_NOT_READY" });
       room.status = "playing";
       const profile = profiles.cautious;
-      room.game = createGame(room.players, { rulesetVersion: CURRENT_RULESET_VERSION, board: profile.board, balance: profile.balance, firstSeat: process.env.NODE_ENV === "test" ? 0 : crypto.randomInt(room.players.length) });
+      room.game = createGame(room.players, { rulesetVersion: CURRENT_RULESET_VERSION, board: profile.board, balance: profile.balance, firstSeat: TEST_FIRST_SEAT ?? crypto.randomInt(room.players.length) });
       room.seq = 0;
       room.processedActionIds = [];
       persist(room); publishRoom(room);
