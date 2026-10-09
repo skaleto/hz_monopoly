@@ -7,7 +7,7 @@ const crypto = require("node:crypto");
 const { WebSocketServer, WebSocket } = require("ws");
 const { Store } = require("./store");
 const { CURRENT_RULESET_VERSION, createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, stateHash, cityScore, sectorProjectCount } = require("../game-core");
-const { profiles } = require("../sims/profiles");
+const { profiles } = require("../game-core/profiles");
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "0.0.0.0";

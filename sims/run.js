@@ -14,7 +14,7 @@ const {
   rankings,
   cityScore
 } = require("../game-core");
-const { profiles } = require("./profiles");
+const { profiles } = require("../game-core/profiles");
 
 function parseArgs(argv) {
   const result = { games: 200, profile: "current", all: false, assertHard: false, output: null, seed: 1 };

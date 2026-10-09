@@ -1,6 +1,6 @@
 "use strict";
 
-const { BOARD } = require("../game-core");
+const { BOARD } = require("./index");
 
 const sectorByProject = new Map(Object.entries({
   龙井茶园: "文旅消费", 断桥文旅: "文旅消费", 良渚文创园: "文旅消费", 运河夜游: "文旅消费", 桥西文创园: "文旅消费",

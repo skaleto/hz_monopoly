@@ -2,7 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { profiles, fiveSectorsOfFive } = require("../sims/profiles");
+const { profiles, fiveSectorsOfFive } = require("../game-core/profiles");
 const { simulateProfile, assertHardGates } = require("../sims/run");
 
 test("M2 candidate board contains five sectors of five projects", () => {

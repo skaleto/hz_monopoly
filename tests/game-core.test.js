@@ -3,7 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { CURRENT_RULESET_VERSION, BOARD, createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, getRent, getUpgradeCost, cityScore, stateHash } = require("../game-core");
-const { fiveSectorsOfFive } = require("../sims/profiles");
+const { fiveSectorsOfFive } = require("../game-core/profiles");
 
 const players = [
   { id: "u1", nickname: "桃桃", kind: "human" },
