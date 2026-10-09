@@ -34,6 +34,7 @@ try {
   run("npm", ["ci", "--ignore-scripts"], fresh);
   run("npm", ["run", "build:assets"], fresh);
   run("npm", ["run", "build:celebrations"], fresh);
+  run("npm", ["run", "build:project-icons"], fresh);
   run("npm", ["run", "build:dice"], fresh);
 
   const files = generatedFiles(root);

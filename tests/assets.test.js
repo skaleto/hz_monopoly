@@ -55,3 +55,17 @@ test("short multi-dice shake audio keeps the vetted CC0 derivative and server MI
   assert.equal(crypto.createHash("sha256").update(audio).digest("hex"), "589aa5853285445648b47d49e443b02e09a62e9f6099f3b9acbae4bb766f6848");
   assert.match(server, /"\.ogg": "audio\/ogg"/);
 });
+
+test("four expanded-board projects have reproducible source PNG and compact WebP icons", () => {
+  const names = ["project_expo", "project_sports", "project_community", "project_art"];
+  for (const name of names) {
+    const source = path.join(assets, `${name}.png`);
+    const runtime = path.join(assets, `${name}.v1.webp`);
+    assert.ok(fs.existsSync(source), `${name} source PNG missing`);
+    assert.ok(fs.existsSync(runtime), `${name} runtime WebP missing`);
+    assert.ok(fs.statSync(source).size < 40_000, `${name} source PNG too large`);
+    assert.ok(fs.statSync(runtime).size < 12_000, `${name} runtime WebP too large`);
+  }
+  const generator = fs.readFileSync(path.join(__dirname, "..", "scripts", "generate-project-icons.js"), "utf8");
+  for (const name of names) assert.match(generator, new RegExp(name));
+});

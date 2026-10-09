@@ -2,33 +2,37 @@
 
 const { BOARD } = require("../game-core");
 
-const convertedProjects = {
-  武林门码头: { price: 180, rent: 46 },
-  水上巴士: { price: 190, rent: 50 },
-  市民中心站: { price: 260, rent: 72 },
-  地铁快线: { price: 250, rent: 68 }
-};
-
 const sectorByProject = new Map(Object.entries({
   龙井茶园: "文旅消费", 断桥文旅: "文旅消费", 良渚文创园: "文旅消费", 运河夜游: "文旅消费", 桥西文创园: "文旅消费",
   未来创业营: "数字科技", 云栖工坊: "数字科技", 滨江数创园: "数字科技", 文三数字街: "数字科技", 未来路演厅: "数字科技",
   河坊街铺: "城市生活", 南宋食坊: "城市生活", 武林夜市: "城市生活", 小河市集: "城市生活", 桥西生活馆: "城市生活",
-  城市阳台: "钱塘发展", 钱江创意港: "钱塘发展", 大莲花场馆: "钱塘发展", 市民中心站: "钱塘发展", 地铁快线: "钱塘发展",
-  良渚陶艺村: "生态文体", 西溪营地: "生态文体", 运河文创: "生态文体", 武林门码头: "生态文体", 水上巴士: "生态文体"
+  城市阳台: "钱塘发展", 钱江创意港: "钱塘发展", 大莲花场馆: "钱塘发展", 钱塘会展中心: "钱塘发展", 滨江国际社区: "钱塘发展",
+  良渚陶艺村: "生态文体", 西溪营地: "生态文体", 运河文创: "生态文体", 运河运动公园: "生态文体", 大运河艺术馆: "生态文体"
 }));
 
 function fiveSectorsOfFive() {
-  const board = BOARD.map(tile => {
-    const converted = convertedProjects[tile.name];
-    const candidate = converted ? { ...tile, type: "property", visual: "transit", ...converted } : { ...tile };
+  const board = BOARD.map(tile => ({ ...tile, next: tile.next.map(value => typeof value === "object" ? { ...value } : value) }));
+  const newProjects = [
+    { type: "property", visual: "landmark", name: "钱塘会展中心", next: [30], price: 280, rent: 78, group: "钱塘发展", inner: "water", x: 37, y: 32 },
+    { type: "property", visual: "landmark", name: "运河运动公园", next: [34], price: 230, rent: 62, group: "生态文体", inner: "water", x: 41, y: 64 },
+    { type: "property", visual: "landmark", name: "滨江国际社区", next: [39], price: 270, rent: 74, group: "钱塘发展", inner: "metro", x: 70, y: 49 },
+    { type: "property", visual: "landmark", name: "大运河艺术馆", next: [43], price: 220, rent: 58, group: "生态文体", inner: "metro", x: 62, y: 25 }
+  ];
+  board[29].next = [45];
+  board[33].next = [46];
+  board[38].next = [47];
+  board[42].next = [48];
+  board.push(...newProjects);
+  const candidateBoard = board.map(tile => {
+    const candidate = { ...tile };
     const group = sectorByProject.get(candidate.name);
     return group ? { ...candidate, group } : candidate;
   });
-  const projects = board.filter(tile => tile.type === "property");
+  const projects = candidateBoard.filter(tile => tile.type === "property");
   const counts = new Map();
   for (const tile of projects) counts.set(tile.group, (counts.get(tile.group) || 0) + 1);
-  if (projects.length !== 25 || counts.size !== 5 || [...counts.values()].some(count => count !== 5)) throw new Error("INVALID_FIVE_SECTOR_BOARD");
-  return board;
+  if (candidateBoard.length !== 49 || projects.length !== 25 || counts.size !== 5 || [...counts.values()].some(count => count !== 5)) throw new Error("INVALID_FIVE_SECTOR_BOARD");
+  return candidateBoard;
 }
 
 const sharedCandidate = {
