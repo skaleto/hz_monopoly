@@ -10,6 +10,7 @@ const {
   getUpgradeCost,
   getRent,
   hasCompleteGroup,
+  sectorProjectCount,
   rankings,
   cityScore
 } = require("../game-core");
@@ -48,14 +49,20 @@ function percentile(values, ratio) {
 
 function legalUpgrade(state, player, tile, reserveCash) {
   if (tile.type !== "property" || ![tile.ownerId, tile.partnerId].includes(player.id) || tile.level >= 3) return false;
-  if (tile.level === 2 && state.balance.upgrade.level3RequiresCompleteGroup && !hasCompleteGroup(state, player.id, tile.group)) return false;
+  if (tile.level === 2 && state.balance.upgrade.level3RequiresCompleteGroup) {
+    const unlocked = state.balance.sectorBonuses.enabled
+      ? sectorProjectCount(state, player.id, tile.group) >= state.balance.sectorBonuses.flagshipMinProjects
+      : hasCompleteGroup(state, player.id, tile.group);
+    if (!unlocked) return false;
+  }
   return player.cash - getUpgradeCost(state, tile) >= reserveCash;
 }
 
-function chooseAction(state, actor, random, policy, turnUpgrades) {
+function chooseAction(state, actor, random, policy, turnUpgrades, playerUpgradeCounts) {
   if (state.phase === "roll" && state.players[state.currentSeat]?.id === actor.id) {
     const turnKey = `${state.round}:${state.currentSeat}`;
-    if (policy.upgradeEnabled && !turnUpgrades.has(turnKey)) {
+    const upgradesUsed = playerUpgradeCounts.get(actor.id) || 0;
+    if (policy.upgradeEnabled && state.round >= policy.upgradeAfterRound && upgradesUsed < policy.maxUpgradesPerPlayer && !turnUpgrades.has(turnKey)) {
       const candidates = state.board
         .filter(tile => legalUpgrade(state, actor, tile, policy.reserveCash))
         .map(tile => {
@@ -66,6 +73,7 @@ function chooseAction(state, actor, random, policy, turnUpgrades) {
         .sort((left, right) => right.value - left.value || left.tile.index - right.tile.index);
       if (candidates.length) {
         turnUpgrades.add(turnKey);
+        playerUpgradeCounts.set(actor.id, upgradesUsed + 1);
         return { command: "UPGRADE_PROPERTY", payload: { tileIndex: candidates[0].tile.index } };
       }
     }
@@ -125,6 +133,11 @@ function simulateProfile(name, profile, options) {
     restructures: 0,
     gamesWithRestructure: 0,
     gamesWithCompleteGroup: 0,
+    gamesWithSectorTier3: 0,
+    gamesWithSectorTier4: 0,
+    sectorTier2Unlocks: 0,
+    sectorTier3Unlocks: 0,
+    sectorTier4Unlocks: 0,
     leadChangesInFinalRounds: 0,
     winsByTurn: [0, 0, 0, 0],
     rentAmounts: [],
@@ -140,6 +153,7 @@ function simulateProfile(name, profile, options) {
       balance: profile.balance
     });
     const turnUpgrades = new Set();
+    const playerUpgradeCounts = new Map();
     let guard = 0;
     let gameRestructured = false;
     let lastFinalLeader = null;
@@ -150,7 +164,7 @@ function simulateProfile(name, profile, options) {
         let actor = state.phase === "partner_response"
           ? state.players.find(player => player.id === state.pending?.targetPlayerId)
           : state.players.find(player => player.id === state.pending?.actorId) || state.players[state.currentSeat];
-        let action = chooseAction(state, actor, random, profile.botPolicy, turnUpgrades);
+        let action = chooseAction(state, actor, random, profile.botPolicy, turnUpgrades, playerUpgradeCounts);
         if (!action) {
           const timeout = getTimeoutCommand(state);
           if (!timeout) throw new Error(`NO_ACTION:${state.phase}`);
@@ -193,6 +207,19 @@ function simulateProfile(name, profile, options) {
       .map(tile => tile.group)
       .filter(group => hasCompleteGroup(state, player.id, group))).size > 0);
     if (completed) metrics.gamesWithCompleteGroup += 1;
+    let gameTier3 = false;
+    let gameTier4 = false;
+    const sectors = [...new Set(state.board.filter(tile => tile.type === "property").map(tile => tile.group))];
+    for (const player of state.players) {
+      for (const sector of sectors) {
+        const count = sectorProjectCount(state, player.id, sector);
+        if (count >= 2) metrics.sectorTier2Unlocks += 1;
+        if (count >= 3) { metrics.sectorTier3Unlocks += 1; gameTier3 = true; }
+        if (count >= 4) { metrics.sectorTier4Unlocks += 1; gameTier4 = true; }
+      }
+    }
+    if (gameTier3) metrics.gamesWithSectorTier3 += 1;
+    if (gameTier4) metrics.gamesWithSectorTier4 += 1;
     const finalRanking = rankings(state);
     if (finalRanking[0]) metrics.winsByTurn[finalRanking[0].seat] += 1;
     if (finalRanking[1]) metrics.finalScoreGaps.push(cityScore(state, finalRanking[0]) - cityScore(state, finalRanking[1]));
@@ -225,6 +252,11 @@ function simulateProfile(name, profile, options) {
       restructureEventsPerGame: perGame(metrics.restructures),
       gamesWithRestructurePct: Number((metrics.gamesWithRestructure * 100 / options.games).toFixed(1)),
       gamesWithCompleteGroupPct: Number((metrics.gamesWithCompleteGroup * 100 / options.games).toFixed(1)),
+      sectorTier2UnlocksPerGame: perGame(metrics.sectorTier2Unlocks),
+      sectorTier3UnlocksPerGame: perGame(metrics.sectorTier3Unlocks),
+      sectorTier4UnlocksPerGame: perGame(metrics.sectorTier4Unlocks),
+      gamesWithSectorTier3Pct: Number((metrics.gamesWithSectorTier3 * 100 / options.games).toFixed(1)),
+      gamesWithSectorTier4Pct: Number((metrics.gamesWithSectorTier4 * 100 / options.games).toFixed(1)),
       finalRoundLeadChangesPerGame: perGame(metrics.leadChangesInFinalRounds),
       finalScoreGapP50: percentile(metrics.finalScoreGaps, 0.5),
       finalScoreGapP90: percentile(metrics.finalScoreGaps, 0.9)
@@ -250,11 +282,11 @@ function markdown(reports) {
     `- games/profile: ${reports[0]?.games || 0}`,
     `- seedStart: ${reports[0]?.seedStart || 0}`,
     "",
-    "| profile | finish | win% by turn | acquired | partner | upgrade | group games | rent p90 | rent/cash p90 | restructure games | final lead changes |",
+    "| profile | finish | win% by turn | acquired | partner | upgrade | tier2/3/4 per game | tier3 games | rent/cash p90 | restructure games | final lead changes |",
     "| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
   ];
   for (const report of reports) {
-    lines.push(`| ${report.label} | ${(report.hard.finishRate * 100).toFixed(0)}% | ${report.hard.winPctByTurn.join("/")} | ${report.gameplay.projectsAcquiredPerGame} | ${report.gameplay.partnershipsPerGame} | ${report.gameplay.upgradesPerGame} | ${report.gameplay.gamesWithCompleteGroupPct}% | ${report.gameplay.rentP90} | ${(report.gameplay.rentShareOfCashP90 * 100).toFixed(1)}% | ${report.gameplay.gamesWithRestructurePct}% | ${report.gameplay.finalRoundLeadChangesPerGame} |`);
+    lines.push(`| ${report.label} | ${(report.hard.finishRate * 100).toFixed(0)}% | ${report.hard.winPctByTurn.join("/")} | ${report.gameplay.projectsAcquiredPerGame} | ${report.gameplay.partnershipsPerGame} | ${report.gameplay.upgradesPerGame} | ${report.gameplay.sectorTier2UnlocksPerGame}/${report.gameplay.sectorTier3UnlocksPerGame}/${report.gameplay.sectorTier4UnlocksPerGame} | ${report.gameplay.gamesWithSectorTier3Pct}% | ${(report.gameplay.rentShareOfCashP90 * 100).toFixed(1)}% | ${report.gameplay.gamesWithRestructurePct}% | ${report.gameplay.finalRoundLeadChangesPerGame} |`);
   }
   lines.push("", "> 模拟只能检查状态安全和数值分布，不能替代真人试玩。", "");
   return lines.join("\n");

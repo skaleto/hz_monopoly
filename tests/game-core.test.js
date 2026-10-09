@@ -3,6 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { CURRENT_RULESET_VERSION, BOARD, createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, getRent, getUpgradeCost, cityScore, stateHash } = require("../game-core");
+const { fiveSectorsOfFive } = require("../sims/profiles");
 
 const players = [
   { id: "u1", nickname: "桃桃", kind: "human" },
@@ -57,6 +58,28 @@ test("candidate balance can require a complete group before level three", () => 
   game.players[0].cash = 1000;
   const upgraded = applyCommand(game, "u1", "UPGRADE_PROPERTY", { tileIndex: groupTiles[0].index });
   assert.equal(upgraded.state.board[groupTiles[0].index].level, 3);
+});
+
+test("sector bonuses unlock by project count without requiring the whole sector", () => {
+  let game = createGame(players.slice(0, 2), {
+    board: fiveSectorsOfFive(),
+    balance: {
+      completeGroupRentMultiplier: 1,
+      sectorBonuses: { enabled: true, rentMinProjects: 2, rentMultiplier: 1.15, flagshipMinProjects: 3, scoreMinProjects: 4, scoreBonus: 3 },
+      upgrade: { costMode: "ratio", ratioByCurrentLevel: { 1: 0.5, 2: 0.8 }, level3RequiresCompleteGroup: true }
+    }
+  });
+  const sector = game.board.filter(tile => tile.type === "property" && tile.group === "文旅消费");
+  assert.equal(sector.length, 5);
+  sector[0].ownerId = "u1";
+  sector[1].partnerId = "u1";
+  assert.equal(getRent(game, sector[0]), Math.round(sector[0].rent * 1.15));
+  sector[0].level = 2;
+  assert.throws(() => applyCommand(game, "u1", "UPGRADE_PROPERTY", { tileIndex: sector[0].index }), /COMPLETE_GROUP_REQUIRED/);
+  sector[2].ownerId = "u1";
+  game.players[0].cash = 1000;
+  const upgraded = applyCommand(game, "u1", "UPGRADE_PROPERTY", { tileIndex: sector[0].index });
+  assert.equal(upgraded.state.board[sector[0].index].level, 3);
 });
 
 test("server decides dice and rejects non-current player", () => {

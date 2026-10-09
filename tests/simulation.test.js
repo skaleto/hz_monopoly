@@ -2,16 +2,16 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { profiles, sevenGroupsOfThree } = require("../sims/profiles");
+const { profiles, fiveSectorsOfFive } = require("../sims/profiles");
 const { simulateProfile, assertHardGates } = require("../sims/run");
 
-test("M2 candidate board contains seven explicit groups of three projects", () => {
+test("M2 candidate board contains five sectors of five projects", () => {
   const counts = new Map();
-  for (const tile of sevenGroupsOfThree().filter(tile => tile.type === "property")) {
+  for (const tile of fiveSectorsOfFive().filter(tile => tile.type === "property")) {
     counts.set(tile.group, (counts.get(tile.group) || 0) + 1);
   }
-  assert.equal(counts.size, 7);
-  assert.deepEqual([...counts.values()], [3, 3, 3, 3, 3, 3, 3]);
+  assert.equal(counts.size, 5);
+  assert.deepEqual([...counts.values()], [5, 5, 5, 5, 5]);
 });
 
 test("fixed seeds reproduce the same simulation report", () => {

@@ -72,6 +72,14 @@ const DEFAULT_BALANCE = Object.freeze({
   rentMultiplierByLevel: [0, 1, 1.75, 2.5],
   completeGroupRentMultiplier: 1.5,
   completeGroupScore: 5,
+  sectorBonuses: {
+    enabled: false,
+    rentMinProjects: 2,
+    rentMultiplier: 1.15,
+    flagshipMinProjects: 3,
+    scoreMinProjects: 4,
+    scoreBonus: 3
+  },
   ownedProjectScore: 2,
   partneredProjectScore: 1,
   partnershipScore: 1,
@@ -107,6 +115,7 @@ function normalizeBalance(input = {}) {
     ...clone(DEFAULT_BALANCE),
     ...clone(input),
     upgrade: { ...clone(DEFAULT_BALANCE.upgrade), ...clone(input.upgrade || {}) },
+    sectorBonuses: { ...clone(DEFAULT_BALANCE.sectorBonuses), ...clone(input.sectorBonuses || {}) },
     opportunity: { ...clone(DEFAULT_BALANCE.opportunity), ...clone(input.opportunity || {}) }
   };
 }
@@ -186,14 +195,24 @@ function log(state, events, type, text, payload = {}) {
 function getRent(state, tile) {
   const balance = balanceOf(state);
   let rent = tile.rent * (balance.rentMultiplierByLevel[tile.level] || 1);
-  if (tile.ownerId && hasCompleteGroup(state, tile.ownerId, tile.group)) rent *= balance.completeGroupRentMultiplier;
-  if (tile.partnerId && hasCompleteGroup(state, tile.partnerId, tile.group)) rent *= balance.completeGroupRentMultiplier;
+  if (balance.sectorBonuses.enabled) {
+    const ownerProjects = tile.ownerId ? sectorProjectCount(state, tile.ownerId, tile.group) : 0;
+    const partnerProjects = tile.partnerId ? sectorProjectCount(state, tile.partnerId, tile.group) : 0;
+    if (Math.max(ownerProjects, partnerProjects) >= balance.sectorBonuses.rentMinProjects) rent *= balance.sectorBonuses.rentMultiplier;
+  } else {
+    if (tile.ownerId && hasCompleteGroup(state, tile.ownerId, tile.group)) rent *= balance.completeGroupRentMultiplier;
+    if (tile.partnerId && hasCompleteGroup(state, tile.partnerId, tile.group)) rent *= balance.completeGroupRentMultiplier;
+  }
   return Math.round(rent);
 }
 
 function hasCompleteGroup(state, playerId, group) {
   const groupTiles = state.board.filter(tile => tile.type === "property" && tile.group === group);
   return groupTiles.length > 1 && groupTiles.every(tile => tile.ownerId === playerId || tile.partnerId === playerId);
+}
+
+function sectorProjectCount(state, playerId, group) {
+  return state.board.filter(tile => tile.type === "property" && tile.group === group && (tile.ownerId === playerId || tile.partnerId === playerId)).length;
 }
 
 function getUpgradeCost(state, tile) {
@@ -206,9 +225,12 @@ function cityScore(state, player) {
   const balance = balanceOf(state);
   const owned = state.board.filter(tile => tile.type === "property" && (tile.ownerId === player.id || tile.partnerId === player.id));
   const project = owned.reduce((sum, tile) => sum + (tile.partnerId ? balance.partneredProjectScore : balance.ownedProjectScore) + Math.max(0, tile.level - 1), 0);
-  const groups = new Set(owned.map(tile => tile.group).filter(group => hasCompleteGroup(state, player.id, group))).size;
+  const groups = new Set(owned.map(tile => tile.group).filter(group => balance.sectorBonuses.enabled
+    ? sectorProjectCount(state, player.id, group) >= balance.sectorBonuses.scoreMinProjects
+    : hasCompleteGroup(state, player.id, group))).size;
   const partnerships = owned.filter(tile => tile.partnerId).length;
-  return player.influence + project + groups * balance.completeGroupScore + partnerships * balance.partnershipScore + Math.min(balance.cashScoreCap, Math.floor(player.cash / balance.cashScoreDivisor));
+  const groupScore = balance.sectorBonuses.enabled ? balance.sectorBonuses.scoreBonus : balance.completeGroupScore;
+  return player.influence + project + groups * groupScore + partnerships * balance.partnershipScore + Math.min(balance.cashScoreCap, Math.floor(player.cash / balance.cashScoreDivisor));
 }
 
 function rankings(state) {
@@ -456,7 +478,13 @@ function applyCommand(inputState, actorId, command, payload = {}, context = {}) 
     if (state.phase !== "roll" || currentPlayer(state).id !== actorId) throw new Error("INVALID_PHASE");
     const tile = state.board[payload.tileIndex];
     if (!tile || tile.type !== "property" || ![tile.ownerId, tile.partnerId].includes(actorId) || tile.level >= 3) throw new Error("CANNOT_UPGRADE");
-    if (tile.level === 2 && balanceOf(state).upgrade.level3RequiresCompleteGroup && !hasCompleteGroup(state, actorId, tile.group)) throw new Error("COMPLETE_GROUP_REQUIRED");
+    if (tile.level === 2 && balanceOf(state).upgrade.level3RequiresCompleteGroup) {
+      const balance = balanceOf(state);
+      const unlocked = balance.sectorBonuses.enabled
+        ? sectorProjectCount(state, actorId, tile.group) >= balance.sectorBonuses.flagshipMinProjects
+        : hasCompleteGroup(state, actorId, tile.group);
+      if (!unlocked) throw new Error("COMPLETE_GROUP_REQUIRED");
+    }
     const cost = getUpgradeCost(state, tile);
     if (player.cash < cost) throw new Error("INSUFFICIENT_FUNDS");
     player.cash -= cost;
@@ -547,4 +575,4 @@ function getTimeoutCommand(state) {
 
 function stateHash(state) { return crypto.createHash("sha256").update(JSON.stringify(state)).digest("hex"); }
 
-module.exports = { CURRENT_RULESET_VERSION, DEFAULT_BALANCE, BOARD, DAILY_EVENTS, ITEM_CARDS, createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, getRent, getUpgradeCost, hasCompleteGroup, cityScore, rankings, stateHash };
+module.exports = { CURRENT_RULESET_VERSION, DEFAULT_BALANCE, BOARD, DAILY_EVENTS, ITEM_CARDS, createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, getRent, getUpgradeCost, hasCompleteGroup, sectorProjectCount, cityScore, rankings, stateHash };
