@@ -201,3 +201,16 @@ button,.player-copy strong,.player-metrics b,.tile-name,.tile-price,.turn-summar
   .board-tile.route-water-exit,.board-tile.route-metro-exit{width:42px;height:42px;padding:2px;border-radius:7px}
   .owner-dot{right:-5px;top:-6px;font-weight:800}
 }
+
+/* M2 mobile fit correction: the whole map and all five sectors stay in one viewport. */
+@media(max-width:700px){
+  .sector-progress{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;overflow:visible;min-height:32px}
+  .sector-chip{min-width:0;padding:3px 2px;box-shadow:0 1px 0 var(--ink)}
+  .sector-chip strong{font-size:6.5px}.sector-chip span{font-size:5.5px}
+  .game-active .board-shell{overflow:hidden}
+  .game-active .game-board{width:100%;min-width:0;height:100%;min-height:0}
+  .board-tile,.board-tile.outer-side{width:36px;height:36px;padding:1px 1px 3px}
+  .board-tile.inner,.board-tile.route-water-exit,.board-tile.route-metro-exit{width:32px;height:32px;padding:1px 1px 3px}
+  .board-tile.has-price .tile-icon,.tile-icon{width:15px;height:15px}
+  .tile-name,.tile-price{font-size:5.2px}
+}
