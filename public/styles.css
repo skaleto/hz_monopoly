@@ -224,3 +224,10 @@ button,.player-copy strong,.player-metrics b,.tile-name,.tile-price,.turn-summar
 .game-active .game-feedback-rail > .game-toast.coin::before { content:"¥"; background:#ffe58a; }
 .game-active .game-feedback-rail > .game-toast.card::before { content:"◆"; background:#ffdce9; }
 @media(max-width:700px){.game-feedback-rail{top:8px;width:calc(100% - 16px)}.game-active .game-feedback-rail>.game-toast{min-height:44px;padding:8px 10px 8px 38px;font-size:10px}}
+
+/* Full-screen item-card reveal. */
+.card-effect-overlay{position:fixed;inset:0;z-index:260;display:grid;place-items:center;background:radial-gradient(circle,rgba(255,249,214,.72),rgba(13,37,66,.82));backdrop-filter:blur(7px);pointer-events:none}
+.card-effect-overlay[hidden]{display:none}.card-effect-stage{perspective:900px}.card-effect-card{width:min(300px,76vw);min-height:410px;padding:26px 22px;border:3px solid #fff;border-radius:28px;background:linear-gradient(145deg,#fffdf1,#dff6f7 58%,#e8e0ff);box-shadow:0 0 0 5px #17304f,0 0 42px #ffd95a,0 25px 70px rgba(4,21,42,.5);display:grid;place-items:center;align-content:center;text-align:center;transform-style:preserve-3d}
+.card-effect-card.playing{animation:cardReveal 1.45s cubic-bezier(.18,.78,.16,1) both}.card-effect-kicker{padding:6px 14px;border:2px solid var(--ink);border-radius:999px;background:var(--yellow);font-size:12px;font-weight:900}.card-effect-glyph{margin:28px 0 12px;width:112px;height:112px;display:grid;place-items:center;border:3px solid var(--ink);border-radius:50%;background:radial-gradient(circle,#fff 0 26%,#ffd95a 28% 48%,#ff8fb4 50% 68%,#8c72e8 70%);box-shadow:0 0 32px #ffd95a;font-size:48px}.card-effect-card h2{margin:10px 0 6px;font-size:30px}.card-effect-card p{margin:0;max-width:230px;font-weight:700;line-height:1.55}
+.item-choice{min-height:44px;border:2px solid var(--ink);border-radius:12px;background:#fff0ad;font-weight:800}
+@keyframes cardReveal{0%{transform:rotateY(1080deg) scale(.15);opacity:0;filter:brightness(2)}55%{transform:rotateY(180deg) scale(1.1);opacity:1}75%{transform:rotateY(360deg) scale(.98)}100%{transform:rotateY(360deg) scale(1);opacity:1}}

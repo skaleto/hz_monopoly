@@ -199,6 +199,27 @@ test("city pass halves the next rent and is consumed", () => {
   assert.equal(result.events.find(event => event.type === "RENT_PAID").payload.shieldUsed, true);
 });
 
+test("new item cards support fixed dice, construction discount and shielded demolition", () => {
+  let game = createGame(players.slice(0, 2));
+  game.players[0].items.push("exact_dice");
+  game = applyCommand(game, "u1", "USE_ITEM", { itemId: "exact_dice", value: 6 }).state;
+  const rolled = applyCommand(game, "u1", "ROLL_DICE", {}, { nowMs: 1, forcedDice: 1 });
+  assert.equal(rolled.events.find(event => event.type === "DICE_ROLLED").payload.baseValue, 6);
+
+  game = createGame(players.slice(0, 2));
+  game.board[1].ownerId = "u1"; game.board[1].level = 1; game.players[0].properties.push(1); game.players[0].items.push("build_coupon");
+  game = applyCommand(game, "u1", "USE_ITEM", { itemId: "build_coupon" }).state;
+  const before = game.players[0].cash;
+  game = applyCommand(game, "u1", "UPGRADE_PROPERTY", { tileIndex: 1 }).state;
+  assert.equal(before - game.players[0].cash, 45);
+
+  game.board[2].ownerId = "u2"; game.board[2].level = 2; game.players[1].attackShield = true; game.players[0].items.push("demolition");
+  const blocked = applyCommand(game, "u1", "USE_ITEM", { itemId: "demolition", tileIndex: 2 });
+  assert.equal(blocked.state.board[2].level, 2);
+  assert.equal(blocked.state.players[1].attackShield, false);
+  assert.ok(blocked.events.some(event => event.type === "ITEM_ATTACK_BLOCKED"));
+});
+
 test("state hash and score are deterministic", () => {
   const game = createGame(players.slice(0, 2));
   assert.equal(stateHash(game), stateHash(structuredClone(game)));

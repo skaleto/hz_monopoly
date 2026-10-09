@@ -486,7 +486,7 @@ wss.on("connection", (socket, req, context) => {
         publishRoom(room);
       } catch (error) {
         room = store.getRoom(roomId);
-        const expectedErrors=new Set(["ONLY_OWNER","INVALID_PHASE","INVALID_ROUTE","STALE_VERSION","NOT_YOUR_TURN","CANNOT_INVEST","INSUFFICIENT_FUNDS","ITEM_NOT_FOUND","GAME_FINISHED","RULESET_EXPIRED","COMPLETE_GROUP_REQUIRED"]);
+        const expectedErrors=new Set(["ONLY_OWNER","INVALID_PHASE","INVALID_ROUTE","STALE_VERSION","NOT_YOUR_TURN","CANNOT_INVEST","INSUFFICIENT_FUNDS","ITEM_NOT_FOUND","GAME_FINISHED","RULESET_EXPIRED","COMPLETE_GROUP_REQUIRED","INVALID_DICE_VALUE","INVALID_CARD_TARGET"]);
         if(expectedErrors.has(error.message))audit("command_rejected",{roomId,userRef:userRef(user.id),command:message.command,version:room?.game?.version,error:error.message});else console.error(JSON.stringify({level:"error",roomId,command:message.command,version:room?.game?.version,error:error.message,stack:error.stack}));
         socket.send(JSON.stringify({ type: "command.rejected", requestId: message.requestId, actionId: message.actionId, error: error.message, room: sanitizeRoom(room) }));
       }

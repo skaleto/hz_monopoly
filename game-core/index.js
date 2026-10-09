@@ -61,8 +61,12 @@ const DAILY_EVENTS = [
 
 const ITEM_CARDS = [
   { id: "coffee", name: "龙井咖啡", copy: "使用后下一次掷骰额外前进 2 格", effect: "dice_bonus" },
-  { id: "coupon", name: "城市消费券", copy: "使用后立即获得 120 金币", effect: "cash" },
-  { id: "pass", name: "城市通行券", copy: "使用后下一次支付到访分红时减半", effect: "rent_shield" }
+  { id: "exact_dice", name: "定向骰子", copy: "指定下一次掷骰点数", effect: "fixed_dice" },
+  { id: "coupon", name: "招商红包", copy: "使用后立即获得 180 金币", effect: "cash" },
+  { id: "build_coupon", name: "建设折扣券", copy: "下一次建设费用减半", effect: "upgrade_discount" },
+  { id: "pass", name: "城市通行券", copy: "下一次支付到访分红时减半", effect: "rent_shield" },
+  { id: "shield", name: "项目保护罩", copy: "抵消下一张针对你的使坏卡", effect: "attack_shield" },
+  { id: "demolition", name: "强拆令", copy: "指定对手项目降低 1 级，不改变产权", effect: "demolition" }
 ];
 
 const DEFAULT_BALANCE = Object.freeze({
@@ -137,6 +141,9 @@ function migrateGameState(inputState) {
     items: Array.isArray(player.items) ? player.items : [],
     diceBonus: Number(player.diceBonus ?? 0),
     rentShield: Boolean(player.rentShield),
+    fixedDice: Number(player.fixedDice ?? 0),
+    upgradeDiscount: Boolean(player.upgradeDiscount),
+    attackShield: Boolean(player.attackShield),
     reviewTurns: Number(player.reviewTurns ?? 0),
     lastUpgradeRound: Number(player.lastUpgradeRound ?? 0),
     trustee: Boolean(player.trustee)
@@ -164,6 +171,9 @@ function createGame(playerInputs, options = {}) {
     items: [],
     diceBonus: 0,
     rentShield: false,
+    fixedDice: 0,
+    upgradeDiscount: false,
+    attackShield: false,
     reviewTurns: 0,
     lastUpgradeRound: 0,
     trustee: false
@@ -401,7 +411,8 @@ function applyCommand(inputState, actorId, command, payload = {}, context = {}) 
       state.phase = "turn_end";
       advanceTurn(state, events);
     } else {
-      const baseValue = context.forcedDice || randomInt(random, 6) + 1;
+      const baseValue = player.fixedDice || context.forcedDice || randomInt(random, 6) + 1;
+      player.fixedDice = 0;
       const bonus = player.diceBonus || 0;
       const dice = baseValue + bonus;
       player.diceBonus = 0;
@@ -418,9 +429,28 @@ function applyCommand(inputState, actorId, command, payload = {}, context = {}) 
     if (itemIndex < 0 || !item) throw new Error("ITEM_NOT_FOUND");
     player.items.splice(itemIndex, 1);
     if (item.effect === "dice_bonus") player.diceBonus = Math.max(player.diceBonus, 2);
-    else if (item.effect === "cash") player.cash += 120;
+    else if (item.effect === "cash") player.cash += 180;
     else if (item.effect === "rent_shield") player.rentShield = true;
-    addEvent(events, "ITEM_CARD_USED", { playerId: actorId, item, cash: player.cash, diceBonus: player.diceBonus, rentShield: player.rentShield });
+    else if (item.effect === "fixed_dice") {
+      const value = Number(payload.value);
+      if (!Number.isInteger(value) || value < 1 || value > 6) throw new Error("INVALID_DICE_VALUE");
+      player.fixedDice = value;
+    } else if (item.effect === "upgrade_discount") player.upgradeDiscount = true;
+    else if (item.effect === "attack_shield") player.attackShield = true;
+    else if (item.effect === "demolition") {
+      const tile = state.board[Number(payload.tileIndex)];
+      if (!tile || tile.type !== "property" || tile.level <= 1 || [tile.ownerId, tile.partnerId].includes(actorId)) throw new Error("INVALID_CARD_TARGET");
+      const targets = state.players.filter(target => [tile.ownerId, tile.partnerId].includes(target.id));
+      const protectedPlayer = targets.find(target => target.attackShield);
+      if (protectedPlayer) {
+        protectedPlayer.attackShield = false;
+        log(state, events, "ITEM_ATTACK_BLOCKED", `${protectedPlayer.nickname} 的项目保护罩抵消了强拆令`, { playerId: actorId, targetPlayerId: protectedPlayer.id, tileIndex: tile.index, item });
+      } else {
+        tile.level -= 1;
+        log(state, events, "ITEM_CARD_ATTACKED", `${player.nickname} 对 ${tile.name} 使用强拆令，项目降为 ${tile.level} 级`, { playerId: actorId, tileIndex: tile.index, level: tile.level, item });
+      }
+    }
+    addEvent(events, "ITEM_CARD_USED", { playerId: actorId, item, cash: player.cash, diceBonus: player.diceBonus, fixedDice: player.fixedDice, rentShield: player.rentShield, upgradeDiscount: player.upgradeDiscount, attackShield: player.attackShield });
     log(state, events, "ITEM_CARD_USED_LOG", `${player.nickname} 使用 ${item.name}`, { playerId: actorId, itemId: item.id });
   } else if (command === "CHOOSE_ROUTE") {
     if (state.phase !== "decision" || state.pending?.type !== "route" || state.pending.actorId !== actorId) throw new Error("INVALID_PHASE");
@@ -499,9 +529,11 @@ function applyCommand(inputState, actorId, command, payload = {}, context = {}) 
         : hasCompleteGroup(state, actorId, tile.group);
       if (!unlocked) throw new Error("COMPLETE_GROUP_REQUIRED");
     }
-    const cost = getUpgradeCost(state, tile);
+    const baseCost = getUpgradeCost(state, tile);
+    const cost = player.upgradeDiscount ? Math.ceil(baseCost / 2) : baseCost;
     if (player.cash < cost) throw new Error("INSUFFICIENT_FUNDS");
     player.cash -= cost;
+    player.upgradeDiscount = false;
     tile.level += 1;
     player.lastUpgradeRound = state.round;
     log(state, events, "PROPERTY_UPGRADED", `${player.nickname} 将 ${tile.name} 建设到 ${tile.level} 级`, { playerId: actorId, tileIndex: tile.index, level: tile.level, cost });
@@ -553,7 +585,14 @@ function getBotCommand(state, playerId, random = Math.random) {
   const player = state.players.find(item => item.id === playerId);
   if (!player || (player.kind !== "bot" && !player.trustee)) return null;
   if (state.phase === "roll" && currentPlayer(state).id === playerId) {
-    if ((player.items || []).length) return { command: "USE_ITEM", payload: { itemId: player.items[0] } };
+    if ((player.items || []).length) {
+      const item = ITEM_CARDS.find(card => card.id === player.items[0]);
+      if (item?.effect === "fixed_dice") return { command: "USE_ITEM", payload: { itemId: item.id, value: 6 } };
+      if (item?.effect === "demolition") {
+        const target = state.board.filter(tile => tile.type === "property" && tile.level > 1 && ![tile.ownerId, tile.partnerId].includes(playerId)).sort((a,b)=>b.level-a.level)[0];
+        if (target) return { command: "USE_ITEM", payload: { itemId: item.id, tileIndex: target.index } };
+      } else return { command: "USE_ITEM", payload: { itemId: player.items[0] } };
+    }
     const policy = balanceOf(state).botPolicy;
     if (policy?.upgradeEnabled && state.round >= policy.upgradeAfterRound) {
       const upgrades = state.board.filter(tile => [tile.ownerId, tile.partnerId].includes(playerId)).reduce((sum, tile) => sum + Math.max(0, tile.level - 1), 0);

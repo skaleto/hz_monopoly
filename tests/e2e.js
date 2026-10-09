@@ -368,6 +368,9 @@ async function main() {
     assert.equal(await a.locator(".item-entry").count(), 1);
     await a.screenshot({ path: path.join(screenshotDir, "12-item-card-inventory-mobile.png"), fullPage: true });
     await a.locator("[data-use-item]").click();
+    await a.locator("#cardEffectOverlay").waitFor({ state: "visible" });
+    await a.waitForTimeout(1150);
+    await a.screenshot({ path: path.join(screenshotDir, "12b-item-card-effect-mobile.png"), fullPage: true });
     await a.waitForFunction(() => document.querySelector("#itemCount").textContent === "0");
     await a.screenshot({ path: path.join(screenshotDir, "13-item-used-mobile.png"), fullPage: true });
 
