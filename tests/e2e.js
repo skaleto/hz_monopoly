@@ -271,6 +271,7 @@ async function main() {
     await b.waitForTimeout(260);
     await b.screenshot({ path: path.join(screenshotDir, "05-daily-event-popup.png"), fullPage: true });
     const movementTrace = await b.evaluate(() => window.__movementTrace || []);
+    await b.waitForFunction(() => (window.__soundTrace || []).some(item => item.name === "diceImpact" && item.coveredBy === "dice-shake-short.v2.ogg"), null, { timeout: 4000 });
     const soundTrace = await b.evaluate(() => window.__soundTrace || []);
     const firstPlayerId = movementTrace[0]?.playerId;
     const firstPath = movementTrace.filter(item => item.playerId === firstPlayerId);
@@ -363,7 +364,7 @@ async function main() {
     assert.match(await a.locator("#gameToast").textContent(), /获得道具卡/);
     assert.ok((await a.evaluate(() => window.__soundTrace)).some(item => item.name === "card"));
     await a.waitForFunction(() => document.querySelector("#itemCount").textContent === "1");
-    const deterministicCardRoom=store.getRoomByCode(secondCode);deterministicCardRoom.game.players[0].items=["coupon"];deterministicCardRoom.game.version+=1;store.saveRoom(deterministicCardRoom,deterministicCardRoom.inviteTokenHash);
+    const deterministicCardRoom=store.getRoomByCode(secondCode);deterministicCardRoom.game.players[0].items=["coupon"];deterministicCardRoom.game.currentSeat=0;deterministicCardRoom.game.phase="roll";deterministicCardRoom.game.pending=null;deterministicCardRoom.game.movement=null;deterministicCardRoom.game.version+=1;store.saveRoom(deterministicCardRoom,deterministicCardRoom.inviteTokenHash);
     await a.evaluate(()=>window.__socket.send(JSON.stringify({type:"resume",lastSeq:Number.MAX_SAFE_INTEGER})));await a.waitForTimeout(180);
     const itemBadgePlacement = await a.locator("#inventoryButton").evaluate(button => { const badge=button.querySelector("#itemCount"),outer=button.getBoundingClientRect(),inner=badge.getBoundingClientRect();return{right:outer.right-inner.right,top:inner.top-outer.top}; });
     assert.ok(itemBadgePlacement.right >= 0 && itemBadgePlacement.top >= 0, `item badge placement ${JSON.stringify(itemBadgePlacement)}`);
