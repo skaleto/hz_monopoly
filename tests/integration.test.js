@@ -235,3 +235,24 @@ test("a solo player returning home is not auto-played by trustee mode", async ()
   assert.equal(resumed.body.room.game.players[0].trustee, false);
   assert.equal(resumed.body.room.game.currentSeat, 0);
 });
+
+test("a running room from an older ruleset expires instead of mixing rules", async () => {
+  const owner = await register("13800000007", "小城");
+  const created = await request("/api/rooms", { method: "POST", cookie: owner.cookie, body: { maxPlayers: 2 } });
+  const roomId = created.body.room.id;
+  assert.equal((await request(`/api/rooms/${roomId}/bots`, { method: "POST", cookie: owner.cookie })).status, 201);
+  assert.equal((await request(`/api/rooms/${roomId}/start`, { method: "POST", cookie: owner.cookie })).status, 200);
+
+  const room = store.getRoom(roomId);
+  room.game.rulesetVersion = "hangzhou-obsolete";
+  room.game.version += 1;
+  store.saveRoom(room, room.inviteTokenHash);
+
+  const home = await request("/api/me", { cookie: owner.cookie });
+  assert.equal(home.status, 200);
+  assert.equal(home.body.rooms.find(item => item.id === roomId).rulesetExpired, true);
+  const resumed = await request(`/api/rooms/${roomId}`, { cookie: owner.cookie });
+  assert.equal(resumed.status, 409);
+  assert.equal(resumed.body.error, "RULESET_EXPIRED");
+  assert.equal(store.getRoom(roomId).game.rulesetVersion, "hangzhou-obsolete");
+});

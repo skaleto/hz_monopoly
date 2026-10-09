@@ -57,7 +57,7 @@
   async function createRoom(){try{const data=await api("/api/rooms",{method:"POST",body:{maxPlayers:Number($("#maxPlayersSelect").value)}});room=data.room;sessionStorage.setItem(`invite:${room.id}`,data.inviteUrl);enterRoom(room)}catch(e){toast(e.message)}}
   async function joinRoom(body){try{const data=await api("/api/rooms/join",{method:"POST",body});pendingInvite=null;sessionStorage.removeItem("pendingInvite");enterRoom(data.room)}catch(e){toast(e.message);show("home")}}
   function enterRoom(value){room=value;preloadGameAssets();renderRoom();connectSocket();show(room.status==="playing"||room.status==="finished"?"game":"room")}
-  function renderResumeRooms(rooms){const panel=$("#resumePanel"),wrap=$("#resumeRooms");panel.hidden=!rooms.length;wrap.innerHTML=rooms.map(item=>`<article class="resume-room"><div><strong>房间 ${item.code}</strong><small>${item.status==="playing"?"对局进行中":"等待开局"} · ${item.players.length}/${item.maxPlayers} 个席位</small></div><button data-resume-room="${item.id}">继续</button></article>`).join("");document.querySelectorAll("[data-resume-room]").forEach(button=>button.onclick=async()=>{try{const data=await api(`/api/rooms/${button.dataset.resumeRoom}`);enterRoom(data.room)}catch(e){toast(e.message)}})}
+  function renderResumeRooms(rooms){const panel=$("#resumePanel"),wrap=$("#resumeRooms");panel.hidden=!rooms.length;wrap.innerHTML=rooms.map(item=>`<article class="resume-room"><div><strong>房间 ${item.code}</strong><small>${item.rulesetExpired?"玩法已更新，请新建房间":item.status==="playing"?"对局进行中":"等待开局"} · ${item.players.length}/${item.maxPlayers} 个席位</small></div><button data-resume-room="${item.id}" ${item.rulesetExpired?"disabled":""}>${item.rulesetExpired?"已过期":"继续"}</button></article>`).join("");document.querySelectorAll("[data-resume-room]").forEach(button=>button.onclick=async()=>{try{const data=await api(`/api/rooms/${button.dataset.resumeRoom}`);enterRoom(data.room)}catch(e){toast(e.message==="RULESET_EXPIRED"?"玩法已更新，请新建房间":e.message)}})}
   async function loadHome(){try{const data=await api("/api/me");me=data.user;renderResumeRooms(data.rooms||[]);show("home")}catch{show("auth")}}
   function goHome(){if(activeRoomId)lastSeqByRoom.set(activeRoomId,lastSeq);cancelGameFeedback();room=null;activeRoomId=null;lastSeq=0;pendingSnapshot=null;clearTimeout(reconnectTimer);if(socket){socket.onopen=null;socket.onmessage=null;socket.onerror=null;socket.onclose=null;socket.close();socket=null}setConnection(false);loadHome()}
 
@@ -89,6 +89,7 @@
   }
   function resumeAfterVisibility(){sound.rearm();if(!room)return;if(socket?.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:"resume",lastSeq:Number.MAX_SAFE_INTEGER}));else if(!socket||socket.readyState>1)connectSocket()}
   async function handleSocketMessage(msg,epoch=eventEpoch){
+    if(msg.type==="ruleset.expired"){goHome();setTimeout(()=>toast("玩法已更新，请新建房间","event",3200),0);return}
     if(msg.type==="room.snapshot"){
       room=msg.room;activeRoomId=room.id;lastSeq=Math.max(lastSeqByRoom.get(room.id)||0,room.seq||0);lastSeqByRoom.set(room.id,lastSeq);pendingSnapshot=null;enterRoom(room);return;
     }
@@ -100,7 +101,7 @@
       return;
     }
     if(msg.type==="command.rejected"){
-      const errorCopy={INVALID_PHASE:"当前操作已过期，状态已同步",INVALID_ROUTE:"路线选择无效，请重新选择",STALE_VERSION:"对局状态已更新，请重试",CANNOT_INVEST:"当前项目暂时不能投资",ONLY_OWNER:"只有房主可以结束本局",GAME_FINISHED:"本局已经结束"};submittedDecisionKey=null;$("#endGameConfirmButton").disabled=false;$("#endGameButton").disabled=false;sound.play("error");toast(errorCopy[msg.error]||msg.error||"操作失败","event",2600);if(msg.room){room=msg.room;enterRoom(room)}
+      const errorCopy={INVALID_PHASE:"当前操作已过期，状态已同步",INVALID_ROUTE:"路线选择无效，请重新选择",STALE_VERSION:"对局状态已更新，请重试",CANNOT_INVEST:"当前项目暂时不能投资",ONLY_OWNER:"只有房主可以结束本局",GAME_FINISHED:"本局已经结束",RULESET_EXPIRED:"玩法已更新，请新建房间"};submittedDecisionKey=null;$("#endGameConfirmButton").disabled=false;$("#endGameButton").disabled=false;sound.play("error");toast(errorCopy[msg.error]||msg.error||"操作失败","event",2600);if(msg.room){room=msg.room;enterRoom(room)}
     }
     if(msg.type==="command.ack")sound.play("confirm");
   }

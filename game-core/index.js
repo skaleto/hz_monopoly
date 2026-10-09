@@ -2,6 +2,8 @@
 
 const crypto = require("node:crypto");
 
+const CURRENT_RULESET_VERSION = "hangzhou-v1.3";
+
 const BOARD = [
   { type: "start", name: "我的公寓", next: [1] },
   { type: "property", name: "龙井茶园", next: [2], price: 120, rent: 28, group: "文旅" },
@@ -63,9 +65,56 @@ const ITEM_CARDS = [
   { id: "pass", name: "城市通行券", copy: "使用后下一次支付到访分红时减半", effect: "rent_shield" }
 ];
 
+const DEFAULT_BALANCE = Object.freeze({
+  startingCashByTurn: [1500, 1600, 1700, 1800],
+  maxRounds: 12,
+  startIncomeByRound: [{ through: 12, amount: 200 }],
+  rentMultiplierByLevel: [0, 1, 1.75, 2.5],
+  completeGroupRentMultiplier: 1.5,
+  completeGroupScore: 5,
+  ownedProjectScore: 2,
+  partneredProjectScore: 1,
+  partnershipScore: 1,
+  cashScoreDivisor: 300,
+  cashScoreCap: 6,
+  restructureCash: 200,
+  restructureInfluencePenalty: 2,
+  overflowItemCash: 60,
+  upgrade: {
+    costMode: "fixed",
+    fixedByCurrentLevel: { 1: 90, 2: 120 },
+    ratioByCurrentLevel: { 1: 0.5, 2: 0.8 },
+    level3RequiresCompleteGroup: false
+  },
+  opportunity: {
+    safeCash: 40,
+    riskCost: 100,
+    successChance: 0.6,
+    successPayout: 240,
+    successInfluence: 1,
+    failureInfluence: 0
+  },
+  reviewCost: 80,
+  voteInfluence: 2,
+  voteCash: 60
+});
+
 function clone(value) { return structuredClone(value); }
 function randomInt(random, max) { return Math.floor(random() * max); }
 function optionToObject(option, board) { return typeof option === "number" ? { to: option, label: board[option].name } : option; }
+function normalizeBalance(input = {}) {
+  return {
+    ...clone(DEFAULT_BALANCE),
+    ...clone(input),
+    upgrade: { ...clone(DEFAULT_BALANCE.upgrade), ...clone(input.upgrade || {}) },
+    opportunity: { ...clone(DEFAULT_BALANCE.opportunity), ...clone(input.opportunity || {}) }
+  };
+}
+function balanceOf(state) { return state.balance || DEFAULT_BALANCE; }
+function startIncomeForRound(state) {
+  const schedule = balanceOf(state).startIncomeByRound || DEFAULT_BALANCE.startIncomeByRound;
+  return (schedule.find(item => item.through == null || state.round <= item.through) || schedule.at(-1) || { amount: 0 }).amount;
+}
 
 function migrateGameState(inputState) {
   const state = clone(inputState);
@@ -86,17 +135,19 @@ function migrateGameState(inputState) {
   state.pending = state.pending || null;
   state.movement = state.movement || null;
   state.version = Number(state.version || 0);
+  state.balance = normalizeBalance(state.balance);
   return state;
 }
 
 function createGame(playerInputs, options = {}) {
   if (!Array.isArray(playerInputs) || playerInputs.length < 2 || playerInputs.length > 4) throw new Error("PLAYER_COUNT_OUT_OF_RANGE");
+  const balance = normalizeBalance(options.balance);
   const players = playerInputs.map((player, seat) => ({
     id: player.id,
     nickname: player.nickname,
     kind: player.kind || "human",
     seat,
-    cash: [1500, 1600, 1700, 1800][seat],
+    cash: balance.startingCashByTurn[seat],
     position: 0,
     influence: 0,
     properties: [],
@@ -107,10 +158,11 @@ function createGame(playerInputs, options = {}) {
     trustee: false
   }));
   return {
-    rulesetVersion: "hangzhou-v1.3",
+    rulesetVersion: options.rulesetVersion || CURRENT_RULESET_VERSION,
+    balance,
     version: 0,
     round: 1,
-    maxRounds: options.maxRounds || 12,
+    maxRounds: options.maxRounds || balance.maxRounds,
     currentSeat: 0,
     phase: "roll",
     pending: null,
@@ -118,7 +170,7 @@ function createGame(playerInputs, options = {}) {
     finished: false,
     winnerId: null,
     players,
-    board: BOARD.map((tile, index) => ({ ...tile, index, ownerId: null, partnerId: null, level: 0 })),
+    board: (options.board || BOARD).map((tile, index) => ({ ...tile, index, ownerId: null, partnerId: null, level: 0 })),
     log: [{ type: "GAME_STARTED", text: `${players[0].nickname} 先手` }]
   };
 }
@@ -132,9 +184,10 @@ function log(state, events, type, text, payload = {}) {
 }
 
 function getRent(state, tile) {
-  let rent = tile.rent * (1 + Math.max(0, tile.level - 1) * 0.75);
-  if (tile.ownerId && hasCompleteGroup(state, tile.ownerId, tile.group)) rent *= 1.5;
-  if (tile.partnerId && hasCompleteGroup(state, tile.partnerId, tile.group)) rent *= 1.5;
+  const balance = balanceOf(state);
+  let rent = tile.rent * (balance.rentMultiplierByLevel[tile.level] || 1);
+  if (tile.ownerId && hasCompleteGroup(state, tile.ownerId, tile.group)) rent *= balance.completeGroupRentMultiplier;
+  if (tile.partnerId && hasCompleteGroup(state, tile.partnerId, tile.group)) rent *= balance.completeGroupRentMultiplier;
   return Math.round(rent);
 }
 
@@ -143,12 +196,19 @@ function hasCompleteGroup(state, playerId, group) {
   return groupTiles.length > 1 && groupTiles.every(tile => tile.ownerId === playerId || tile.partnerId === playerId);
 }
 
+function getUpgradeCost(state, tile) {
+  const upgrade = balanceOf(state).upgrade;
+  if (upgrade.costMode === "ratio") return Math.ceil(tile.price * Number(upgrade.ratioByCurrentLevel[tile.level] || 0));
+  return Number(upgrade.fixedByCurrentLevel[tile.level] || 0);
+}
+
 function cityScore(state, player) {
+  const balance = balanceOf(state);
   const owned = state.board.filter(tile => tile.type === "property" && (tile.ownerId === player.id || tile.partnerId === player.id));
-  const project = owned.reduce((sum, tile) => sum + (tile.partnerId ? 1 : 2) + Math.max(0, tile.level - 1), 0);
+  const project = owned.reduce((sum, tile) => sum + (tile.partnerId ? balance.partneredProjectScore : balance.ownedProjectScore) + Math.max(0, tile.level - 1), 0);
   const groups = new Set(owned.map(tile => tile.group).filter(group => hasCompleteGroup(state, player.id, group))).size;
   const partnerships = owned.filter(tile => tile.partnerId).length;
-  return player.influence + project + groups * 5 + partnerships + Math.min(6, Math.floor(player.cash / 300));
+  return player.influence + project + groups * balance.completeGroupScore + partnerships * balance.partnershipScore + Math.min(balance.cashScoreCap, Math.floor(player.cash / balance.cashScoreDivisor));
 }
 
 function rankings(state) {
@@ -157,9 +217,10 @@ function rankings(state) {
 
 function restructure(state, player, events) {
   if (player.cash >= 0) return;
-  player.cash = 200;
-  player.influence = Math.max(0, player.influence - 2);
-  log(state, events, "PLAYER_RESTRUCTURED", `${player.nickname} 启动城市重组，获得 200 保底金币`, { playerId: player.id });
+  const balance = balanceOf(state);
+  player.cash = balance.restructureCash;
+  player.influence = Math.max(0, player.influence - balance.restructureInfluencePenalty);
+  log(state, events, "PLAYER_RESTRUCTURED", `${player.nickname} 启动城市重组，获得 ${balance.restructureCash} 保底金币`, { playerId: player.id });
 }
 
 function resolveTile(state, player, events, random, nowMs) {
@@ -211,8 +272,9 @@ function resolveTile(state, player, events, random, nowMs) {
   } else if (tile.type === "supply") {
     const card = ITEM_CARDS[randomInt(random, ITEM_CARDS.length)];
     if (player.items.length >= 3) {
-      player.cash += 60;
-      log(state, events, "ITEM_CARD_EXCHANGED", `${player.nickname} 的道具栏已满，${card.name} 兑换为 60 金币`, { playerId: player.id, item: card, cash: 60 });
+      const cash = balanceOf(state).overflowItemCash;
+      player.cash += cash;
+      log(state, events, "ITEM_CARD_EXCHANGED", `${player.nickname} 的道具栏已满，${card.name} 兑换为 ${cash} 金币`, { playerId: player.id, item: card, cash });
     } else {
       player.items.push(card.id);
       log(state, events, "ITEM_CARD_DRAWN", `${player.nickname} 获得道具卡：${card.name}`, { playerId: player.id, item: card });
@@ -250,8 +312,9 @@ function continueMovement(state, events, random, nowMs, chosenNext = null) {
     state.movement.remaining -= 1;
     state.movement.path.push(next);
     if (next === 0) {
-      player.cash += 200;
-      log(state, events, "START_PASSED", `${player.nickname} 经过我的公寓，月度收入 +200`, { playerId: player.id, amount: 200 });
+      const amount = startIncomeForRound(state);
+      player.cash += amount;
+      log(state, events, "START_PASSED", `${player.nickname} 经过我的公寓，月度收入 +${amount}`, { playerId: player.id, amount });
     }
   }
   addEvent(events, "PLAYER_MOVED", { playerId: player.id, path: state.movement.path });
@@ -393,7 +456,8 @@ function applyCommand(inputState, actorId, command, payload = {}, context = {}) 
     if (state.phase !== "roll" || currentPlayer(state).id !== actorId) throw new Error("INVALID_PHASE");
     const tile = state.board[payload.tileIndex];
     if (!tile || tile.type !== "property" || ![tile.ownerId, tile.partnerId].includes(actorId) || tile.level >= 3) throw new Error("CANNOT_UPGRADE");
-    const cost = 60 + tile.level * 30;
+    if (tile.level === 2 && balanceOf(state).upgrade.level3RequiresCompleteGroup && !hasCompleteGroup(state, actorId, tile.group)) throw new Error("COMPLETE_GROUP_REQUIRED");
+    const cost = getUpgradeCost(state, tile);
     if (player.cash < cost) throw new Error("INSUFFICIENT_FUNDS");
     player.cash -= cost;
     tile.level += 1;
@@ -401,11 +465,18 @@ function applyCommand(inputState, actorId, command, payload = {}, context = {}) 
   } else if (command === "CHOOSE_OPPORTUNITY") {
     if (state.phase !== "decision" || state.pending?.type !== "opportunity" || state.pending.actorId !== actorId) throw new Error("INVALID_PHASE");
     let outcome;
+    const opportunity = balanceOf(state).opportunity;
     if (payload.choice === "risk") {
-      player.cash -= 100;
-      if (random() < 0.6) { player.cash += 240; player.influence += 1; outcome = "冒险成功，净赚 140 金币并获得 1 影响力"; }
-      else outcome = "冒险未达预期，投入 100 金币";
-    } else { player.cash += 40; outcome = "稳妥接单，获得 40 金币"; }
+      player.cash -= opportunity.riskCost;
+      if (random() < opportunity.successChance) {
+        player.cash += opportunity.successPayout;
+        player.influence += opportunity.successInfluence;
+        outcome = `冒险成功，净赚 ${opportunity.successPayout - opportunity.riskCost} 金币并获得 ${opportunity.successInfluence} 影响力`;
+      } else {
+        player.influence = Math.max(0, player.influence + opportunity.failureInfluence);
+        outcome = `冒险未达预期，投入 ${opportunity.riskCost} 金币`;
+      }
+    } else { player.cash += opportunity.safeCash; outcome = `稳妥接单，获得 ${opportunity.safeCash} 金币`; }
     log(state, events, "OPPORTUNITY_RESOLVED", `${player.nickname} 翻开机遇卡：${outcome}`, { playerId: actorId, choice: payload.choice, cash: player.cash, influence: player.influence });
     state.pending = null;
     state.phase = "turn_end";
@@ -413,7 +484,8 @@ function applyCommand(inputState, actorId, command, payload = {}, context = {}) 
     advanceTurn(state, events);
   } else if (command === "CHOOSE_REVIEW") {
     if (state.phase !== "decision" || state.pending?.type !== "review" || state.pending.actorId !== actorId) throw new Error("INVALID_PHASE");
-    if (payload.choice === "pay" && player.cash >= 80) player.cash -= 80;
+    const reviewCost = balanceOf(state).reviewCost;
+    if (payload.choice === "pay" && player.cash >= reviewCost) player.cash -= reviewCost;
     else player.reviewTurns = 1;
     addEvent(events, "REVIEW_RESOLVED", { playerId: actorId, choice: payload.choice, reviewTurns: player.reviewTurns });
     state.pending = null;
@@ -421,8 +493,9 @@ function applyCommand(inputState, actorId, command, payload = {}, context = {}) 
     advanceTurn(state, events);
   } else if (command === "CHOOSE_VOTE") {
     if (state.phase !== "decision" || state.pending?.type !== "vote" || state.pending.actorId !== actorId) throw new Error("INVALID_PHASE");
-    if (payload.choice === "tourism") player.influence += 2;
-    else state.players.forEach(item => { item.cash += 60; });
+    const balance = balanceOf(state);
+    if (payload.choice === "tourism") player.influence += balance.voteInfluence;
+    else state.players.forEach(item => { item.cash += balance.voteCash; });
     addEvent(events, "VOTE_RESOLVED", { playerId: actorId, choice: payload.choice });
     state.pending = null;
     state.phase = "turn_end";
@@ -474,4 +547,4 @@ function getTimeoutCommand(state) {
 
 function stateHash(state) { return crypto.createHash("sha256").update(JSON.stringify(state)).digest("hex"); }
 
-module.exports = { BOARD, DAILY_EVENTS, ITEM_CARDS, createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, getRent, cityScore, rankings, stateHash };
+module.exports = { CURRENT_RULESET_VERSION, DEFAULT_BALANCE, BOARD, DAILY_EVENTS, ITEM_CARDS, createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, getRent, getUpgradeCost, hasCompleteGroup, cityScore, rankings, stateHash };

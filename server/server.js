@@ -6,7 +6,7 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 const { WebSocketServer, WebSocket } = require("ws");
 const { Store } = require("./store");
-const { createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, stateHash } = require("../game-core");
+const { CURRENT_RULESET_VERSION, createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, stateHash } = require("../game-core");
 
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || "0.0.0.0";
@@ -96,8 +96,14 @@ function sanitizeRoom(room) {
     players: room.players,
     seq: room.seq || 0,
     game: room.game || null,
+    rulesetExpired: isRulesetExpired(room),
+    currentRulesetVersion: CURRENT_RULESET_VERSION,
     expiresAt: room.expiresAt
   };
+}
+
+function isRulesetExpired(room) {
+  return room?.status === "playing" && room.game?.rulesetVersion !== CURRENT_RULESET_VERSION;
 }
 
 function generateCode() {
@@ -136,6 +142,7 @@ function enqueueRoom(roomId, work) {
 
 function applyGameCommand(room, actorId, actionId, command, payload = {}) {
   if (!room.game) throw new Error("GAME_NOT_STARTED");
+  if (isRulesetExpired(room)) throw new Error("RULESET_EXPIRED");
   if ((room.processedActionIds || []).includes(actionId)) return [];
   room.game = migrateGameState(room.game);
   const forcedDice = command === "ROLL_DICE" ? (TEST_DICE_SEQUENCE[testDiceIndex++] || TEST_DICE) : null;
@@ -269,6 +276,7 @@ async function api(req, res, url) {
   if (roomMatch) {
     const room = store.getRoom(roomMatch[1]);
     if (!room || !findPlayer(room, user.id)) return json(res, 404, { error: "ROOM_NOT_FOUND" });
+    if (isRulesetExpired(room)) return json(res, 409, { error: "RULESET_EXPIRED", currentRulesetVersion: CURRENT_RULESET_VERSION });
     const tail = roomMatch[2] || "";
     if (req.method === "GET" && !tail) return json(res, 200, { room: sanitizeRoom(room) });
     if (req.method === "POST" && tail === "invite-token") {
@@ -390,6 +398,12 @@ server.on("upgrade", (req, socket, head) => {
 
 wss.on("connection", (socket, req, context) => {
   const { user, roomId } = context;
+  const initialRoom = store.getRoom(roomId);
+  if (isRulesetExpired(initialRoom)) {
+    socket.send(JSON.stringify({ type: "ruleset.expired", currentRulesetVersion: CURRENT_RULESET_VERSION }));
+    socket.close(1008, "RULESET_EXPIRED");
+    return;
+  }
   socket.userId = user.id;
   socket.connectionId = crypto.randomUUID();
   if (!socketsByRoom.has(roomId)) socketsByRoom.set(roomId, new Set());
@@ -461,7 +475,7 @@ wss.on("connection", (socket, req, context) => {
         publishRoom(room);
       } catch (error) {
         room = store.getRoom(roomId);
-        const expectedErrors=new Set(["ONLY_OWNER","INVALID_PHASE","INVALID_ROUTE","STALE_VERSION","NOT_YOUR_TURN","CANNOT_INVEST","INSUFFICIENT_FUNDS","ITEM_NOT_FOUND","GAME_FINISHED"]);
+        const expectedErrors=new Set(["ONLY_OWNER","INVALID_PHASE","INVALID_ROUTE","STALE_VERSION","NOT_YOUR_TURN","CANNOT_INVEST","INSUFFICIENT_FUNDS","ITEM_NOT_FOUND","GAME_FINISHED","RULESET_EXPIRED","COMPLETE_GROUP_REQUIRED"]);
         if(expectedErrors.has(error.message))audit("command_rejected",{roomId,userRef:userRef(user.id),command:message.command,version:room?.game?.version,error:error.message});else console.error(JSON.stringify({level:"error",roomId,command:message.command,version:room?.game?.version,error:error.message,stack:error.stack}));
         socket.send(JSON.stringify({ type: "command.rejected", requestId: message.requestId, actionId: message.actionId, error: error.message, room: sanitizeRoom(room) }));
       }

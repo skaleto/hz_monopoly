@@ -2,7 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { BOARD, createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, cityScore, stateHash } = require("../game-core");
+const { CURRENT_RULESET_VERSION, BOARD, createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, getRent, getUpgradeCost, cityScore, stateHash } = require("../game-core");
 
 const players = [
   { id: "u1", nickname: "桃桃", kind: "human" },
@@ -14,6 +14,49 @@ test("only supports 2 to 4 total seats", () => {
   assert.throws(() => createGame([players[0]]), /PLAYER_COUNT_OUT_OF_RANGE/);
   assert.equal(createGame(players).players.length, 3);
   assert.throws(() => createGame([...players, players[0], players[1]]), /PLAYER_COUNT_OUT_OF_RANGE/);
+});
+
+test("new games stamp the single current ruleset version", () => {
+  assert.equal(CURRENT_RULESET_VERSION, "hangzhou-v1.3");
+  assert.equal(createGame(players).rulesetVersion, CURRENT_RULESET_VERSION);
+});
+
+test("balance profiles are explicit while the default M1 behavior stays unchanged", () => {
+  const defaultGame = createGame(players.slice(0, 2));
+  assert.deepEqual(defaultGame.players.map(player => player.cash), [1500, 1600]);
+  defaultGame.board[1].ownerId = "u1";
+  defaultGame.board[1].level = 2;
+  assert.equal(getRent(defaultGame, defaultGame.board[1]), 49);
+  assert.equal(getUpgradeCost(defaultGame, defaultGame.board[1]), 120);
+
+  const candidate = createGame(players.slice(0, 2), { balance: {
+    startingCashByTurn: [1400, 1500, 1600, 1700],
+    rentMultiplierByLevel: [0, 1, 2, 4],
+    completeGroupRentMultiplier: 1,
+    upgrade: { costMode: "ratio", ratioByCurrentLevel: { 1: 0.5, 2: 0.8 }, level3RequiresCompleteGroup: true }
+  } });
+  assert.deepEqual(candidate.players.map(player => player.cash), [1400, 1500]);
+  candidate.board[1].ownerId = "u1";
+  candidate.board[1].level = 2;
+  assert.equal(getRent(candidate, candidate.board[1]), 56);
+  assert.equal(getUpgradeCost(candidate, candidate.board[1]), 96);
+});
+
+test("candidate balance can require a complete group before level three", () => {
+  let game = createGame(players.slice(0, 2), { balance: {
+    upgrade: { costMode: "ratio", ratioByCurrentLevel: { 1: 0.5, 2: 0.8 }, level3RequiresCompleteGroup: true }
+  } });
+  const groupTiles = game.board.filter(tile => tile.type === "property" && tile.group === "钱塘");
+  assert.equal(groupTiles.length, 2);
+  groupTiles[0].ownerId = "u1";
+  groupTiles[0].level = 2;
+  game.players[0].properties.push(groupTiles[0].index);
+  assert.throws(() => applyCommand(game, "u1", "UPGRADE_PROPERTY", { tileIndex: groupTiles[0].index }), /COMPLETE_GROUP_REQUIRED/);
+  groupTiles[1].ownerId = "u1";
+  game.players[0].properties.push(groupTiles[1].index);
+  game.players[0].cash = 1000;
+  const upgraded = applyCommand(game, "u1", "UPGRADE_PROPERTY", { tileIndex: groupTiles[0].index });
+  assert.equal(upgraded.state.board[groupTiles[0].index].level, 3);
 });
 
 test("server decides dice and rejects non-current player", () => {
