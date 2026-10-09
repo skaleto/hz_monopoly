@@ -1,0 +1,236 @@
+(function(){
+  "use strict";
+  const $=s=>document.querySelector(s);
+  const basePath=new URL(document.baseURI).pathname.replace(/\/$/,"");
+  const appPath=location.pathname.startsWith(basePath)?location.pathname.slice(basePath.length)||"/":location.pathname;
+  const asset=name=>`${basePath}/assets/${name}`;
+  const views={auth:$("#authView"),home:$("#homeView"),room:$("#roomView"),game:$("#gameView")};
+  const avatarFiles=["character_fox.v3.webp","character_panda.v3.webp","character_dolphin.v3.webp","character_tiger.v3.webp"];
+  const playerColors=["#ff6f61","#53c7a2","#32a9c7","#ffd95a"];
+  const tileAssets={property:"node_property.v1.webp",landmark:"node_landmark.v1.webp",event:"node_event.v1.webp",transit:"node_transit.v1.webp",special:"node_special.v1.webp"};
+  const typeLabels={property:"可投资项目",landmark:"城市地标",opportunity:"城市机遇卡",daily:"杭城日常",supply:"道具补给",transit:"交通换乘",start:"我的起点",review:"项目验收",park:"城市公园",vote:"城市公投"};
+  const typeMarks={property:"项目",landmark:"地标",opportunity:"机遇",daily:"日常",supply:"道具",transit:"交通",start:"起点",review:"验收",park:"公园",vote:"公投"};
+  const itemCards={coffee:{name:"龙井咖啡",copy:"下一次掷骰额外前进 2 格"},coupon:{name:"城市消费券",copy:"立即获得 120 金币"},pass:{name:"城市通行券",copy:"下一次到访分红减半"}};
+  const diceRenderer=window.HangzhouDiceRenderer.create($("#diceCanvas"));window.__diceRenderer=diceRenderer;
+  const sound=(()=>{
+    let context=null,resumePromise=null,enabled=localStorage.getItem("hc_sound_enabled")!=="0";const activeOscillators=new Set();
+    const diceShakeAudio=new Audio(`${basePath}/audio/dice-shake-short.v2.ogg`);diceShakeAudio.preload="auto";diceShakeAudio.volume=.88;
+    window.__soundTrace=[];
+    function update(){const button=$("#soundToggle");if(!button)return;button.textContent=enabled?"音效开":"音效关";button.setAttribute("aria-pressed",String(enabled));button.dataset.audioState=context?.state||"uninitialized"}
+    function getContext(){if(!enabled)return null;const AudioContext=window.AudioContext||window.webkitAudioContext;if(!AudioContext)return null;if(!context||context.state==="closed")context=new AudioContext();return context}
+    function ensureRunning(force=false){const audio=getContext();if(!audio)return Promise.resolve(null);if(audio.state==="running")return Promise.resolve(audio);if(resumePromise&&!force)return resumePromise;const attempt=Promise.resolve(audio.resume()).then(()=>audio.state==="running"?audio:null).catch(()=>null).finally(()=>{if(resumePromise===attempt)resumePromise=null;update()});resumePromise=attempt;return attempt}
+    function unlock(){ensureRunning(true);return context}
+    function tone(frequency,duration,delay=0,type="sine",volume=.032){ensureRunning().then(audio=>{if(!audio||!enabled)return;const start=audio.currentTime+delay,oscillator=audio.createOscillator(),gain=audio.createGain();activeOscillators.add(oscillator);oscillator.onended=()=>activeOscillators.delete(oscillator);oscillator.type=type;oscillator.frequency.setValueAtTime(frequency,start);gain.gain.setValueAtTime(.0001,start);gain.gain.exponentialRampToValueAtTime(volume,start+.008);gain.gain.exponentialRampToValueAtTime(.0001,start+duration);oscillator.connect(gain).connect(audio.destination);oscillator.start(start);oscillator.stop(start+duration+.02)})}
+    function play(name,step=0){if(!enabled)return;window.__soundTrace.push({name,at:performance.now(),coveredBy:name==="diceImpact"?"dice-shake-short.v2.ogg":undefined});if(name==="diceImpact"){return}else if(name==="partnership"){tone(392,.16,0,"sine",.026);tone(523,.2,.1,"triangle",.032);tone(659,.25,.22,"sine",.034);tone(784,.34,.38,"triangle",.028)}else if(name==="investment"){tone(196,.1,0,"triangle",.028);tone(294,.12,.08,"triangle",.03);tone(440,.18,.18,"sine",.034);tone(659,.28,.31,"sine",.03)}else if(name==="step"){tone(390+(step%4)*60,.075,0,"sine",.024);tone(780+(step%3)*50,.04,.025,"triangle",.014)}else if(name==="coin"||name==="income"){tone(620,.1,0,"triangle",.04);tone(820,.12,.07,"triangle",.038);tone(1040,.16,.15,"triangle",.034)}else if(name==="daily"){tone(330,.11,0,"triangle",.032);tone(440,.14,.1,"triangle",.03)}else if(name==="landmark"){tone(523,.12,0,"sine",.03);tone(659,.16,.09,"sine",.034);tone(880,.24,.2,"triangle",.03)}else if(name==="transit"){tone(280,.08,0,"square",.018);tone(360,.1,.07,"triangle",.026)}else if(name==="opportunity"){tone(440,.08,0,"triangle",.03);tone(660,.12,.08,"triangle",.034);tone(880,.18,.18,"sine",.028)}else if(name==="review"){tone(260,.12,0,"triangle",.026);tone(330,.18,.12,"sine",.028)}else if(name==="vote"){tone(392,.1,0,"sine",.026);tone(494,.12,.08,"sine",.03);tone(587,.18,.17,"triangle",.028)}else if(name==="route"){tone(370,.08,0,"triangle",.025);tone(520,.14,.08,"sine",.03)}else if(name==="card"){tone(350,.08,0,"triangle",.032);tone(540,.11,.06,"triangle",.036);tone(760,.16,.14,"triangle",.032)}else if(name==="confirm"){tone(520,.07,0,"sine",.026);tone(700,.11,.055,"sine",.03)}else if(name==="error"||name==="warning"){tone(250,.12,0,"sawtooth",.026);tone(175,.18,.1,"sawtooth",.024)}else{tone(480,.055,0,"sine",.022);tone(640,.045,.035,"sine",.016)}}
+    function toggle(){enabled=!enabled;localStorage.setItem("hc_sound_enabled",enabled?"1":"0");update();if(enabled)play("tap")}
+    function playDiceShake(){if(!enabled)return;window.__soundTrace.push({name:"diceShake",at:performance.now(),source:"kenney-cc0-short",file:"dice-shake-short.v2.ogg",duration:.72});try{diceShakeAudio.currentTime=0;const playback=diceShakeAudio.play();if(playback?.catch)playback.catch(()=>{})}catch{}}
+    function rearm(){if(enabled&&document.visibilityState!=="hidden")ensureRunning()}
+    function stopAll(){try{diceShakeAudio.pause();diceShakeAudio.currentTime=0}catch{}for(const oscillator of activeOscillators){try{oscillator.stop()}catch{}}activeOscillators.clear()}
+    async function suspendForTest(){const audio=getContext();if(audio){await audio.suspend();update()}return audio?.state||"unavailable"}
+    return{play,toggle,unlock,rearm,stopAll,update,playDiceShake,isEnabled:()=>enabled,state:()=>context?.state||"uninitialized",suspendForTest}
+  })();
+  window.__soundController=sound;
+  const baseSoundPlay=sound.play;sound.play=(name,step=0)=>{if(name==="dice")return sound.playDiceShake();baseSoundPlay(name,step)};
+  window.__tileClickTrace=[];window.__diceTrace=[];
+  window.__coinTrace=[];window.__celebrationTrace=[];window.__endGameTrace=[];window.__upgradeTrace=[];
+  const outer=[
+    [8,1],[8,2],[8,3],[8,4],[8,5],[8,6],[8,7],[8,8],[7,8],[6,8],[5,8],[4,8],[3,8],[2,8],[1,8],[1,7],[1,6],[1,5],[1,4],[1,3],[1,2],[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[7,1]
+  ];
+  const inner={28:[25,31],29:[36,35],30:[37,51],31:[32,72],32:[23,59],33:[75,53],34:[64,61],35:[57,45],36:[60,29],37:[71,24]};
+  const types={property:"property",landmark:"landmark",opportunity:"event",daily:"event",supply:"event",vote:"event",transit:"transit",review:"special",start:"special",park:"landmark"};
+  let me=null,room=null,socket=null,lastSeq=0,activeRoomId=null,pendingInvite=sessionStorage.getItem("pendingInvite")||null,reconnectTimer=null,renderedPositions=[];const lastSeqByRoom=new Map();
+  let messageQueue=Promise.resolve(),pendingSnapshot=null,toastTimer=null,currentDecisionKey=null,submittedDecisionKey=null,eventEpoch=0;
+  function show(name){Object.entries(views).forEach(([key,node])=>node.hidden=key!==name);document.body.classList.toggle("game-active",name==="game");if(name!=="game"){hideDecisionModal();hideTileDetails();hideLogModal();hideItemModal();hideUpgradeModal();hideEndGameModal();hideGameResult();const celebration=$("#celebrationOverlay");if(celebration)celebration.hidden=true}}
+  function dismissToasts(){clearTimeout(toastTimer);["#toast","#gameToast"].forEach(selector=>{const node=$(selector);if(node)node.classList.remove("visible")})}
+  function cancelGameFeedback(){eventEpoch+=1;messageQueue=Promise.resolve();dismissToasts();sound.stopAll();$("#diceStage").hidden=true;$("#diceBonusBadge").hidden=true;$("#celebrationOverlay").hidden=true;document.querySelectorAll(".flying-coin").forEach(node=>node.remove());document.querySelectorAll(".board-tile.path-current,.board-tile.path-visited").forEach(node=>node.classList.remove("path-current","path-visited"))}
+  function toast(text,kind="info",duration=1800){const t=document.body.classList.contains("game-active")?$("#gameToast"):$("#toast");dismissToasts();t.textContent=text;t.className=`toast ${t.id==="gameToast"?"game-toast ":""}visible ${kind}`;toastTimer=setTimeout(()=>t.classList.remove("visible"),duration)}
+  async function api(path,options={}){const res=await fetch(`${basePath}${path}`,{method:options.method||"GET",headers:{"content-type":"application/json"},body:options.body?JSON.stringify(options.body):undefined});const data=await res.json();if(!res.ok)throw new Error(data.error||"REQUEST_FAILED");return data}
+  function uuid(){return crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random()}`}
+  function legacyPosition(index){if(inner[index])return{x:inner[index][0],y:inner[index][1]};const [r,c]=outer[index]||[1,1];return{x:8+(c-1)/7*84,y:8+(r-1)/7*84}}
+  function position(index){return renderedPositions[index]||legacyPosition(index)}
+  function setConnection(online){const b=$("#connectionBadge");b.textContent=online?"联机中":"未连接";b.className=`connection ${online?"online":"offline"}`}
+  function preloadGameAssets(){const board=$("#boardImage");if(board&&!board.src)board.src=new URL(board.dataset.src,document.baseURI).toString();[...avatarFiles,...Object.values(tileAssets),"celebration_handshake.v2.webp","celebration_purchase.v2.webp"].forEach(name=>{const image=new Image();image.src=asset(name)})}
+
+  async function boot(){const match=appPath.match(/^\/join\/([^/]+)/);if(match){pendingInvite=match[1];sessionStorage.setItem("pendingInvite",pendingInvite)}try{const data=await api("/api/me");me=data.user;$("#nicknameInput").value=me.nickname;if(pendingInvite)await joinRoom({inviteToken:pendingInvite});else{renderResumeRooms(data.rooms||[]);show("home")}}catch{show("auth")}}
+  async function sendCode(){try{const data=await api("/api/auth/sms/send",{method:"POST",body:{phone:$("#phoneInput").value.trim()}});$("#devCodeHint").textContent=data.devCode?`开发环境验证码：${data.devCode}`:"验证码已发送"}catch(e){toast(e.message)}}
+  async function login(){if(!$("#consentInput").checked)return toast("请先同意隐私说明");try{const data=await api("/api/auth/verify",{method:"POST",body:{phone:$("#phoneInput").value.trim(),nickname:$("#nicknameInput").value.trim(),code:$("#codeInput").value.trim()}});me=data.user;if(pendingInvite)await joinRoom({inviteToken:pendingInvite});else await loadHome()}catch(e){toast(e.message)}}
+  async function createRoom(){try{const data=await api("/api/rooms",{method:"POST",body:{maxPlayers:Number($("#maxPlayersSelect").value)}});room=data.room;sessionStorage.setItem(`invite:${room.id}`,data.inviteUrl);enterRoom(room)}catch(e){toast(e.message)}}
+  async function joinRoom(body){try{const data=await api("/api/rooms/join",{method:"POST",body});pendingInvite=null;sessionStorage.removeItem("pendingInvite");enterRoom(data.room)}catch(e){toast(e.message);show("home")}}
+  function enterRoom(value){room=value;preloadGameAssets();renderRoom();connectSocket();show(room.status==="playing"||room.status==="finished"?"game":"room")}
+  function renderResumeRooms(rooms){const panel=$("#resumePanel"),wrap=$("#resumeRooms");panel.hidden=!rooms.length;wrap.innerHTML=rooms.map(item=>`<article class="resume-room"><div><strong>房间 ${item.code}</strong><small>${item.status==="playing"?"对局进行中":"等待开局"} · ${item.players.length}/${item.maxPlayers} 个席位</small></div><button data-resume-room="${item.id}">继续</button></article>`).join("");document.querySelectorAll("[data-resume-room]").forEach(button=>button.onclick=async()=>{try{const data=await api(`/api/rooms/${button.dataset.resumeRoom}`);enterRoom(data.room)}catch(e){toast(e.message)}})}
+  async function loadHome(){try{const data=await api("/api/me");me=data.user;renderResumeRooms(data.rooms||[]);show("home")}catch{show("auth")}}
+  function goHome(){if(activeRoomId)lastSeqByRoom.set(activeRoomId,lastSeq);cancelGameFeedback();room=null;activeRoomId=null;lastSeq=0;pendingSnapshot=null;clearTimeout(reconnectTimer);if(socket){socket.onopen=null;socket.onmessage=null;socket.onerror=null;socket.onclose=null;socket.close();socket=null}setConnection(false);loadHome()}
+
+  function renderRoom(){if(!room)return;$("#roomCode").textContent=room.code;const seats=[];for(let i=0;i<room.maxPlayers;i++){const p=room.players.find(x=>x.seat===i);if(!p)seats.push(`<article class="seat empty"><span>空席位</span></article>`);else seats.push(`<article class="seat ${p.kind}"><img class="seat-avatar" src="${asset(avatarFiles[i%4])}" alt=""><div><strong>${escapeHtml(p.nickname)}</strong><small>${p.kind==="bot"?"Bot · 已准备":p.ready?"已准备":"未准备"}${p.connected?" · 在线":""}</small>${p.kind==="bot"&&room.ownerUserId===me.id?`<button data-remove-bot="${p.id}">移除</button>`:""}</div></article>`)}$("#seatGrid").innerHTML=seats.join("");const mine=room.players.find(p=>p.id===me.id),owner=room.ownerUserId===me.id;$("#readyButton").textContent=mine?.ready?"取消准备":"我已准备";$("#addBotButton").disabled=!owner||room.players.length>=room.maxPlayers;$("#startGameButton").hidden=!owner;$("#startGameButton").disabled=room.players.length<2||room.players.some(p=>p.kind==="human"&&!p.ready);$("#roomHint").textContent=`${room.players.length}/${room.maxPlayers} 个席位 · 最少 2 人即可开始`;document.querySelectorAll("[data-remove-bot]").forEach(b=>b.onclick=()=>removeBot(b.dataset.removeBot))}
+  async function refreshRoom(){if(!room)return;try{const data=await api(`/api/rooms/${room.id}`);room=data.room;enterRoom(room)}catch(e){toast(e.message)}}
+  async function addBot(){try{room=(await api(`/api/rooms/${room.id}/bots`,{method:"POST"})).room;renderRoom()}catch(e){toast(e.message)}}
+  async function removeBot(id){try{room=(await api(`/api/rooms/${room.id}/bots/${id}`,{method:"DELETE"})).room;renderRoom()}catch(e){toast(e.message)}}
+  async function toggleReady(){const mine=room.players.find(p=>p.id===me.id);try{room=(await api(`/api/rooms/${room.id}/ready`,{method:"POST",body:{ready:!mine.ready}})).room;renderRoom()}catch(e){toast(e.message)}}
+  async function startGame(){try{room=(await api(`/api/rooms/${room.id}/start`,{method:"POST"})).room;enterRoom(room)}catch(e){toast(e.message)}}
+  async function copyInvite(){try{let link=sessionStorage.getItem(`invite:${room.id}`);if(!link){const data=await api(`/api/rooms/${room.id}/invite-token`,{method:"POST"});link=data.inviteUrl;sessionStorage.setItem(`invite:${room.id}`,link)}await navigator.clipboard.writeText(link);toast("邀请链接已复制")}catch(e){toast(`复制失败：${e.message}`)}}
+
+  function connectSocket(){
+    if(!room)return;
+    if(socket){socket.onopen=null;socket.onmessage=null;socket.onerror=null;socket.onclose=null;try{socket.close()}catch{}}
+    const protocol=location.protocol==="https:"?"wss":"ws";
+    const nextSocket=new WebSocket(`${protocol}://${location.host}${basePath}/socket?roomId=${encodeURIComponent(room.id)}`);socket=nextSocket;window.__socket=nextSocket;
+    nextSocket.onopen=()=>{if(socket!==nextSocket||!room)return;setConnection(true);nextSocket.send(JSON.stringify({type:"resume",lastSeq}))};
+    nextSocket.onclose=()=>{if(socket!==nextSocket)return;socket=null;setConnection(false);clearTimeout(reconnectTimer);reconnectTimer=setTimeout(()=>room&&connectSocket(),1200)};
+    nextSocket.onerror=()=>{if(socket===nextSocket)setConnection(false)};
+    nextSocket.onmessage=e=>{
+      if(socket!==nextSocket)return;
+      let msg;try{msg=JSON.parse(e.data)}catch(error){console.error(error);return toast("收到异常数据，正在恢复","event",2600)}
+      const terminal=msg.type==="game.events"&&(msg.events||[]).some(event=>event.type==="GAME_FINISHED")||msg.type==="room.snapshot"&&msg.room?.status==="finished";
+      if(terminal)cancelGameFeedback();
+      if(msg.type==="room.snapshot"&&!terminal&&msg.room){room=msg.room;activeRoomId=room.id;lastSeq=Math.max(lastSeqByRoom.get(room.id)||0,room.seq||0);lastSeqByRoom.set(room.id,lastSeq);pendingSnapshot=msg}
+      const receivedEpoch=eventEpoch;
+      messageQueue=messageQueue.then(()=>receivedEpoch===eventEpoch&&room?handleSocketMessage(msg,receivedEpoch):undefined).catch(error=>{if(receivedEpoch!==eventEpoch||!room)return;console.error(error);toast("同步失败，正在恢复","event",2600);if(socket===nextSocket&&nextSocket.readyState===WebSocket.OPEN)nextSocket.send(JSON.stringify({type:"resume",lastSeq:Number.MAX_SAFE_INTEGER}))});
+    };
+  }
+  function resumeAfterVisibility(){sound.rearm();if(!room)return;if(socket?.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:"resume",lastSeq:Number.MAX_SAFE_INTEGER}));else if(!socket||socket.readyState>1)connectSocket()}
+  async function handleSocketMessage(msg,epoch=eventEpoch){
+    if(msg.type==="room.snapshot"){
+      room=msg.room;activeRoomId=room.id;lastSeq=Math.max(lastSeqByRoom.get(room.id)||0,room.seq||0);lastSeqByRoom.set(room.id,lastSeq);pendingSnapshot=null;enterRoom(room);return;
+    }
+    if(msg.type==="game.events"){
+      for(const event of msg.events||[])lastSeq=Math.max(lastSeq,event.seq||0);if(activeRoomId)lastSeqByRoom.set(activeRoomId,lastSeq);
+      await renderEvents(msg.events||[],epoch);
+      if(epoch!==eventEpoch||!room)return;
+      if(pendingSnapshot){const snapshot=pendingSnapshot;pendingSnapshot=null;room=snapshot.room;lastSeq=room.seq||lastSeq;enterRoom(room)}
+      return;
+    }
+    if(msg.type==="command.rejected"){
+      const errorCopy={INVALID_PHASE:"当前操作已过期，状态已同步",INVALID_ROUTE:"路线选择无效，请重新选择",STALE_VERSION:"对局状态已更新，请重试",CANNOT_INVEST:"当前项目暂时不能投资",ONLY_OWNER:"只有房主可以结束本局",GAME_FINISHED:"本局已经结束"};submittedDecisionKey=null;$("#endGameConfirmButton").disabled=false;$("#endGameButton").disabled=false;sound.play("error");toast(errorCopy[msg.error]||msg.error||"操作失败","event",2600);if(msg.room){room=msg.room;enterRoom(room)}
+    }
+    if(msg.type==="command.ack")sound.play("confirm");
+  }
+  function sendCommand(command,payload={}){if(!socket||socket.readyState!==WebSocket.OPEN){sound.play("error");toast("正在重连");return false}sound.play("tap");if(command==="ROLL_DICE")$("#rollButton").disabled=true;if(command==="END_GAME"){$("#endGameConfirmButton").disabled=true;$("#endGameButton").disabled=true}socket.send(JSON.stringify({type:"game.command",requestId:uuid(),roomId:room.id,gameId:room.id,expectedVersion:room.game.version,actionId:uuid(),command,payload}));return true}
+  async function renderEvents(events,epoch=eventEpoch){
+    if(!events.length||epoch!==eventEpoch||!room)return;
+    const current=$("#eventLog").innerHTML;
+    $("#eventLog").innerHTML=events.slice().reverse().map(e=>`<li>${escapeHtml(e.payload?.text||eventText(e))}</li>`).join("")+current;
+    for(const event of events){
+      if(epoch!==eventEpoch||!room)return;
+      if(event.type==="DICE_ROLLED")await animateDice(event.payload.value,event.payload.baseValue,event.payload.bonus||0,epoch);
+      if(event.type==="PLAYER_MOVED"&&event.payload?.path?.length>1)await animateMovement(event.payload.playerId,event.payload.path,epoch);
+      if(epoch!==eventEpoch||!room)return;
+      if(event.type==="PROPERTY_UPGRADED")sound.play("investment");
+      if(event.type==="RENT_PAID")await animateCoinTransfer(event,epoch);
+      if(["PARTNERSHIP_ACCEPTED","PROPERTY_BOUGHT"].includes(event.type))await animateCelebration(event,epoch);
+      if(epoch!==eventEpoch||!room)return;
+      if(event.type==="GAME_FINISHED")showGameResult(event.payload?.ranking||[]);
+      if(["DAILY_RESOLVED","LANDMARK_VISITED","PARK_VISITED","TRANSIT_VISITED","RENT_PAID","START_PASSED","PLAYER_RESTRUCTURED","OPPORTUNITY_RESOLVED","ITEM_CARD_DRAWN","ITEM_CARD_EXCHANGED","ITEM_CARD_USED"].includes(event.type))showPassiveToast(event);
+    }
+  }
+  function eventText(e){return({DICE_ROLLED:`掷出 ${e.payload.value} 点`,PLAYER_MOVED:"棋子移动",TURN_STARTED:`第 ${e.payload.round} 轮继续`,PROPERTY_OFFERED:"等待投资选择",PROPERTY_BOUGHT:"投资成功",GAME_ENDED_EARLY:"房主结束本局",GAME_FINISHED:"本局结算"})[e.type]||e.type}
+
+  function routePath(indexes,route){const points=indexes.map(index=>{const point=position(index);return`${point.x},${point.y}`}).join(" ");return`<polyline class="branch-underlay" points="${points}"/><polyline class="branch-segment ${route}" points="${points}"/>`}
+  function renderRouteGuide(g=room?.game){renderedPositions=(g?.board||[]).map((tile,index)=>typeof tile.x==="number"&&typeof tile.y==="number"?{x:tile.x,y:tile.y}:legacyPosition(index));const guide=$("#branchGuide");if(!guide)return;const water=[23,28,29,30,31,32,33,34,35,36,2],metro=[10,37,38,39,40,41,42,43,44,17],holes=renderedPositions.map(point=>`<rect x="${point.x-6.8}" y="${point.y-5.6}" width="13.6" height="11.2" rx="2.2" fill="black"/>`).join("");guide.innerHTML=`<defs><mask id="branchPathMask"><rect width="100" height="100" fill="white"/>${holes}</mask></defs><g mask="url(#branchPathMask)">${routePath(water,"water")}${routePath(metro,"metro")}</g>`}
+
+  async function animateDice(value,baseValue=value,bonus=0,epoch=eventEpoch){const stage=$("#diceStage"),badge=$("#diceBonusBadge"),result=Math.max(1,Math.min(6,baseValue||value||1));await diceRenderer.prewarm();if(epoch!==eventEpoch||!room)return;const startedAt=performance.now(),trace={value,baseValue:result,bonus,startedAt};window.__diceTrace.push(trace);stage.setAttribute("aria-label",bonus?`骰子 ${result} 点，加成 ${bonus}`:`骰子 ${result} 点`);badge.hidden=!bonus;badge.textContent=`+${bonus}`;stage.hidden=false;diceRenderer.resize();sound.play("dice");const rendered=await diceRenderer.roll(result,{onImpact:()=>{if(epoch===eventEpoch&&room)sound.play("diceImpact")}});Object.assign(trace,rendered||{},{value,baseValue:result,bonus,startedAt,renderFinishedAt:rendered?.finishedAt});if(epoch!==eventEpoch||!room){stage.hidden=true;badge.hidden=true;return}await new Promise(resolve=>setTimeout(resolve,380));stage.hidden=true;badge.hidden=true;trace.finishedAt=performance.now()}
+
+  async function animateMovement(playerId,path,epoch=eventEpoch){
+    const piece=document.querySelector(`.piece[data-player-id="${CSS.escape(playerId)}"]`);
+    if(!piece)return;
+    document.querySelectorAll(".board-tile.path-visited,.board-tile.path-current").forEach(tile=>tile.classList.remove("path-visited","path-current"));
+    window.__movementTrace=window.__movementTrace||[];
+    piece.dataset.pathStep="0";
+    window.__movementTrace.push({playerId,tileIndex:path[0],step:0,at:performance.now()});
+    piece.getBoundingClientRect();
+    for(let step=1;step<path.length;step+=1){
+      if(epoch!==eventEpoch||!room)return;
+      await new Promise(resolve=>setTimeout(resolve,380));
+      await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      if(epoch!==eventEpoch||!room)return;
+      const index=path[step],pos=position(index);
+      document.querySelectorAll(".board-tile.path-current").forEach(tile=>tile.classList.remove("path-current"));const tile=document.querySelector(`.board-tile[data-tile-index="${index}"]`);tile?.classList.add("path-visited","path-current");
+      piece.dataset.pathStep=String(step);
+      piece.style.left=`${pos.x}%`;
+      piece.style.top=`${pos.y}%`;
+      window.__movementTrace.push({playerId,tileIndex:index,step,at:performance.now()});
+      sound.play("step",step);
+    }
+    await new Promise(resolve=>setTimeout(resolve,420));if(epoch!==eventEpoch||!room)return;document.querySelectorAll(".board-tile.path-current").forEach(tile=>tile.classList.remove("path-current"));setTimeout(()=>{if(epoch===eventEpoch)document.querySelectorAll(".board-tile.path-visited").forEach(tile=>tile.classList.remove("path-visited"))},900);
+  }
+
+  function showPassiveToast(event){const fallback={DAILY_RESOLVED:"杭城日常已结算",LANDMARK_VISITED:"城市打卡大奖到账",PARK_VISITED:"城市公园奖励到账",TRANSIT_VISITED:"交通联运奖励到账",RENT_PAID:"到访分红已结算",START_PASSED:"月度收入到账",PLAYER_RESTRUCTURED:"已完成城市重组",OPPORTUNITY_RESOLVED:"机遇卡已结算",ITEM_CARD_DRAWN:`获得道具：${event.payload?.item?.name||"新道具"}`,ITEM_CARD_EXCHANGED:"道具栏已满，自动兑换金币",ITEM_CARD_USED:`已使用：${event.payload?.item?.name||"道具卡"}`},soundByType={DAILY_RESOLVED:"daily",LANDMARK_VISITED:"landmark",PARK_VISITED:"landmark",TRANSIT_VISITED:"transit",RENT_PAID:"coin",START_PASSED:"income",PLAYER_RESTRUCTURED:"warning",OPPORTUNITY_RESOLVED:"opportunity",ITEM_CARD_DRAWN:"card",ITEM_CARD_EXCHANGED:"coin",ITEM_CARD_USED:"card"},kind=["RENT_PAID","START_PASSED","ITEM_CARD_EXCHANGED"].includes(event.type)?"coin":["ITEM_CARD_DRAWN","ITEM_CARD_USED","OPPORTUNITY_RESOLVED"].includes(event.type)?"card":"event";sound.play(soundByType[event.type]||"daily");toast(event.payload?.text||fallback[event.type]||"事件已结算",kind,2700)}
+
+  async function animateCoinTransfer(event,epoch=eventEpoch){
+    const fromNode=document.querySelector(`.player-chip[data-player-id="${CSS.escape(event.payload?.playerId||"")}"]`),fromAvatar=fromNode?.querySelector("img"),targets=[event.payload?.ownerId,event.payload?.partnerId].filter(Boolean);
+    if(!fromAvatar||!targets.length||epoch!==eventEpoch||!room)return;
+    const from=fromAvatar.getBoundingClientRect(),start={x:from.left+from.width/2,y:from.top+from.height/2},animations=[];
+    for(const targetId of targets){
+      if(epoch!==eventEpoch||!room)return;const targetNode=document.querySelector(`.player-chip[data-player-id="${CSS.escape(targetId)}"]`),targetAvatar=targetNode?.querySelector("img");if(!targetAvatar)continue;
+      const to=targetAvatar.getBoundingClientRect(),end={x:to.left+to.width/2,y:to.top+to.height/2},dx=end.x-start.x,dy=end.y-start.y,share=targets.length>1?Math.round(event.payload.amount/2):event.payload.amount,coinCount=11;
+      window.__coinTrace.push({fromId:event.payload.playerId,toId:targetId,amount:share,coinCount,from:start,to:end,duration:2100,at:performance.now()});
+      targetNode.classList.add("coin-received");setTimeout(()=>targetNode.classList.remove("coin-received"),2200);
+      for(let index=0;index<coinCount;index+=1){const coin=document.createElement("span");coin.className="flying-coin avatar-coin";coin.style.left=`${start.x}px`;coin.style.top=`${start.y}px`;document.body.appendChild(coin);const arc=-34-(index%3)*9,drift=(index%2?1:-1)*(index%4)*2;const animation=coin.animate([{transform:"translate(-50%,-50%) scale(.45) rotate(0deg)",opacity:0},{transform:"translate(-50%,-50%) scale(.88)",opacity:1,offset:.08},{transform:`translate(calc(-50% + ${dx*.5+drift}px),calc(-50% + ${dy*.5+arc}px)) scale(1) rotate(300deg)`,opacity:1,offset:.58},{transform:`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px)) scale(.48) rotate(600deg)`,opacity:0}],{duration:1400,delay:index*70,easing:"cubic-bezier(.2,.72,.18,1)",fill:"forwards"});animations.push(animation.finished.finally(()=>coin.remove()))}
+    }
+    if(epoch===eventEpoch&&room)sound.play("coin");await Promise.allSettled(animations);
+  }
+
+  function playerVisual(playerId){const g=room?.game,index=g?.players.findIndex(player=>player.id===playerId)??-1,player=index>=0?g.players[index]:null;return{player,index,avatar:index>=0?asset(avatarFiles[index%avatarFiles.length]):asset(avatarFiles[0])}}
+  async function animateCelebration(event,epoch=eventEpoch){
+    const overlay=$("#celebrationOverlay"),sprite=$("#celebrationSprite"),right=$("#celebrationRight"),isPartner=event.type==="PARTNERSHIP_ACCEPTED",leftInfo=playerVisual(isPartner?event.payload.buyerId:event.payload.playerId),rightInfo=playerVisual(event.payload.partnerId),tile=room?.game?.board?.[event.payload.tileIndex];
+    if(!leftInfo.player||epoch!==eventEpoch||!room)return;
+    dismissToasts();overlay.className=`celebration-overlay ${isPartner?"partnership":"purchase"}`;$("#celebrationKicker").textContent=isPartner?"达成合伙":"投资成功";$("#celebrationTitle").textContent=isPartner?`${leftInfo.player.nickname} × ${rightInfo.player?.nickname||"好友"} 携手投资`:`${leftInfo.player.nickname} 投资 ${tile?.name||"城市项目"}`;$("#celebrationLeftAvatar").src=leftInfo.avatar;$("#celebrationLeftAvatar").alt=leftInfo.player.nickname;$("#celebrationLeftName").textContent=leftInfo.player.nickname;right.hidden=!isPartner;if(isPartner&&rightInfo.player){$("#celebrationRightAvatar").src=rightInfo.avatar;$("#celebrationRightAvatar").alt=rightInfo.player.nickname;$("#celebrationRightName").textContent=rightInfo.player.nickname}sprite.className=`celebration-sprite ${isPartner?"handshake":"purchase"}`;overlay.hidden=false;void sprite.offsetWidth;sprite.style.animation="none";void sprite.offsetWidth;sprite.style.animation="";window.__celebrationTrace.push({type:event.type,leftId:leftInfo.player.id,rightId:rightInfo.player?.id||null,tileIndex:event.payload.tileIndex,at:performance.now()});sound.play(isPartner?"partnership":"investment");await new Promise(resolve=>setTimeout(resolve,1500));if(epoch===eventEpoch&&room)overlay.hidden=true;
+  }
+
+  function ownershipBadge(g,t){if(!t.ownerId)return"";const ownerIndex=g.players.findIndex(player=>player.id===t.ownerId),partnerIndex=g.players.findIndex(player=>player.id===t.partnerId),owner=g.players[ownerIndex],partner=g.players[partnerIndex],background=partner?`linear-gradient(135deg,${playerColors[ownerIndex%4]} 0 50%,${playerColors[partnerIndex%4]} 50%)`:playerColors[ownerIndex%4],label=partner?"合伙":`${t.level}级`,title=partner?`${owner.nickname}与${partner.nickname}合伙 · ${t.level}级`:`${owner.nickname}独资 · ${t.level}级`;return`<span class="owner-dot" style="--owner:${background}" title="${escapeHtml(title)}">${label}</span>`}
+  function routeClasses(tile,index){const classes=[];if(tile.inner)classes.push(`route-${tile.inner}`);if(index===23)classes.push("route-water-entry");if(index===36)classes.push("route-water-exit");if(index===10)classes.push("route-metro-entry");if(index===44)classes.push("route-metro-exit");return classes.join(" ")}
+  function tileDescription(tile){if(tile.type==="property")return"可投资的城市项目。其他玩家停在这里时会支付到访分红，升级项目会提高分红。";if(tile.type==="start")return"每次经过或停在这里，领取月度收入 200 金币。";if(tile.type==="review")return"类似经典停留格：可以支付 80 金币加急，或停留下一回合完成验收。";if(tile.type==="opportunity")return"翻开一张城市机遇卡，在风险与稳妥收益之间做选择。";if(tile.type==="daily")return"立即结算一次杭州生活事件。";if(tile.type==="supply")return"停在这里会随机获得一张道具卡，最多携带 3 张。";if(tile.type==="vote")return"选择城市发展方向，效果可能影响自己或所有玩家。";if(Array.isArray(tile.next)&&tile.next.length>1)return"这是岔路入口，可选择继续外环或进入交通内环。";if(tile.type==="park")return"公共城市空间，停留可获得城市影响力。";if(tile.type==="transit")return"交通节点，帮助你在城市线路之间快速移动。";return"公共地标，完成打卡可获得金币和城市影响力。"}
+  function openTileDetails(tile){if(!tile?.dataset?.tileName)return false;const stats=[];if(tile.dataset.tileType==="property"){if(tile.dataset.group)stats.push(`${tile.dataset.group}类项目`);stats.push(`投资 ${tile.dataset.price}`);stats.push(`基础分红 ${tile.dataset.rent}`);stats.push(tile.dataset.owned==="true"?`${tile.dataset.level}级项目`:"待投资");stats.push(tile.dataset.ownerLabel||"暂无主人")}else{stats.push(tile.dataset.typeLabel||"地图节点");if(tile.dataset.junction==="true")stats.push("可选岔路")};$("#tileDetailTag").textContent=tile.dataset.typeLabel||"地图节点";$("#tileDetailArt").src=asset(tileAssets[tile.dataset.visual]||tileAssets.landmark);$("#tileDetailArt").alt=`${tile.dataset.tileName}节点图案`;$("#tileDetailTitle").textContent=tile.dataset.tileName;$("#tileDetailCopy").textContent=tile.dataset.description||"查看这个地图节点的规则。";$("#tileDetailStats").innerHTML=stats.map(item=>`<span>${escapeHtml(item)}</span>`).join("");$("#tileDetailModal").hidden=false;sound.play("tap");return true}
+  function handleTileClick(event){const tile=event.target.closest(".board-tile");if(!tile||!$("#tileLayer").contains(tile))return;const modal=$("#tileDetailModal"),trace={eventType:event.type,tileIndex:Number(tile.dataset.tileIndex),hiddenBefore:modal.hidden,hasRoom:Boolean(room),hasGame:Boolean(room?.game),boardLength:room?.game?.board?.length||0,roomId:room?.id||null,roomStatus:room?.status||null,renderedRoomId:tile.dataset.roomId||null,currentView:Object.entries(views).find(([,node])=>!node.hidden)?.[0]||null,at:performance.now()};trace.opened=openTileDetails(tile);trace.hiddenAfter=modal.hidden;window.__tileClickTrace.push(trace)}
+  function hideTileDetails(){const modal=$("#tileDetailModal");if(modal)modal.hidden=true}
+  function renderLogs(g){window.__renderedPlayerIds=g.players.map(player=>player.id);document.querySelectorAll(".board-tile").forEach(tile=>{const index=Number(tile.dataset.tileIndex);if((index>=7&&index<=14)||(index>=21&&index<=27))tile.classList.add("outer-side")});const rows=(g.log||[]).map(item=>`<li>${escapeHtml(item.text)}</li>`).join("");$("#eventLog").innerHTML=(g.log||[]).slice(0,3).map(item=>`<li>${escapeHtml(item.text)}</li>`).join("");$("#fullEventLog").innerHTML=rows||"<li>本局还没有动态</li>"}
+  function openLogModal(){if(room?.game)renderLogs(room.game);$("#logModal").hidden=false;sound.play("tap")}
+  function hideLogModal(){const modal=$("#logModal");if(modal)modal.hidden=true}
+
+  function renderInventory(g,mine){const items=mine.items||[],active=g.players?.[g.currentSeat],canUse=!g.finished&&g.phase==="roll"&&active?.id===me.id;$("#itemCount").textContent=String(items.length);$("#itemCount").className="item-count";$("#itemList").innerHTML=items.length?items.map(id=>{const item=itemCards[id]||{name:id,copy:"道具卡"};return`<article class="item-entry"><div><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.copy)}</small></div><button type="button" data-use-item="${escapeHtml(id)}" ${canUse?"":"disabled"}>使用</button></article>`}).join(""):`<div class="item-empty">还没有道具卡。停在“道具补给站”可以获得。</div>`;$("#itemHint").textContent=canUse?"当前回合可以先用道具，再掷骰。":"只能在自己的回合、掷骰前使用。";document.querySelectorAll("[data-use-item]").forEach(button=>button.onclick=()=>{sendCommand("USE_ITEM",{itemId:button.dataset.useItem});hideItemModal()})}
+  function openItemModal(){if(room?.game){const mine=room.game.players.find(player=>player.id===me.id);if(mine)renderInventory(room.game,mine)}$("#itemModal").hidden=false;sound.play("tap")}
+  function hideItemModal(){const modal=$("#itemModal");if(modal)modal.hidden=true}
+
+  function upgradeCandidates(g,mine){return g.board.filter(tile=>tile.type==="property"&&[tile.ownerId,tile.partnerId].includes(mine.id)&&tile.level<3).map(tile=>{const cost=60+tile.level*30,nextRent=Math.round(tile.rent*(1+tile.level*.75));return{tile,cost,nextRent,affordable:mine.cash>=cost}})}
+  function openUpgradeModal(){const g=room?.game,mine=g?.players.find(player=>player.id===me.id),current=g?.players[g.currentSeat],canAct=g&&!g.finished&&g.phase==="roll"&&current?.id===me.id;if(!g||!mine||!canAct){toast("只能在自己的回合、掷骰前建设");return}const candidates=upgradeCandidates(g,mine);$("#upgradeList").innerHTML=candidates.length?candidates.map(({tile,cost,nextRent,affordable})=>`<article class="upgrade-entry"><div><strong>${escapeHtml(tile.name)} · ${tile.level}→${tile.level+1}级</strong><small>花费 ${cost} 金币 · 基础分红提升到 ${nextRent}</small></div><button type="button" data-upgrade-tile="${tile.index}" ${affordable?"":"disabled"}>${affordable?"建设":"金币不足"}</button></article>`).join(""):`<div class="item-empty">暂无可升级项目。拥有或合伙持有的项目最多建设到 3 级。</div>`;$("#upgradeHint").textContent="建设只在自己的回合、掷骰前进行；升级后，其他玩家到访时支付的分红会提高。";document.querySelectorAll("[data-upgrade-tile]").forEach(button=>button.onclick=()=>{window.__upgradeTrace.push({tileIndex:Number(button.dataset.upgradeTile),at:performance.now()});sendCommand("UPGRADE_PROPERTY",{tileIndex:Number(button.dataset.upgradeTile)});hideUpgradeModal()});$("#upgradeModal").hidden=false;sound.play("tap")}
+  function hideUpgradeModal(){const modal=$("#upgradeModal");if(modal)modal.hidden=true}
+  function openEndGameModal(){if(room?.ownerUserId!==me?.id||room?.game?.finished)return;$("#endGameModal").hidden=false;sound.play("tap")}
+  function hideEndGameModal(){const modal=$("#endGameModal");if(modal)modal.hidden=true}
+  function showGameResult(ranking=room?.game?.finalRanking||[]){const g=room?.game;if(!g?.players?.length)return;const rows=(Array.isArray(ranking)&&ranking.length?ranking:g.players.map(player=>({playerId:player.id,score:0,cash:player.cash}))).filter(Boolean);$("#gameResultList").innerHTML=rows.map((entry,index)=>{const player=g.players.find(item=>item.id===entry.playerId);return`<article class="result-row"><span class="result-rank">${index+1}</span><strong>${escapeHtml(player?.nickname||"玩家")}</strong><span>${Number(entry.score||0)} 分 · ${Number(entry.cash??player?.cash??0)} 金币</span></article>`}).join("");$("#gameResultModal").hidden=false}
+  function hideGameResult(){const modal=$("#gameResultModal");if(modal)modal.hidden=true}
+
+  function renderGame(){
+    if(!room?.game)return;
+    const g=room.game,current=g.players[g.currentSeat]||g.players[0],mine=g.players.find(player=>player.id===me.id);if(!mine||!current)return;
+    const nextOptions=(g.board[mine.position]?.next||[]).map(item=>typeof item==="number"?item:item.to),isMyTurn=!g.finished&&g.phase==="roll"&&current?.id===me.id,builds=upgradeCandidates(g,mine),affordableBuilds=builds.filter(item=>item.affordable);
+    renderRouteGuide();
+    $("#playerBar").innerHTML=g.players.map((player,index)=>`<article class="player-chip ${index===g.currentSeat?"current":""}" data-player-id="${escapeHtml(player.id)}" style="--player-color:${playerColors[index%4]}"><img src="${asset(avatarFiles[index%4])}" alt=""><div class="player-copy"><strong>${escapeHtml(player.nickname)}</strong><small>${player.kind==="bot"?"Bot":"玩家"}${player.trustee?" · 托管":index===g.currentSeat?" · 行动中":" · 等待"}</small></div><div class="player-metrics"><span class="coins"><b>${player.cash}</b><em>金币</em></span><span class="influence"><b>${player.influence}</b><em>影响力</em></span><span class="items"><b>${(player.items||[]).length}</b><em>道具</em></span></div></article>`).join("");
+    $("#tileLayer").innerHTML=g.board.map((tile,index)=>{const pos=position(index),visual=tile.visual||types[tile.type]||"landmark",owner=ownershipBadge(g,tile),ownerPlayer=tile.ownerId?g.players.find(player=>player.id===tile.ownerId):null,partnerPlayer=tile.partnerId?g.players.find(player=>player.id===tile.partnerId):null,ownerLabel=ownerPlayer?(partnerPlayer?`${ownerPlayer.nickname} + ${partnerPlayer.nickname}`:`${ownerPlayer.nickname} 独资`):"暂无主人",isJunction=Array.isArray(tile.next)&&tile.next.length>1,classes=[visual,isJunction?"junction":"",tile.inner?"inner":"",nextOptions.includes(index)?"next-option":"",mine.position===index?"current":"",routeClasses(tile,index)].filter(Boolean).join(" "),priceLabel=tile.type==="property"&&!tile.ownerId?`<span class="tile-price">¥${tile.price}</span>`:"";return`<button type="button" class="board-tile ${classes}${priceLabel?" has-price":""}" data-room-id="${escapeHtml(room.id)}" data-tile-index="${index}" data-tile-type="${tile.type}" data-route="${tile.inner||"outer"}" data-tile-name="${escapeHtml(tile.name)}" data-type-label="${escapeHtml(typeLabels[tile.type]||"地图节点")}" data-visual="${visual}" data-group="${escapeHtml(tile.group||"")}" data-description="${escapeHtml(tileDescription(tile))}" data-price="${tile.price||0}" data-rent="${tile.rent||0}" data-level="${tile.level||0}" data-owned="${Boolean(tile.ownerId)}" data-owner-label="${escapeHtml(ownerLabel)}" data-junction="${isJunction}" style="left:${pos.x}%;top:${pos.y}%" title="${escapeHtml(typeLabels[tile.type]||"地图节点")}：${escapeHtml(tile.name)}" aria-label="查看${escapeHtml(typeLabels[tile.type]||"地图节点")}：${escapeHtml(tile.name)}详情">${owner}<img class="tile-icon" src="${asset(tileAssets[visual])}" alt=""><span class="tile-name">${escapeHtml(tile.name)}</span>${priceLabel}</button>`}).join("");
+    $("#pieceLayer").innerHTML=g.players.map((player,index)=>{const pos=position(player.position);return`<span class="piece ${player.id===me.id?"me":""}" data-player-id="${escapeHtml(player.id)}" style="left:${pos.x}%;top:${pos.y}%"><img src="${asset(avatarFiles[index%4])}" alt="${escapeHtml(player.nickname)}"></span>`}).join("");
+    $("#turnLabel").textContent=g.finished?"本局结束":`${current.nickname}的回合`;$("#roundLabel").textContent=g.finished?"":`第 ${g.round}/${g.maxRounds} 轮`;$("#locationLabel").textContent=g.board[mine.position]?.name||"位置同步中";
+    $("#rollButton").hidden=g.finished;$("#rollButton").disabled=!isMyTurn;$("#rollButton").title=isMyTurn?"掷骰并开始移动":"等待轮到你的回合";
+    $("#upgradeButton").hidden=g.finished;$("#upgradeButton").disabled=!isMyTurn||!affordableBuilds.length;$("#upgradeButton").title=!isMyTurn?"只能在自己的回合、掷骰前建设":!builds.length?"暂无可升级项目":!affordableBuilds.length?"金币不足":"选择项目并提高到访分红";
+    $("#endGameButton").hidden=g.finished||room.ownerUserId!==me.id;$("#endGameButton").disabled=false;$("#endGameConfirmButton").disabled=false;
+    renderInventory(g,mine);renderDecision(g,mine);renderLogs(g);diceRenderer.prewarm();if(g.finished&&$("#gameResultModal").hidden)queueMicrotask(()=>showGameResult(g.finalRanking||[]));
+  }
+  function hideDecisionModal(){const modal=$("#decisionModal");if(modal)modal.hidden=true;const actions=$("#modalActions");if(actions)actions.innerHTML=""}
+  function modalButton(text,handler,primary=true){const b=document.createElement("button");b.textContent=text;b.className=primary?"primary":"secondary";b.onclick=()=>{document.querySelectorAll("#modalActions button").forEach(node=>node.disabled=true);submittedDecisionKey=currentDecisionKey;hideDecisionModal();if(handler()===false){submittedDecisionKey=null;renderDecision(room.game,room.game.players.find(player=>player.id===me.id))}};$("#modalActions").appendChild(b)}
+  function openDecisionModal(tag,title,copy,soundName="daily"){const wasHidden=$("#decisionModal").hidden;$("#decisionTag").textContent=tag;$("#decisionTitle").textContent=title;$("#decisionCopy").textContent=copy;$("#modalActions").innerHTML="";$("#decisionModal").hidden=false;if(wasHidden)sound.play(soundName)}
+  function decisionKey(g,p){return p?`${g.version}:${p.type}:${p.actorId||""}:${p.targetPlayerId||""}:${p.tileIndex??""}`:null}
+  function renderDecision(g,mine){
+    const wrap=$("#decisionActions");wrap.innerHTML="";const p=g.pending;
+    if(!p){currentDecisionKey=null;submittedDecisionKey=null;hideDecisionModal();return}
+    currentDecisionKey=decisionKey(g,p);if(submittedDecisionKey===currentDecisionKey){hideDecisionModal();wrap.textContent="正在结算…";return}if(submittedDecisionKey&&submittedDecisionKey!==currentDecisionKey)submittedDecisionKey=null;
+    if(p.type==="partner"&&p.targetPlayerId===me.id){openDecisionModal("合伙邀请","要一起投资吗？",`${g.players.find(x=>x.id===p.actorId)?.nickname||"好友"} 邀请你共同投资，双方各付一半并分享分红。`,"partnership");modalButton("接受合伙",()=>sendCommand("ACCEPT_PARTNER"));modalButton("拒绝",()=>sendCommand("DECLINE_PARTNER"),false);return}
+    if(p.actorId!==me.id){hideDecisionModal();wrap.textContent="等待其他玩家选择…";return}
+    if(p.type==="route"){const choices=Array.isArray(p.choices)?p.choices:[];if(!choices.length){toast("路线状态异常，正在重新同步","event",2600);socket?.send(JSON.stringify({type:"resume",lastSeq:Number.MAX_SAFE_INTEGER}));return}openDecisionModal("路线选择","接下来走哪条路？","内环更快，外环经过的可投资项目更多。","route");choices.forEach((c,index)=>modalButton(c.label,()=>sendCommand("CHOOSE_ROUTE",{to:c.to}),index===1))}
+    else if(p.type==="property"){const tile=g.board[p.tileIndex];if(!tile){toast("项目状态异常，正在重新同步","event",2600);socket?.send(JSON.stringify({type:"resume",lastSeq:Number.MAX_SAFE_INTEGER}));return}openDecisionModal("项目投资",tile.name,`投入 ${tile.price}，基础到访分红 ${tile.rent}。可以独立投资，也可以邀请好友五五合伙。`,"investment");modalButton("独立投资",()=>sendCommand("BUY_PROPERTY"));g.players.filter(x=>x.id!==me.id).forEach(x=>modalButton(`邀请 ${x.nickname} 合伙`,()=>sendCommand("INVITE_PARTNER",{targetPlayerId:x.id}),false));modalButton("暂不投资",()=>sendCommand("SKIP_PROPERTY"),false)}
+    else if(p.type==="opportunity"){openDecisionModal("城市机遇卡","翻开机遇卡","投入 100 冲刺更高回报，或者稳妥获得 40 金币。","opportunity");modalButton("冒险冲刺",()=>sendCommand("CHOOSE_OPPORTUNITY",{choice:"risk"}));modalButton("稳妥 +40",()=>sendCommand("CHOOSE_OPPORTUNITY",{choice:"safe"}),false)}
+    else if(p.type==="review"){openDecisionModal("项目验收","加急还是停留？","支付 80 立即完成，或下一回合停留一次；停留期间仍可收分红。","review");modalButton("加急 −80",()=>sendCommand("CHOOSE_REVIEW",{choice:"pay"}));modalButton("停留一次",()=>sendCommand("CHOOSE_REVIEW",{choice:"wait"}),false)}
+    else if(p.type==="vote"){openDecisionModal("城市公投","下一阶段怎么建设？","发展文旅获得个人影响力，或给所有玩家发放消费券。","vote");modalButton("发展文旅",()=>sendCommand("CHOOSE_VOTE",{choice:"tourism"}));modalButton("全民券",()=>sendCommand("CHOOSE_VOTE",{choice:"coupon"}),false)}
+  }
+  function escapeHtml(value){return String(value??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"})[c])}
+
+  $("#sendCodeButton").onclick=sendCode;$("#loginButton").onclick=login;$("#createRoomButton").onclick=createRoom;$("#joinRoomButton").onclick=()=>joinRoom({code:$("#roomCodeInput").value.trim()});$("#addBotButton").onclick=addBot;$("#readyButton").onclick=toggleReady;$("#startGameButton").onclick=startGame;$("#copyInviteButton").onclick=copyInvite;$("#leaveRoomButton").onclick=goHome;$("#gameHomeButton").onclick=goHome;$("#inventoryButton").onclick=openItemModal;$("#itemCloseButton").onclick=hideItemModal;$("#upgradeButton").onclick=openUpgradeModal;$("#upgradeCloseButton").onclick=hideUpgradeModal;$("#endGameButton").onclick=openEndGameModal;$("#endGameCancelButton").onclick=hideEndGameModal;$("#endGameConfirmButton").onclick=()=>{window.__endGameTrace.push({roomId:room?.id,actorId:me?.id,at:performance.now()});hideEndGameModal();sendCommand("END_GAME")};$("#resultHomeButton").onclick=()=>{hideGameResult();goHome()};$("#tileDetailCloseButton").onclick=hideTileDetails;$("#tileLayer").addEventListener("click",handleTileClick);$("#openLogButton").onclick=openLogModal;$("#logCloseButton").onclick=hideLogModal;$("#soundToggle").onclick=sound.toggle;$("#rollButton").onclick=()=>sendCommand("ROLL_DICE");document.addEventListener("pointerdown",sound.unlock,{passive:true});document.addEventListener("touchstart",sound.unlock,{passive:true});document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")resumeAfterVisibility()});window.addEventListener("pageshow",resumeAfterVisibility);window.addEventListener("focus",resumeAfterVisibility);document.addEventListener("click",event=>{sound.unlock();const button=event.target.closest("button");if(button&&!button.disabled&&button.id!=="soundToggle")sound.play("tap")});document.addEventListener("dblclick",event=>event.preventDefault(),{passive:false});sound.update();
+  const originalEnter=enterRoom;enterRoom=function(value){if(activeRoomId&&activeRoomId!==value.id)cancelGameFeedback();room=value;activeRoomId=value.id;lastSeq=Math.max(lastSeqByRoom.get(value.id)||0,value.seq||0);lastSeqByRoom.set(value.id,lastSeq);preloadGameAssets();if(room.status==="playing"||room.status==="finished"){show("game");renderGame()}else{show("room");renderRoom()}if(!socket||socket.readyState>1)connectSocket()};
+  boot();
+})();
