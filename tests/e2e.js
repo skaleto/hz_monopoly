@@ -133,7 +133,8 @@ async function main() {
         railVsBoard: intersects(rect("#gameFeedbackRail"), rect(".board-shell"))
       };
     });
-    assert.deepEqual(persistentLayoutCollisions, { topActionsVsStatus:false, itemLabelVsBadge:false, railVsPlayers:false, railVsBoard:false });
+    assert.deepEqual(persistentLayoutCollisions, { topActionsVsStatus:false, itemLabelVsBadge:false, railVsPlayers:false, railVsBoard:true });
+    assert.equal(await b.locator("#gameFeedbackRail").evaluate(node=>node.parentElement.id),"gameBoard");
     assert.equal(await b.locator(".board-tile.junction").count(), 2);
     assert.equal(await b.locator(".route-line").count(), 0);
     assert.equal(await b.locator("#branchGuide").count(), 1);

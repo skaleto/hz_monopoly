@@ -214,3 +214,13 @@ button,.player-copy strong,.player-metrics b,.tile-name,.tile-price,.turn-summar
   .board-tile.has-price .tile-icon,.tile-icon{width:15px;height:15px}
   .tile-name,.tile-price{font-size:5.2px}
 }
+
+/* M2 feedback correction: toast floats on the map instead of reserving a white rail. */
+.game-active .game-view { grid-template-rows:auto auto minmax(0,1fr) auto auto; }
+.game-feedback-rail { position:absolute; z-index:70; left:50%; top:12px; width:min(360px,calc(100% - 24px)); height:auto; min-height:0; overflow:visible; transform:translateX(-50%); pointer-events:none; }
+.game-active .game-feedback-rail > .game-toast { position:relative; inset:auto; width:100%; min-height:48px; padding:10px 14px 10px 42px; border:1.5px solid rgba(23,48,79,.75); border-left:0; border-radius:16px; background:linear-gradient(135deg,rgba(255,253,245,.97),rgba(230,248,249,.95)); box-shadow:0 12px 30px rgba(11,37,62,.3),0 2px 0 rgba(23,48,79,.32); backdrop-filter:blur(10px); font-size:11px; font-weight:800; opacity:0; visibility:hidden; transform:translateY(-12px) scale(.97); transition:opacity .2s,transform .24s,visibility .2s; }
+.game-active .game-feedback-rail > .game-toast::before { content:"✦"; position:absolute; left:12px; top:50%; width:22px; height:22px; display:grid; place-items:center; transform:translateY(-50%); border:1.5px solid var(--ink); border-radius:8px; background:var(--yellow); color:var(--ink); }
+.game-active .game-feedback-rail > .game-toast.visible { opacity:1; visibility:visible; transform:translateY(0) scale(1); }
+.game-active .game-feedback-rail > .game-toast.coin::before { content:"¥"; background:#ffe58a; }
+.game-active .game-feedback-rail > .game-toast.card::before { content:"◆"; background:#ffdce9; }
+@media(max-width:700px){.game-feedback-rail{top:8px;width:calc(100% - 16px)}.game-active .game-feedback-rail>.game-toast{min-height:44px;padding:8px 10px 8px 38px;font-size:10px}}
