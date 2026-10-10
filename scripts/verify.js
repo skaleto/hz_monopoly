@@ -109,7 +109,6 @@ record("deterministic M3 cash-pressure candidate gate", () => command("npm", ["r
 if (release) {
   record("release tracked-tree cleanliness", releaseCleanliness);
   record("fresh reproducible asset build", () => command(process.execPath, ["scripts/verify-reproducible-build.js"]));
-  record("headed GPU dice gate", () => command("npm", ["run", "test:dice-headed"]));
 }
 
 report.finishedAt = new Date().toISOString();

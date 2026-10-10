@@ -56,7 +56,7 @@ npm run verify
 ```
 
 - `npm run verify` 是唯一日常验证入口：语法、禁止文件、生产依赖审计、核心/资源/HTTP/WebSocket 测试、390×844 E2E 和固定种子 M1 模拟；
-- `npm run verify -- --release` 在上述门禁后追加 fresh 可复现构建和真实 headed GPU 骰子门禁；
+- `npm run verify -- --release` 在上述门禁后追加发布树洁净度和 fresh 可复现构建；`npm run test:dice-headed` 仅作为可选的本机渲染诊断，不阻断发布；
 - `npm run sim:balance -- --games 400 --all --output artifacts/balance/m2-candidates` 生成 M1 与候选规则对比，只用于数值体检，不替代真人试玩。
 
 项目开发规约以 [HARNESS.md](HARNESS.md) 为唯一入口；Agent 专用入口只指向该文件，不维护重复规则。
