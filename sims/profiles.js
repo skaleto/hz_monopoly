@@ -14,7 +14,7 @@ function fiveSectorsOfFive() {
   const board = BOARD.map(tile => ({ ...tile, next: tile.next.map(value => typeof value === "object" ? { ...value } : value) }));
   const smoothInnerPositions = {
     28:[18,27],29:[28,32],30:[46,44],31:[50,50],32:[51,56],33:[49,62],34:[39,74],35:[35,80],36:[33,86],
-    37:[86,50],38:[80,42],40:[75,34],41:[69,26],44:[62,17]
+    37:[84,58],38:[77,49],40:[71,40],41:[66,30],44:[61,19]
   };
   for (const [index, [x,y]] of Object.entries(smoothInnerPositions)) Object.assign(board[Number(index)], { x, y });
   const movedToOuter = { 39:[86,74],42:[86,14],43:[14,38] };
