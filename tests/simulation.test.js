@@ -5,7 +5,7 @@ const assert = require("node:assert/strict");
 const { profiles, fiveSectorsOfFive } = require("../sims/profiles");
 const { simulateProfile, assertHardGates, assertCandidateGates } = require("../sims/run");
 
-test("M3 board keeps five sectors and limits both shortcut branches to six nodes", () => {
+test("M3 board keeps five sectors with a 34-node ring plus 8+7 branch lines", () => {
   const board = fiveSectorsOfFive();
   const counts = new Map();
   for (const tile of board.filter(tile => tile.type === "property")) {
@@ -15,19 +15,23 @@ test("M3 board keeps five sectors and limits both shortcut branches to six nodes
   assert.equal(counts.size, 5);
   assert.deepEqual([...counts.values()], [5, 5, 5, 5, 5]);
   assert.deepEqual(board.slice(45).map(tile => tile.name), ["钱塘会展中心", "运河运动公园", "滨江国际社区", "大运河艺术馆"]);
-  assert.deepEqual(board[29].next, [45]);
-  assert.deepEqual(board[45].next, [31]);
-  assert.deepEqual(board[31].next, [33]);
-  assert.deepEqual(board[33].next, [36]);
-  assert.equal(board.filter(tile => tile.inner === "water").length, 6);
-  assert.equal(board.filter(tile => tile.inner === "metro").length, 6);
-  assert.deepEqual([37,38,48,39,41,44].map(index => board[index].name), ["市民中心站","滨江数创园","大运河艺术馆","钱江新城","文三数字街","未来科技城"]);
-  assert.deepEqual(board[38].next, [48]);
-  assert.deepEqual(board[48].next, [39]);
-  assert.deepEqual(board[39].next, [41]);
-  assert.deepEqual(board[41].next, [44]);
-  const outerInsertions=[[0,34,1],[2,47,3],[5,32,6],[8,46,9],[13,42,14],[15,35,16],[19,30,20],[24,43,25],[26,40,27]];
-  assert.equal(outerInsertions.every(([before,moved,after]) => board[before].next[0] === moved && board[moved].next[0] === after && !board[moved].inner), true);
+  // 水线：22 入口 → 28..36 → 2 出口，共 8 个内部节点
+  assert.equal(board.filter(tile => tile.inner === "water").length, 8);
+  assert.deepEqual(board[22].next, [{ to: 23, label: "外环·运河线" }, { to: 28, label: "水上巴士线" }]);
+  const waterChain = [28, 29, 30, 45, 31, 33, 34, 36];
+  assert.deepEqual(waterChain.map((index, offset) => board[index].next[0]), [...waterChain.slice(1), 2]);
+  // 地铁：10 入口 → 37..44 → 17 出口，共 7 个内部节点
+  assert.equal(board.filter(tile => tile.inner === "metro").length, 7);
+  assert.deepEqual(board[10].next, [{ to: 11, label: "外环·钱塘线" }, { to: 37, label: "地铁快线" }]);
+  const metroChain = [37, 38, 48, 39, 41, 40, 44];
+  assert.deepEqual(metroChain.map((index, offset) => board[index].next[0]), [...metroChain.slice(1), 17]);
+  assert.deepEqual(metroChain.map(index => board[index].name), ["市民中心站","滨江数创园","大运河艺术馆","钱江新城","文三数字街","地铁快线","未来科技城"]);
+  // 主环 34 节点顺序完整闭合（岔路节点取外环选项），无 inner 残留
+  const ringOrder = [0, 1, 2, 47, 3, 4, 5, 32, 6, 7, 8, 46, 9, 10, 11, 12, 13, 14,
+    15, 35, 16, 17, 18, 19, 20, 21, 22, 23, 24, 43, 25, 26, 42, 27];
+  const ringNext = ringOrder.map(index => { const next = board[index].next[0]; return typeof next === "object" ? next.to : next; });
+  assert.deepEqual(ringNext, [...ringOrder.slice(1), 0]);
+  assert.equal(ringOrder.every(index => !board[index].inner), true);
 });
 
 test("M3 city event candidate passes cash tension and pacing gates", () => {

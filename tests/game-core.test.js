@@ -18,7 +18,7 @@ test("only supports 2 to 4 total seats", () => {
 });
 
 test("new games stamp the single current ruleset version", () => {
-  assert.equal(CURRENT_RULESET_VERSION, "hangzhou-v3-city-events");
+  assert.equal(CURRENT_RULESET_VERSION, "hangzhou-v4-sector-board");
   assert.equal(createGame(players).rulesetVersion, CURRENT_RULESET_VERSION);
 });
 

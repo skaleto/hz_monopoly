@@ -2,7 +2,7 @@
 
 const crypto = require("node:crypto");
 
-const CURRENT_RULESET_VERSION = "hangzhou-v3-city-events";
+const CURRENT_RULESET_VERSION = "hangzhou-v4-sector-board";
 
 const BOARD = [
   { type: "start", name: "我的公寓", next: [1] },

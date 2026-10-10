@@ -10,34 +10,6 @@ const sectorByProject = new Map(Object.entries({
   良渚陶艺村: "生态文体", 西溪营地: "生态文体", 运河文创: "生态文体", 运河运动公园: "生态文体", 大运河艺术馆: "生态文体"
 }));
 
-function cubicPoint(start, controlA, controlB, end, progress) {
-  const remaining = 1 - progress;
-  return {
-    x: remaining ** 3 * start.x + 3 * remaining ** 2 * progress * controlA.x + 3 * remaining * progress ** 2 * controlB.x + progress ** 3 * end.x,
-    y: remaining ** 3 * start.y + 3 * remaining ** 2 * progress * controlA.y + 3 * remaining * progress ** 2 * controlB.y + progress ** 3 * end.y
-  };
-}
-
-function equallySpacedCurve(start, controlA, controlB, end, count) {
-  const samples = [{ progress: 0, point: start, distance: 0 }];
-  let previous = start, total = 0;
-  for (let step = 1; step <= 500; step += 1) {
-    const progress = step / 500, point = cubicPoint(start, controlA, controlB, end, progress);
-    total += Math.hypot(point.x - previous.x, point.y - previous.y);
-    samples.push({ progress, point, distance: total });
-    previous = point;
-  }
-  return Array.from({ length: count }, (_, index) => {
-    const target = total * (index + 1) / (count + 1);
-    const upperIndex = samples.findIndex(sample => sample.distance >= target);
-    const lower = samples[upperIndex - 1], upper = samples[upperIndex];
-    const ratio = (target - lower.distance) / Math.max(Number.EPSILON, upper.distance - lower.distance);
-    const progress = lower.progress + (upper.progress - lower.progress) * ratio;
-    const point = cubicPoint(start, controlA, controlB, end, progress);
-    return { x: Number(point.x.toFixed(2)), y: Number(point.y.toFixed(2)) };
-  });
-}
-
 function fiveSectorsOfFive() {
   const board = BOARD.map(tile => ({ ...tile, next: tile.next.map(value => typeof value === "object" ? { ...value } : value) }));
   const newProjects = [
@@ -47,28 +19,36 @@ function fiveSectorsOfFive() {
     { type: "property", visual: "project_art", name: "大运河艺术馆", next: [39], price: 220, rent: 58, group: "生态文体" }
   ];
   board.push(...newProjects);
-  board[29].next = [45];
-  board[31].next = [33];
-  board[33].next = [36];
-  board[38].next = [48];
-  board[39].next = [41];
-  board[41].next = [44];
-  board[0].next = [34]; board[34].next = [1];
-  board[2].next = [47]; board[47].next = [3];
-  board[5].next = [32]; board[32].next = [6];
-  board[8].next = [46]; board[46].next = [9];
-  board[13].next = [42]; board[42].next = [14];
-  board[15].next = [35]; board[35].next = [16];
-  board[19].next = [30]; board[30].next = [20];
-  board[24].next = [43]; board[43].next = [25];
-  board[26].next = [40]; board[40].next = [27];
-  const routeDefinitions = [
-    { inner: "water", indexes: [28,29,45,31,33,36], points: equallySpacedCurve({x:8,y:32},{x:32,y:18},{x:74,y:64},{x:32,y:92},6) },
-    { inner: "metro", indexes: [37,38,48,39,41,44], points: equallySpacedCurve({x:92,y:56},{x:78,y:68},{x:47,y:48},{x:56,y:8},6) }
-  ];
-  for (const route of routeDefinitions) route.indexes.forEach((index, offset) => Object.assign(board[index], { inner: route.inner, ...route.points[offset] }));
-  const outerInsertions = { 34:[14,88],47:[38,88],32:[74,88],46:[88,74],42:[88,14],35:[74,12],30:[38,12],43:[12,50],40:[12,74] };
-  for (const [index, [x,y]] of Object.entries(outerInsertions)) { Object.assign(board[Number(index)], { x, y }); delete board[Number(index)].inner; }
+
+  // 布局与拓扑由 scripts/generate-board-layout.js 生成（sims/board-layout.json）：
+  // 主环 34 节点弧长均匀；水线 8 节点（22 入 → 2 出）、地铁 7 节点（10 入 → 17 出），端点锚定主环。
+  const layout = require("./board-layout.json");
+  const RING_ORDER = [0, 1, 2, 47, 3, 4, 5, 32, 6, 7, 8, 46, 9, 10, 11, 12, 13, 14,
+    15, 35, 16, 17, 18, 19, 20, 21, 22, 23, 24, 43, 25, 26, 42, 27];
+  const WATER_ORDER = [28, 29, 30, 45, 31, 33, 34, 36];
+  const METRO_ORDER = [37, 38, 48, 39, 41, 40, 44];
+  if (RING_ORDER.length !== Object.keys(layout.ring).length
+    || WATER_ORDER.length !== Object.keys(layout.water).length
+    || METRO_ORDER.length !== Object.keys(layout.metro).length) throw new Error("BOARD_LAYOUT_MISMATCH");
+
+  RING_ORDER.forEach((index, position) => {
+    board[index].next = [RING_ORDER[(position + 1) % RING_ORDER.length]];
+    Object.assign(board[index], layout.ring[index]);
+    delete board[index].inner;
+  });
+  // 两个岔路入口
+  board[22].next = [{ to: 23, label: "外环·运河线" }, { to: 28, label: "水上巴士线" }];
+  board[10].next = [{ to: 11, label: "外环·钱塘线" }, { to: 37, label: "地铁快线" }];
+
+  WATER_ORDER.forEach((index, position) => {
+    board[index].next = [position === WATER_ORDER.length - 1 ? 2 : WATER_ORDER[position + 1]];
+    Object.assign(board[index], layout.water[index], { inner: "water" });
+  });
+  METRO_ORDER.forEach((index, position) => {
+    board[index].next = [position === METRO_ORDER.length - 1 ? 17 : METRO_ORDER[position + 1]];
+    Object.assign(board[index], layout.metro[index], { inner: "metro" });
+  });
+
   const candidateBoard = board.map(tile => {
     const candidate = ["daily", "opportunity"].includes(tile.type)
       ? { ...tile, type: "event", name: tile.name.replace("杭城日常", "杭城事件").replace("机遇卡", "事件") }
@@ -110,7 +90,7 @@ const profiles = {
   },
   cautious: {
     label: "M3 city events candidate",
-    rulesetVersion: "hangzhou-v3-city-events",
+    rulesetVersion: "hangzhou-v4-sector-board",
     board: fiveSectorsOfFive(),
     balance: {
       ...sharedCandidate,
