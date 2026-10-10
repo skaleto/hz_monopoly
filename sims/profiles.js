@@ -48,21 +48,27 @@ function fiveSectorsOfFive() {
   ];
   board.push(...newProjects);
   board[29].next = [45];
-  board[33].next = [46];
+  board[31].next = [33];
+  board[33].next = [36];
   board[38].next = [48];
-  board[39].next = [30];
-  board[30].next = [40];
-  board[41].next = [34];
-  board[34].next = [44];
-  board[2].next = [47];
+  board[39].next = [41];
+  board[41].next = [44];
+  board[0].next = [34]; board[34].next = [1];
+  board[2].next = [47]; board[47].next = [3];
+  board[5].next = [32]; board[32].next = [6];
+  board[8].next = [46]; board[46].next = [9];
   board[13].next = [42]; board[42].next = [14];
+  board[15].next = [35]; board[35].next = [16];
+  board[19].next = [30]; board[30].next = [20];
   board[24].next = [43]; board[43].next = [25];
+  board[26].next = [40]; board[40].next = [27];
   const routeDefinitions = [
-    { inner: "water", indexes: [28,29,45,31,32,33,46,35,36], points: equallySpacedCurve({x:8,y:32},{x:32,y:18},{x:74,y:64},{x:32,y:92},9) },
-    { inner: "metro", indexes: [37,38,48,39,30,40,41,34,44], points: equallySpacedCurve({x:92,y:56},{x:78,y:68},{x:47,y:48},{x:56,y:8},9) }
+    { inner: "water", indexes: [28,29,45,31,33,36], points: equallySpacedCurve({x:8,y:32},{x:32,y:18},{x:74,y:64},{x:32,y:92},6) },
+    { inner: "metro", indexes: [37,38,48,39,41,44], points: equallySpacedCurve({x:92,y:56},{x:78,y:68},{x:47,y:48},{x:56,y:8},6) }
   ];
   for (const route of routeDefinitions) route.indexes.forEach((index, offset) => Object.assign(board[index], { inner: route.inner, ...route.points[offset] }));
-  for (const [index, [x,y]] of Object.entries({ 42:[86,14],43:[14,50],47:[38,86] })) { Object.assign(board[Number(index)], { x, y }); delete board[Number(index)].inner; }
+  const outerInsertions = { 34:[14,88],47:[38,88],32:[74,88],46:[88,74],42:[88,14],35:[74,12],30:[38,12],43:[12,50],40:[12,74] };
+  for (const [index, [x,y]] of Object.entries(outerInsertions)) { Object.assign(board[Number(index)], { x, y }); delete board[Number(index)].inner; }
   const candidateBoard = board.map(tile => {
     const candidate = ["daily", "opportunity"].includes(tile.type)
       ? { ...tile, type: "event", name: tile.name.replace("杭城日常", "杭城事件").replace("机遇卡", "事件") }

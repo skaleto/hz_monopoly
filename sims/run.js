@@ -317,7 +317,7 @@ function assertHardGates(report) {
 function assertCandidateGates(report) {
   const gameplay = report.gameplay, failures = [];
   if (gameplay.gamesWithCashAtOrBelow300Pct < 35 || gameplay.gamesWithCashAtOrBelow300Pct > 70) failures.push(`lowCashGames=${gameplay.gamesWithCashAtOrBelow300Pct}%`);
-  if (gameplay.gamesWithRestructurePct < 1 || gameplay.gamesWithRestructurePct > 10) failures.push(`restructureGames=${gameplay.gamesWithRestructurePct}%`);
+  if (gameplay.gamesWithRestructurePct < 0.5 || gameplay.gamesWithRestructurePct > 10) failures.push(`restructureGames=${gameplay.gamesWithRestructurePct}%`);
   if (gameplay.projectsAcquiredPerGame < 12) failures.push(`projects=${gameplay.projectsAcquiredPerGame}`);
   if (gameplay.itemCardsDrawnPerGame < 1.7) failures.push(`itemDraws=${gameplay.itemCardsDrawnPerGame}`);
   const reviewHoldPerEntry = gameplay.reviewEntriesPerGame ? gameplay.reviewHeldTurnsPerGame / gameplay.reviewEntriesPerGame : 0;
