@@ -182,18 +182,20 @@ test("city events support meaningful loss, global impact and a risk choice", () 
 
 test("project review requires an even roll to leave and then moves by that roll", () => {
   let game = createGame(players.slice(0, 2), { board: fiveSectorsOfFive() });
-  game.players[0].position = 13;
+  const reviewIndex = game.board.findIndex(tile => tile.type === "review");
+  const beforeReview = game.board.findIndex(tile => tile.next?.some(next => (typeof next === "object" ? next.to : next) === reviewIndex));
+  game.players[0].position = beforeReview;
   game = applyCommand(game, "u1", "ROLL_DICE", {}, { nowMs: 1, forcedDice: 1 }).state;
   assert.equal(game.players[0].reviewDetained, true);
   game.currentSeat = 0; game.phase = "roll";
   let attempt = applyCommand(game, "u1", "ROLL_DICE", {}, { nowMs: 2, forcedDice: 3 });
-  assert.equal(attempt.state.players[0].position, 14);
+  assert.equal(attempt.state.players[0].position, reviewIndex);
   assert.equal(attempt.state.players[0].reviewDetained, true);
   assert.ok(attempt.events.some(event => event.type === "REVIEW_HELD"));
   attempt.state.currentSeat = 0; attempt.state.phase = "roll";
   const released = applyCommand(attempt.state, "u1", "ROLL_DICE", {}, { nowMs: 3, forcedDice: 4 });
   assert.equal(released.state.players[0].reviewDetained, false);
-  assert.notEqual(released.state.players[0].position, 14);
+  assert.notEqual(released.state.players[0].position, reviewIndex);
   assert.ok(released.events.some(event => event.type === "REVIEW_RELEASED"));
 });
 

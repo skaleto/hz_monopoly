@@ -14,19 +14,26 @@ function fiveSectorsOfFive() {
   const board = BOARD.map(tile => ({ ...tile, next: tile.next.map(value => typeof value === "object" ? { ...value } : value) }));
   const smoothInnerPositions = {
     28:[18,27],29:[28,32],30:[46,44],31:[50,50],32:[51,56],33:[49,62],34:[39,74],35:[35,80],36:[33,86],
-    37:[84,62],38:[77,55],39:[63,43],40:[57,37],41:[53,31],42:[51,25],43:[49,11],44:[44,5]
+    37:[84,62],38:[78,53],40:[72,44],41:[65,35],44:[59,22]
   };
   for (const [index, [x,y]] of Object.entries(smoothInnerPositions)) Object.assign(board[Number(index)], { x, y });
+  const movedToOuter = { 39:[86,74],42:[86,14],43:[14,38] };
+  for (const [index, [x,y]] of Object.entries(movedToOuter)) { Object.assign(board[Number(index)], { x, y }); delete board[Number(index)].inner; }
   const newProjects = [
     { type: "property", visual: "project_expo", name: "钱塘会展中心", next: [30], price: 280, rent: 78, group: "钱塘发展", inner: "water", x: 38, y: 38 },
     { type: "property", visual: "project_sports", name: "运河运动公园", next: [34], price: 230, rent: 62, group: "生态文体", inner: "water", x: 44, y: 68 },
-    { type: "property", visual: "project_community", name: "滨江国际社区", next: [39], price: 270, rent: 74, group: "钱塘发展", inner: "metro", x: 70, y: 49 },
-    { type: "property", visual: "project_art", name: "大运河艺术馆", next: [43], price: 220, rent: 58, group: "生态文体", inner: "metro", x: 50, y: 18 }
+    { type: "property", visual: "project_community", name: "滨江国际社区", next: [3], price: 270, rent: 74, group: "钱塘发展", x: 38, y: 86 },
+    { type: "property", visual: "project_art", name: "大运河艺术馆", next: [19], price: 220, rent: 58, group: "生态文体", x: 38, y: 14 }
   ];
   board[29].next = [45];
   board[33].next = [46];
-  board[38].next = [47];
-  board[42].next = [48];
+  board[38].next = [40];
+  board[41].next = [44];
+  board[2].next = [47];
+  board[8].next = [39]; board[39].next = [9];
+  board[13].next = [42]; board[42].next = [14];
+  board[18].next = [48];
+  board[24].next = [43]; board[43].next = [25];
   board.push(...newProjects);
   const candidateBoard = board.map(tile => {
     const candidate = ["daily", "opportunity"].includes(tile.type)
