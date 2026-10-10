@@ -54,7 +54,7 @@ const BOARD = [
 
 const DAILY_EVENTS = [
   { text: "消费券到账", cash: 80, influence: 0 },
-  { text: "梅雨设备维护", cash: -50, influence: 0 },
+  { text: "梅雨季设备检修", cash: -50, influence: 0 },
   { text: "邻里互助", cash: 40, influence: 1 },
   { text: "城市志愿活动", cash: 0, influence: 2 }
 ];
@@ -153,12 +153,16 @@ function migrateGameState(inputState) {
   state.movement = state.movement || null;
   state.version = Number(state.version || 0);
   state.balance = normalizeBalance(state.balance);
+  if (Number.isInteger(state.firstSeat) && !Array.isArray(state.turnOrder)) {
+    state.turnOrder = state.players.map((_, offset) => state.players[(state.firstSeat + offset) % state.players.length].id);
+  }
   return state;
 }
 
 function createGame(playerInputs, options = {}) {
   if (!Array.isArray(playerInputs) || playerInputs.length < 2 || playerInputs.length > 4) throw new Error("PLAYER_COUNT_OUT_OF_RANGE");
   const balance = normalizeBalance(options.balance);
+  const firstSeat = Number.isInteger(options.firstSeat) ? options.firstSeat : 0;
   const players = playerInputs.map((player, seat) => ({
     id: player.id,
     nickname: player.nickname,
@@ -178,13 +182,16 @@ function createGame(playerInputs, options = {}) {
     lastUpgradeRound: 0,
     trustee: false
   }));
+  const turnOrder = players.map((_, offset) => players[(firstSeat + offset) % players.length]);
   return {
     rulesetVersion: options.rulesetVersion || CURRENT_RULESET_VERSION,
     balance,
     version: 0,
     round: 1,
     maxRounds: options.maxRounds || balance.maxRounds,
-    currentSeat: Number.isInteger(options.firstSeat) ? options.firstSeat : 0,
+    firstSeat,
+    turnOrder: turnOrder.map(player => player.id),
+    currentSeat: firstSeat,
     phase: "roll",
     pending: null,
     movement: null,
@@ -192,7 +199,7 @@ function createGame(playerInputs, options = {}) {
     winnerId: null,
     players,
     board: (options.board || BOARD).map((tile, index) => ({ ...tile, index, ownerId: null, partnerId: null, level: 0 })),
-    log: [{ type: "GAME_STARTED", text: `${players[Number.isInteger(options.firstSeat) ? options.firstSeat : 0].nickname} 先手` }]
+    log: [{ type: "GAME_STARTED", text: `本局行动顺序：${turnOrder.map((player, index) => `${index + 1}.${player.nickname}`).join(" → ")}` }]
   };
 }
 
@@ -227,11 +234,19 @@ function sectorProjectCount(state, playerId, group) {
   return state.board.filter(tile => tile.type === "property" && tile.group === group && (tile.ownerId === playerId || tile.partnerId === playerId)).length;
 }
 function sectorTier(state, playerId, group) { return Math.min(4, sectorProjectCount(state, playerId, group)); }
+function sectorTierBenefit(state, tier) {
+  const bonuses = balanceOf(state).sectorBonuses;
+  if (tier === 1) return "板块进度已点亮";
+  if (tier === 2) return `本板块到访分红 +${Math.round((bonuses.rentMultiplier - 1) * 100)}%`;
+  if (tier === 3) return "本板块项目解锁 3 级建设";
+  if (tier === 4) return `结算城市分 +${bonuses.scoreBonus}`;
+  return "";
+}
 function announceSectorTier(state, player, group, before, events) {
   const after = sectorTier(state, player.id, group);
   if (after <= before) return;
-  const labels = ["", "进入板块", "解锁协同分红", "解锁旗舰建设", "成为板块主导"];
-  log(state, events, "SECTOR_TIER_UNLOCKED", `${player.nickname} 在${group}${labels[after]}（${after}/5）`, { playerId: player.id, group, tier: after, count: after });
+  const benefit = sectorTierBenefit(state, after);
+  log(state, events, "SECTOR_TIER_UNLOCKED", `${player.nickname} 的${group}达到 ${after}/5：${benefit}`, { playerId: player.id, group, tier: after, count: after, benefit });
 }
 
 function getUpgradeCost(state, tile) {
@@ -308,7 +323,8 @@ function resolveTile(state, player, events, random, nowMs) {
     const item = DAILY_EVENTS[randomInt(random, DAILY_EVENTS.length)];
     player.cash += item.cash;
     player.influence += item.influence;
-    log(state, events, "DAILY_RESOLVED", `${player.nickname}：${item.text}`, { playerId: player.id, ...item });
+    const changes = [item.cash ? `金币 ${item.cash > 0 ? "+" : ""}${item.cash}` : null, item.influence ? `影响力 ${item.influence > 0 ? "+" : ""}${item.influence}` : null].filter(Boolean).join("，");
+    log(state, events, "DAILY_RESOLVED", `${player.nickname} 遇到${item.text}：${changes || "无数值变化"}`, { playerId: player.id, eventName: item.text, cash: item.cash, influence: item.influence });
     restructure(state, player, events);
   } else if (tile.type === "supply") {
     const card = ITEM_CARDS[randomInt(random, ITEM_CARDS.length)];

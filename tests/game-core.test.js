@@ -22,6 +22,15 @@ test("new games stamp the single current ruleset version", () => {
   assert.equal(createGame(players).rulesetVersion, CURRENT_RULESET_VERSION);
 });
 
+test("new games preserve and announce the randomized turn order", () => {
+  const game = createGame(players, { firstSeat: 2 });
+  assert.equal(game.firstSeat, 2);
+  assert.equal(game.currentSeat, 2);
+  assert.deepEqual(game.turnOrder, ["b1", "u1", "u2"]);
+  assert.equal(game.log[0].text, "本局行动顺序：1.小蓝 → 2.桃桃 → 3.青团");
+  assert.deepEqual(migrateGameState({ ...game, turnOrder: undefined }).turnOrder, game.turnOrder);
+});
+
 test("balance profiles are explicit while the default M1 behavior stays unchanged", () => {
   const defaultGame = createGame(players.slice(0, 2));
   assert.deepEqual(defaultGame.players.map(player => player.cash), [1500, 1600]);
@@ -82,6 +91,23 @@ test("sector bonuses unlock by project count without requiring the whole sector"
   assert.equal(upgraded.state.board[sector[0].index].level, 3);
 });
 
+test("sector unlock events state the concrete benefit", () => {
+  const game = createGame(players.slice(0, 2), {
+    board: fiveSectorsOfFive(),
+    balance: { sectorBonuses: { enabled: true, rentMinProjects: 2, rentMultiplier: 1.1, flagshipMinProjects: 3, scoreMinProjects: 4, scoreBonus: 3 } }
+  });
+  const sector = game.board.filter(tile => tile.type === "property" && tile.group === "文旅消费");
+  sector[0].ownerId = "u1";
+  sector[0].level = 1;
+  game.players[0].properties.push(sector[0].index);
+  game.phase = "decision";
+  game.pending = { type: "property", actorId: "u1", tileIndex: sector[1].index };
+  const result = applyCommand(game, "u1", "BUY_PROPERTY");
+  const unlocked = result.events.find(event => event.type === "SECTOR_TIER_UNLOCKED");
+  assert.equal(unlocked.payload.benefit, "本板块到访分红 +10%");
+  assert.match(unlocked.payload.text, /文旅消费达到 2\/5：本板块到访分红 \+10%/);
+});
+
 test("server decides dice and rejects non-current player", () => {
   const game = createGame(players);
   assert.throws(() => applyCommand(game, "u2", "ROLL_DICE", {}, { random: () => 0 }), /NOT_YOUR_TURN/);
@@ -117,6 +143,16 @@ test("the remaining city landmark grants a meaningful reward", () => {
   assert.equal(result.state.players[0].cash, before.cash + 100);
   assert.equal(result.state.players[0].influence, before.influence + 2);
   assert.ok(result.events.some(event => event.type === "LANDMARK_VISITED"));
+});
+
+test("daily events state their exact cash and influence changes", () => {
+  const game = createGame(players.slice(0, 2));
+  game.players[0].position = 5;
+  const before = game.players[0].cash;
+  const result = applyCommand(game, "u1", "ROLL_DICE", {}, { nowMs: 1, forcedDice: 1, random: () => 0.26 });
+  const daily = result.events.find(event => event.type === "DAILY_RESOLVED");
+  assert.equal(result.state.players[0].cash, before - 50);
+  assert.equal(daily.payload.text, "桃桃 遇到梅雨季设备检修：金币 -50");
 });
 
 test("human partnership requires target acceptance", () => {

@@ -17,6 +17,7 @@
     "test:e2e": "node tests/e2e.js",
     "test:dice-headed": "node tests/dice-headed.js",
     "sim:balance": "node sims/run.js",
+    "docs:numeric": "python3 scripts/export-numeric-design.py",
     "verify": "node scripts/verify.js"
   },
   "dependencies": {

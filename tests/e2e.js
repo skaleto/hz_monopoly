@@ -78,6 +78,14 @@ async function main() {
     await a.locator("#startGameButton").click();
     await a.locator("#gameView").waitFor({ state: "visible" });
     await b.locator("#gameView").waitFor({ state: "visible" });
+    await a.locator("#turnOrderModal").waitFor({ state: "visible" });
+    await b.locator("#turnOrderModal").waitFor({ state: "visible" });
+    assert.equal(await a.locator("#turnOrderList .turn-order-entry").count(), 4);
+    assert.match(await a.locator("#turnOrderList .turn-order-entry").first().textContent(), /桃桃.*先手/s);
+    await a.screenshot({ path: path.join(screenshotDir, "03-turn-order-mobile.png"), fullPage: true });
+    await a.locator("#turnOrderConfirmButton").click();
+    await b.locator("#turnOrderConfirmButton").click();
+    await a.locator("#turnOrderModal").waitFor({ state: "hidden" });
     assert.equal(await a.locator("#soundToggle").textContent(), "音效开");
     await a.locator("#soundToggle").click();
     assert.equal(await a.locator("#soundToggle").textContent(), "音效关");
@@ -96,6 +104,15 @@ async function main() {
     assert.match(await a.locator(".player-chip").first().textContent(), /道具/);
     assert.match(await a.locator(".player-chip").first().textContent(), /城市分/);
     assert.equal(await a.locator("#sectorProgress .sector-chip").count(), 5);
+    assert.match(await a.locator("#sectorProgress .sector-chip").first().textContent(), /0\/5.*未进入/s);
+    await a.locator("#sectorProgress .sector-chip").first().click();
+    await a.locator("#sectorModal").waitFor({ state: "visible" });
+    assert.equal(await a.locator("#sectorTierList .sector-tier-row").count(), 4);
+    assert.match(await a.locator("#sectorTierList").textContent(), /分红 \+10%/);
+    assert.match(await a.locator("#sectorTierList").textContent(), /3 级/);
+    assert.match(await a.locator("#sectorTierList").textContent(), /城市分 \+3/);
+    await a.screenshot({ path: path.join(screenshotDir, "03b-sector-benefits-mobile.png"), fullPage: true });
+    await a.locator("#sectorCloseButton").click();
     assert.equal(await a.locator("#gameHomeButton").evaluate(button => button.parentElement.classList.contains("game-top-actions")), true);
     assert.equal(await a.locator("#rollButton").evaluate(button => button.parentElement.classList.contains("game-bottom")), true);
     assert.equal(await a.locator(".game-bottom > button").count(), 3);
@@ -513,6 +530,8 @@ async function main() {
       doubleTapZoomDisabled: "pass",
       mobileTurnLayout: "pass",
       playerMetrics: "coins + influence + items",
+      openingTurnOrder: "randomized order shown to every player",
+      sectorBenefitGuide: "clickable 1/2/3/4-tier concrete effects",
       dice3D: "single geometry / three-axis tumble / deterministic landing",
       redundantDiceText: 0,
       movementPacing: ">=300ms per step",
