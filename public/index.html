@@ -69,8 +69,12 @@
       </div>
       <section id="playerBar" class="player-bar"></section>
       <section class="sector-summary" aria-label="我的产业板块进度与增益规则">
+        <div class="sector-summary-head"><strong>我的板块</strong><button id="sectorGuideToggle" type="button" aria-expanded="false">规则</button></div>
         <div id="sectorProgress" class="sector-progress"></div>
-        <div id="sectorLegend" class="sector-legend"></div>
+        <div id="sectorGuide" class="sector-guide" hidden>
+          <div id="sectorLegend" class="sector-legend"></div>
+          <p>独资或合伙都计 1 个；达到档位后自动生效，且只作用于同板块项目。</p>
+        </div>
       </section>
       <section class="board-shell">
         <div id="gameBoard" class="game-board">

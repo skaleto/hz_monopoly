@@ -14,14 +14,14 @@ function fiveSectorsOfFive() {
   const board = BOARD.map(tile => ({ ...tile, next: tile.next.map(value => typeof value === "object" ? { ...value } : value) }));
   const smoothInnerPositions = {
     28:[18,27],29:[28,32],30:[46,44],31:[50,50],32:[51,56],33:[49,62],34:[39,74],35:[35,80],36:[33,86],
-    37:[84,58],38:[77,52],39:[65,40],40:[61,34],41:[59,28],42:[58,22],43:[57,14],44:[56,10]
+    37:[84,62],38:[77,55],39:[63,43],40:[57,37],41:[53,31],42:[51,25],43:[49,11],44:[44,5]
   };
   for (const [index, [x,y]] of Object.entries(smoothInnerPositions)) Object.assign(board[Number(index)], { x, y });
   const newProjects = [
     { type: "property", visual: "project_expo", name: "钱塘会展中心", next: [30], price: 280, rent: 78, group: "钱塘发展", inner: "water", x: 38, y: 38 },
     { type: "property", visual: "project_sports", name: "运河运动公园", next: [34], price: 230, rent: 62, group: "生态文体", inner: "water", x: 44, y: 68 },
-    { type: "property", visual: "project_community", name: "滨江国际社区", next: [39], price: 270, rent: 74, group: "钱塘发展", inner: "metro", x: 70, y: 46 },
-    { type: "property", visual: "project_art", name: "大运河艺术馆", next: [43], price: 220, rent: 58, group: "生态文体", inner: "metro", x: 58, y: 17 }
+    { type: "property", visual: "project_community", name: "滨江国际社区", next: [39], price: 270, rent: 74, group: "钱塘发展", inner: "metro", x: 70, y: 49 },
+    { type: "property", visual: "project_art", name: "大运河艺术馆", next: [43], price: 220, rent: 58, group: "生态文体", inner: "metro", x: 50, y: 18 }
   ];
   board[29].next = [45];
   board[33].next = [46];

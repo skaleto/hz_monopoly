@@ -110,9 +110,14 @@ async function main() {
     assert.equal(await a.locator("#sectorProgress .sector-dots").count(), 5);
     assert.equal(await a.locator("#sectorProgress .sector-dots i").count(), 25);
     assert.equal(await a.locator("#sectorModal").count(), 0);
+    assert.equal(await a.locator("#sectorGuide").isHidden(), true);
+    await a.locator("#sectorGuideToggle").click();
+    assert.equal(await a.locator("#sectorGuideToggle").getAttribute("aria-expanded"), "true");
     assert.deepEqual(await a.locator("#sectorLegend [data-sector-tier]").evaluateAll(nodes => nodes.map(node => node.textContent)), ["1入局","2分红+10%","3可建3级","4城市分+3"]);
-    assert.match(await a.locator("#sectorLegend").textContent(), /逐档累计.*仅作用于本板块/);
+    assert.match(await a.locator("#sectorGuide").textContent(), /独资或合伙都计 1 个.*只作用于同板块项目/);
     await a.screenshot({ path: path.join(screenshotDir, "03b-sector-benefits-mobile.png"), fullPage: true });
+    await a.locator("#sectorGuideToggle").click();
+    assert.equal(await a.locator("#sectorGuide").isHidden(), true);
     assert.equal(await a.locator("#gameHomeButton").evaluate(button => button.parentElement.classList.contains("game-top-actions")), true);
     assert.equal(await a.locator("#rollButton").evaluate(button => button.parentElement.classList.contains("game-bottom")), true);
     assert.equal(await a.locator(".game-bottom > button").count(), 3);
@@ -167,6 +172,12 @@ async function main() {
     });
     assert.ok(nodeChainGaps.water <= 80, `water chain gap ${nodeChainGaps.water}`);
     assert.ok(nodeChainGaps.metro <= 80, `metro chain gap ${nodeChainGaps.metro}`);
+    const metroRouteGeometry = await b.evaluate(() => {
+      const indexes=[37,38,47,39,40,41,42,48,43,44],centers=indexes.map(index=>{const rect=document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect();return{index,x:rect.x+rect.width/2,y:rect.y+rect.height/2}}),pairGaps=[];
+      centers.forEach((point,index)=>centers.slice(index+1).forEach(other=>pairGaps.push({pair:[point.index,other.index],gap:Math.hypot(point.x-other.x,point.y-other.y)})));
+      const nearest=pairGaps.sort((left,right)=>left.gap-right.gap)[0];return { minGap:nearest.gap, nearestPair:nearest.pair, rightmostX:Math.max(...centers.map(point=>point.x)), topmostY:Math.min(...centers.map(point=>point.y)) };
+    });
+    assert.ok(metroRouteGeometry.minGap >= 29, `metro nodes are crowded ${JSON.stringify(metroRouteGeometry)}`);
     const waterRouteGeometry = await b.evaluate(() => {
       const indexes=[23,28,29,45,30,31,32,33,46,34,35,36,2],centers=indexes.map(index=>{const rect=document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect();return{x:rect.x+rect.width/2,y:rect.y+rect.height/2}}),vectors=centers.slice(1).map((point,index)=>({x:point.x-centers[index].x,y:point.y-centers[index].y}));
       const lengths=vectors.map(vector=>Math.hypot(vector.x,vector.y)),turns=vectors.slice(1).map((vector,index)=>{const previous=vectors[index],cos=(previous.x*vector.x+previous.y*vector.y)/(Math.hypot(previous.x,previous.y)*Math.hypot(vector.x,vector.y));return Math.acos(Math.max(-1,Math.min(1,cos)))*180/Math.PI}),inner=centers.slice(1,-1),pairGaps=[];
@@ -521,6 +532,7 @@ async function main() {
       routeBorders: "water cyan + metro purple + matching entry/exit fills",
       branchDirections: "2 continuous routes + color-matched entry/exit endpoints",
       waterRouteGeometry,
+      metroRouteGeometry,
       opportunityNodes: 4,
       supplyNodes: 2,
       tileDetail: "pass",
@@ -531,7 +543,7 @@ async function main() {
       mobileTurnLayout: "pass",
       playerMetrics: "coins + influence + items",
       openingTurnOrder: "non-blocking randomized order banner, auto-hides in 2.2s",
-      sectorBenefitGuide: "persistent five-dot progress + shared 1/2/3/4-tier legend",
+      sectorBenefitGuide: "compact five-dot overview + inline collapsible tier guide",
       dice3D: "single geometry / three-axis tumble / deterministic landing",
       redundantDiceText: 0,
       movementPacing: ">=300ms per step",
