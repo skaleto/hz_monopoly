@@ -156,11 +156,13 @@ body.game-active { height:100dvh; overflow:hidden; overscroll-behavior:none; pos
 /* M2 prototype: visible sector progression and expanded 49-node board. */
 .player-metrics { grid-template-columns:repeat(4,1fr); }
 .player-metrics .score { background:#e7e2ff; }
-.sector-progress { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:5px; min-height:38px; }
-.sector-chip { appearance:none; display:grid; align-content:center; min-width:0; padding:4px 7px; border:1.5px solid var(--ink); border-radius:10px; background:#fff; box-shadow:0 2px 0 var(--ink); color:var(--ink); font:inherit; text-align:left; cursor:pointer; }
+.sector-summary{display:grid;gap:3px;min-width:0}.sector-progress { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:5px; min-height:38px; }
+.sector-chip { display:grid; align-content:center; min-width:0; padding:4px 7px; border:1.5px solid var(--ink); border-radius:10px; background:#fff; box-shadow:0 2px 0 var(--ink); color:var(--ink); text-align:left; }
 .sector-chip strong { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
-.sector-chip span { overflow:hidden; white-space:normal; line-height:1.15; }
-.sector-chip strong { font-size:9px; }.sector-chip span { font-size:7px; color:rgba(23,48,79,.65); }
+.sector-chip span { overflow:hidden; white-space:normal; line-height:1.1; }
+.sector-chip strong { font-size:9px; }.sector-chip .sector-current { font-size:7px; color:rgba(23,48,79,.65); }
+.sector-dots{display:flex;gap:2px;margin:2px 0}.sector-dots i{width:5px;height:5px;border:1px solid rgba(23,48,79,.45);border-radius:50%;background:#fff}.sector-dots i.filled{border-color:var(--ink);background:var(--green)}
+.sector-legend{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;margin:0;color:var(--ink);font-size:8px;font-weight:800;line-height:1.1}.sector-legend span{display:flex;align-items:center;justify-content:center;gap:3px;min-width:0;padding:3px 2px;border:1px solid rgba(23,48,79,.48);border-radius:7px;background:#fff;white-space:nowrap}.sector-legend span:nth-child(2){background:#dff4f8}.sector-legend span:nth-child(3){background:#fff0ad}.sector-legend span:nth-child(4){background:#ffdce9}.sector-legend b{display:grid;place-items:center;width:13px;height:13px;border:1px solid var(--ink);border-radius:50%;background:#fff;font-size:7px}.sector-legend em{grid-column:1/-1;color:rgba(23,48,79,.64);font-size:7px;font-style:normal;font-weight:700;text-align:center}
 .sector-chip.tier-2 { background:#dff4f8; }.sector-chip.tier-3 { background:#fff0ad; }.sector-chip.tier-4 { background:#ffdce9; }
 .sector-chip.just-unlocked { animation:sectorUnlockPulse .72s ease-in-out 4 alternate; box-shadow:0 0 0 3px #fff,0 0 0 6px var(--coral),0 2px 0 var(--ink); }
 .game-active .game-view { grid-template-rows:auto auto 34px minmax(0,1fr) auto auto; }
@@ -208,7 +210,7 @@ button,.player-copy strong,.player-metrics b,.tile-name,.tile-price,.turn-summar
 @media(max-width:700px){
   .sector-progress{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;overflow:visible;min-height:32px}
   .sector-chip{min-width:0;padding:3px 2px;box-shadow:0 1px 0 var(--ink)}
-  .sector-chip strong{font-size:6.5px}.sector-chip span{font-size:5.5px}
+  .sector-chip strong{font-size:6.5px}.sector-chip .sector-current{font-size:5.5px}.sector-dots{gap:1px;margin:1px 0}.sector-dots i{width:3.5px;height:3.5px;border-width:.7px}.sector-legend{gap:2px;font-size:6.5px}.sector-legend span{gap:2px;padding:2px 1px}.sector-legend b{width:10px;height:10px;font-size:5.5px}.sector-legend em{font-size:6px}
   .game-active .board-shell{overflow:hidden}
   .game-active .game-board{width:100%;min-width:0;height:100%;min-height:0}
   .board-tile,.board-tile.outer-side{width:36px;height:36px;padding:1px 1px 3px}
@@ -227,13 +229,10 @@ button,.player-copy strong,.player-metrics b,.tile-name,.tile-price,.turn-summar
 .game-active .game-feedback-rail > .game-toast.card::before { content:"◆"; background:#ffdce9; }
 @media(max-width:700px){.game-feedback-rail{top:8px;width:calc(100% - 16px)}.game-active .game-feedback-rail>.game-toast{min-height:44px;padding:8px 10px 8px 38px;font-size:10px}}
 
-/* Opening order and sector rules stay explicit instead of hiding mechanics in labels. */
-.turn-order-overlay{z-index:280}.turn-order-card,.sector-card{width:min(460px,94vw)}
-.turn-order-list{display:grid;gap:8px;margin:18px 0;padding:0;list-style:none;counter-reset:turn-order}
-.turn-order-entry{counter-increment:turn-order;display:grid;grid-template-columns:34px 42px 1fr auto;align-items:center;gap:9px;padding:8px 10px;border:2px solid var(--ink);border-radius:14px;background:#fff;text-align:left}
-.turn-order-entry::before{content:counter(turn-order);width:28px;height:28px;display:grid;place-items:center;border:2px solid var(--ink);border-radius:50%;background:var(--yellow);font-weight:900}
-.turn-order-entry:first-child{background:#fff0ad}.turn-order-entry img{width:40px;height:40px;object-fit:contain}.turn-order-entry strong,.turn-order-entry small{display:block}.turn-order-entry small{color:rgba(23,48,79,.62)}.turn-order-entry em{font-style:normal;font-weight:900;color:#8a3f35}
-.sector-tier-list{display:grid;gap:8px;margin:16px 0}.sector-tier-row{display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:9px;padding:9px 11px;border:2px solid rgba(23,48,79,.25);border-radius:13px;background:#fff;text-align:left}.sector-tier-row strong,.sector-tier-row small{display:block}.sector-tier-row small{margin-top:2px;color:rgba(23,48,79,.65);line-height:1.35}.sector-tier-row .tier-count{display:grid;place-items:center;width:30px;height:30px;border:2px solid var(--ink);border-radius:50%;background:#f2f3f5;font-weight:900}.sector-tier-row .tier-status{font-size:11px;font-weight:900;color:rgba(23,48,79,.48)}.sector-tier-row.unlocked{border-color:var(--ink);background:#eaf8f5}.sector-tier-row.unlocked .tier-count{background:var(--green)}.sector-tier-row.unlocked .tier-status{color:#26755f}
+/* Opening order is a brief, non-blocking board banner; sector rules stay persistent. */
+.turn-order-banner{position:absolute;z-index:75;left:50%;top:50%;width:min(520px,calc(100% - 36px));padding:14px 18px;border:2px solid #fff;border-radius:18px;background:rgba(23,48,79,.94);box-shadow:0 0 0 3px var(--ink),0 14px 34px rgba(6,24,44,.4);color:#fff;text-align:center;transform:translate(-50%,-50%);pointer-events:none}.turn-order-banner[hidden]{display:none}.turn-order-banner strong,.turn-order-banner span{display:block}.turn-order-banner strong{margin-bottom:5px;color:var(--yellow);font-size:13px}.turn-order-banner span{font-size:15px;font-weight:800;line-height:1.45}.turn-order-banner.playing{animation:turnOrderBrief 2.2s ease both}
+@media(max-width:700px){.turn-order-banner{width:calc(100% - 28px);padding:11px 10px}.turn-order-banner strong{font-size:10px}.turn-order-banner span{font-size:11px}}
+@keyframes turnOrderBrief{0%{opacity:0;transform:translate(-50%,-44%) scale(.94)}12%,78%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-54%) scale(.98)}}
 @keyframes sectorUnlockPulse{from{transform:translateY(0) scale(1)}to{transform:translateY(-2px) scale(1.04)}}
 
 /* Full-screen item-card reveal. */

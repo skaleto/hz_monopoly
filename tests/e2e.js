@@ -77,15 +77,17 @@ async function main() {
 
     await a.locator("#startGameButton").click();
     await a.locator("#gameView").waitFor({ state: "visible" });
-    await b.locator("#gameView").waitFor({ state: "visible" });
-    await a.locator("#turnOrderModal").waitFor({ state: "visible" });
-    await b.locator("#turnOrderModal").waitFor({ state: "visible" });
-    assert.equal(await a.locator("#turnOrderList .turn-order-entry").count(), 4);
-    assert.match(await a.locator("#turnOrderList .turn-order-entry").first().textContent(), /桃桃.*先手/s);
+    await a.locator("#turnOrderBanner").waitFor({ state: "visible" });
+    await a.locator("#turnOrderBanner").evaluate(node => { const animation=node.getAnimations()[0]; if(animation){animation.currentTime=700;animation.pause()} });
     await a.screenshot({ path: path.join(screenshotDir, "03-turn-order-mobile.png"), fullPage: true });
-    await a.locator("#turnOrderConfirmButton").click();
-    await b.locator("#turnOrderConfirmButton").click();
-    await a.locator("#turnOrderModal").waitFor({ state: "hidden" });
+    await a.locator("#turnOrderBanner").evaluate(node => node.getAnimations()[0]?.play());
+    await b.locator("#gameView").waitFor({ state: "visible" });
+    await b.locator("#turnOrderBanner").waitFor({ state: "visible" });
+    assert.match(await a.locator("#turnOrderSummary").textContent(), /①桃桃（你） → ②青团 → ③小禾 → ④小蓝/);
+    assert.equal(await a.locator("#turnOrderBanner").evaluate(node => getComputedStyle(node).pointerEvents), "none");
+    assert.equal(await a.locator("#turnOrderBanner button").count(), 0);
+    await a.locator("#turnOrderBanner").waitFor({ state: "hidden", timeout: 3000 });
+    await b.locator("#turnOrderBanner").waitFor({ state: "hidden", timeout: 3000 });
     assert.equal(await a.locator("#soundToggle").textContent(), "音效开");
     await a.locator("#soundToggle").click();
     assert.equal(await a.locator("#soundToggle").textContent(), "音效关");
@@ -105,14 +107,12 @@ async function main() {
     assert.match(await a.locator(".player-chip").first().textContent(), /城市分/);
     assert.equal(await a.locator("#sectorProgress .sector-chip").count(), 5);
     assert.match(await a.locator("#sectorProgress .sector-chip").first().textContent(), /0\/5.*未进入/s);
-    await a.locator("#sectorProgress .sector-chip").first().click();
-    await a.locator("#sectorModal").waitFor({ state: "visible" });
-    assert.equal(await a.locator("#sectorTierList .sector-tier-row").count(), 4);
-    assert.match(await a.locator("#sectorTierList").textContent(), /分红 \+10%/);
-    assert.match(await a.locator("#sectorTierList").textContent(), /3 级/);
-    assert.match(await a.locator("#sectorTierList").textContent(), /城市分 \+3/);
+    assert.equal(await a.locator("#sectorProgress .sector-dots").count(), 5);
+    assert.equal(await a.locator("#sectorProgress .sector-dots i").count(), 25);
+    assert.equal(await a.locator("#sectorModal").count(), 0);
+    assert.deepEqual(await a.locator("#sectorLegend [data-sector-tier]").evaluateAll(nodes => nodes.map(node => node.textContent)), ["1入局","2分红+10%","3可建3级","4城市分+3"]);
+    assert.match(await a.locator("#sectorLegend").textContent(), /逐档累计.*仅作用于本板块/);
     await a.screenshot({ path: path.join(screenshotDir, "03b-sector-benefits-mobile.png"), fullPage: true });
-    await a.locator("#sectorCloseButton").click();
     assert.equal(await a.locator("#gameHomeButton").evaluate(button => button.parentElement.classList.contains("game-top-actions")), true);
     assert.equal(await a.locator("#rollButton").evaluate(button => button.parentElement.classList.contains("game-bottom")), true);
     assert.equal(await a.locator(".game-bottom > button").count(), 3);
@@ -530,8 +530,8 @@ async function main() {
       doubleTapZoomDisabled: "pass",
       mobileTurnLayout: "pass",
       playerMetrics: "coins + influence + items",
-      openingTurnOrder: "randomized order shown to every player",
-      sectorBenefitGuide: "clickable 1/2/3/4-tier concrete effects",
+      openingTurnOrder: "non-blocking randomized order banner, auto-hides in 2.2s",
+      sectorBenefitGuide: "persistent five-dot progress + shared 1/2/3/4-tier legend",
       dice3D: "single geometry / three-axis tumble / deterministic landing",
       redundantDiceText: 0,
       movementPacing: ">=300ms per step",
