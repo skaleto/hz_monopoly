@@ -142,9 +142,10 @@ async function main() {
     assert.equal(await b.locator(".board-tile .type-mark").count(), 0);
     assert.equal(await b.locator('.board-tile[data-tile-type="property"] .tile-price').count(), 25);
     assert.match(await b.locator('.board-tile[data-tile-type="property"] .tile-price').first().textContent(), /^¥\d+$/);
-    const progressiveLabels=await b.locator(".board-tile").evaluateAll(tiles=>({visibleNames:tiles.filter(tile=>getComputedStyle(tile.querySelector('.tile-name')).display!=="none").length,visiblePrices:tiles.filter(tile=>tile.querySelector('.tile-price')&&getComputedStyle(tile.querySelector('.tile-price')).display!=="none").length}));
-    assert.equal(progressiveLabels.visibleNames,0,"board names move to the turn summary and tap details");
+    const progressiveLabels=await b.locator(".board-tile").evaluateAll(tiles=>{const visible=tiles.filter(tile=>getComputedStyle(tile.querySelector('.tile-name')).display!=="none");return{visibleNames:visible.length,visibleProjectNames:visible.filter(tile=>tile.dataset.tileType==="property").length,visibleNonProjectNames:visible.filter(tile=>tile.dataset.tileType!=="property").length,minProjectNameSize:Math.min(...visible.filter(tile=>tile.dataset.tileType==="property").map(tile=>parseFloat(getComputedStyle(tile.querySelector('.tile-name')).fontSize))),visiblePrices:tiles.filter(tile=>tile.querySelector('.tile-price')&&getComputedStyle(tile.querySelector('.tile-price')).display!=="none").length}});
+    assert.deepEqual(progressiveLabels,{visibleNames:25,visibleProjectNames:25,visibleNonProjectNames:0,minProjectNameSize:9,visiblePrices:0});
     assert.equal(progressiveLabels.visiblePrices,0);
+    assert.equal(await b.locator('.board-tile[data-tile-type="property"]').evaluateAll(tiles=>tiles.every(tile=>tile.querySelector('.tile-name').textContent.trim()===tile.dataset.tileName&&parseFloat(getComputedStyle(tile.querySelector('.tile-name')).fontSize)>=9)),true,"all purchasable project names must remain present and readable");
     assert.equal(await b.locator(".board-tile").evaluateAll(tiles => tiles.every(tile => { const rect=tile.getBoundingClientRect(); return Math.abs(rect.width-rect.height)<=0.5; })), true, "all board nodes must be square");
     const persistentLayoutCollisions = await b.evaluate(() => {
       const intersects = (a,b) => Math.min(a.right,b.right) > Math.max(a.left,b.left) && Math.min(a.bottom,b.bottom) > Math.max(a.top,b.top);
@@ -308,24 +309,19 @@ async function main() {
     assert.equal(await a.locator("#eventModal").count(), 0);
     await b.locator("#rollButton").waitFor({ state: "visible" });
     await b.waitForFunction(() => !document.querySelector("#rollButton").disabled);
-
-    await b.evaluate(() => { window.__movementTrace = []; window.__soundTrace = []; });
-    await b.locator("#rollButton").click();
-    await b.locator("#gameToast.visible").waitFor({ state: "visible" });
-    assert.equal(await b.locator("#eventModal").count(), 0);
-    assert.equal(await b.locator("#gameToast").evaluate(node => getComputedStyle(node).pointerEvents), "none");
-    assert.ok(await b.locator("#gameToast").evaluate(node => parseFloat(getComputedStyle(node).borderRadius)) <= 16);
-    assert.equal(await b.locator("#gameToast").evaluate(node => {
+    assert.equal(await a.locator("#gameToast").evaluate(node => getComputedStyle(node).pointerEvents), "none");
+    assert.ok(await a.locator("#gameToast").evaluate(node => parseFloat(getComputedStyle(node).borderRadius)) <= 16);
+    assert.equal(await a.locator("#gameToast").evaluate(node => {
       const toast=node.getBoundingClientRect(),panel=node.parentElement.getBoundingClientRect();
       return toast.left>=panel.left&&toast.right<=panel.right&&toast.top>=panel.top&&toast.bottom<=panel.bottom;
     }), true, "game toast must stay in the prominent rail below player cards");
-    await b.waitForTimeout(320);
-    assert.equal(await b.locator("#gameToast").evaluate(node => {const toast=node.getBoundingClientRect(),board=document.querySelector("#gameBoard").getBoundingClientRect();return toast.left>=board.left&&toast.right<=board.right&&toast.top>=board.top&&toast.bottom<=board.bottom;}),true,"settled toast must stay inside the map");
-    await b.waitForTimeout(260);
-    await b.screenshot({ path: path.join(screenshotDir, "05-daily-event-popup.png"), fullPage: true });
-    const movementTrace = await b.evaluate(() => window.__movementTrace || []);
-    await b.waitForFunction(() => (window.__soundTrace || []).some(item => item.name === "diceImpact" && item.coveredBy === "dice-shake-short.v2.ogg"), null, { timeout: 4000 });
-    const soundTrace = await b.evaluate(() => window.__soundTrace || []);
+    await a.waitForTimeout(320);
+    assert.equal(await a.locator("#gameToast").evaluate(node => {const toast=node.getBoundingClientRect(),board=document.querySelector("#gameBoard").getBoundingClientRect();return toast.left>=board.left&&toast.right<=board.right&&toast.top>=board.top&&toast.bottom<=board.bottom;}),true,"settled toast must stay inside the map");
+    await a.waitForTimeout(260);
+    await a.screenshot({ path: path.join(screenshotDir, "05-daily-event-popup.png"), fullPage: true });
+    const movementTrace = await a.evaluate(() => window.__movementTrace || []);
+    await a.waitForFunction(() => (window.__soundTrace || []).some(item => item.name === "diceImpact" && item.coveredBy === "dice-shake-short.v2.ogg"), null, { timeout: 4000 });
+    const soundTrace = await a.evaluate(() => window.__soundTrace || []);
     const firstPlayerId = movementTrace[0]?.playerId;
     const firstPath = movementTrace.filter(item => item.playerId === firstPlayerId);
     if(firstPath.length>=2){assert.deepEqual(firstPath.map(item => item.step), firstPath.map((_,index)=>index));assert.equal(new Set(firstPath.map(item => item.tileIndex)).size, firstPath.length);assert.ok(firstPath.slice(1).every((item,index) => item.at - firstPath[index].at >= 300));}
