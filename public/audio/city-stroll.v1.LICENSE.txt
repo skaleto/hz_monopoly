@@ -1,0 +1,10 @@
+Track: Mall
+Author: Patrick de Arteaga
+Source: https://patrickdearteaga.com/royalty-free-music/full-list/
+License: Free Creative Commons license with attribution condition, as stated on the author's licensing page
+License details: https://patrickdearteaga.com/en/licensing/
+
+Project derivative:
+- Transcoded from the author's Ogg Vorbis download to AAC/M4A at 64 kbps.
+- Runtime filename: city-stroll.v1.m4a
+- No composition changes were made.

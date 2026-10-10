@@ -89,42 +89,47 @@ async function main() {
     assert.equal(await a.locator("#turnOrderBanner button").count(), 0);
     await a.locator("#turnOrderBanner").waitFor({ state: "hidden", timeout: 3000 });
     await b.locator("#turnOrderBanner").waitFor({ state: "hidden", timeout: 3000 });
-    assert.equal(await a.locator("#soundToggle").textContent(), "音效开");
-    await a.locator("#soundToggle").click();
-    assert.equal(await a.locator("#soundToggle").textContent(), "音效关");
+    await a.locator("#gameMenuButton").click();
+    assert.equal(await a.locator("#gameSoundToggle").textContent(), "声音开");
+    await a.locator("#gameSoundToggle").click();
+    assert.equal(await a.locator("#gameSoundToggle").textContent(), "声音关");
     assert.equal(await a.evaluate(() => localStorage.getItem("hc_sound_enabled")), "0");
-    await a.locator("#soundToggle").click();
-    assert.equal(await a.locator("#soundToggle").getAttribute("aria-pressed"), "true");
+    await a.locator("#gameSoundToggle").click();
+    assert.equal(await a.locator("#gameSoundToggle").getAttribute("aria-pressed"), "true");
+    await a.locator("#gameMenuCloseButton").click();
     assert.equal(await a.evaluate(() => window.__soundController.suspendForTest()), "suspended");
     await a.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
     await a.locator(".player-chip").first().click();
     await a.waitForFunction(() => window.__soundController.state() === "running");
+    await a.waitForFunction(() => (window.__soundTrace || []).some(item => item.name === "bgm" && item.mode === "normal"));
+    assert.ok(await a.evaluate(() => performance.getEntriesByType("resource").some(entry => entry.name.includes("city-stroll.v1.m4a"))));
     assert.equal(await a.locator(".player-chip").count(), 4);
-    assert.equal(await a.locator(".player-metrics").count(), 4);
-    assert.equal(await a.locator(".player-metrics span").count(), 16);
+    assert.equal(await a.locator(".player-metrics").count(), 0);
     assert.match(await a.locator(".player-chip").first().textContent(), /金币/);
-    assert.match(await a.locator(".player-chip").first().textContent(), /影响力/);
-    assert.match(await a.locator(".player-chip").first().textContent(), /道具/);
-    assert.match(await a.locator(".player-chip").first().textContent(), /城市分/);
+    assert.equal(await a.locator(".player-chip").first().textContent().then(text=>/影响力|城市分/.test(text)), false);
+    await a.locator("#playerDetailModal").waitFor({state:"visible"});
+    assert.match(await a.locator("#playerDetailStats").textContent(), /现金.*总资产.*项目.*道具/s);
+    await a.locator("#playerDetailCloseButton").click();
+    await a.locator("#gameMenuButton").click();
+    await a.locator("#openSectorButton").click();
     assert.equal(await a.locator("#sectorProgress .sector-chip").count(), 5);
-    assert.match(await a.locator("#sectorProgress .sector-chip").first().textContent(), /0\/5.*未进入/s);
+    assert.match(await a.locator("#sectorProgress .sector-chip").first().textContent(), /0\/5.*待进入/s);
     assert.equal(await a.locator("#sectorProgress .sector-dots").count(), 5);
     assert.equal(await a.locator("#sectorProgress .sector-dots i").count(), 25);
-    assert.equal(await a.locator("#sectorModal").count(), 0);
-    assert.equal(await a.locator("#sectorGuide").isHidden(), true);
-    await a.locator("#sectorGuideToggle").click();
-    assert.equal(await a.locator("#sectorGuideToggle").getAttribute("aria-expanded"), "true");
-    assert.deepEqual(await a.locator("#sectorLegend [data-sector-tier]").evaluateAll(nodes => nodes.map(node => node.textContent)), ["1入局","2分红+10%","3可建3级","4城市分+3"]);
-    assert.match(await a.locator("#sectorGuide").textContent(), /独资或合伙都计 1 个.*只作用于同板块项目/);
+    assert.equal(await a.locator("#sectorModal").isVisible(), true);
+    assert.deepEqual(await a.locator("#sectorLegend [data-sector-tier]").evaluateAll(nodes => nodes.map(node => node.textContent)), ["2分红+8%","3可建3级","5旗舰+25%"]);
+    assert.match(await a.locator(".sector-note").textContent(), /独资或合伙.*2 个提高分红.*5 个形成旗舰板块/);
     await a.screenshot({ path: path.join(screenshotDir, "03b-sector-benefits-mobile.png"), fullPage: true });
-    await a.locator("#sectorGuideToggle").click();
-    assert.equal(await a.locator("#sectorGuide").isHidden(), true);
-    assert.equal(await a.locator("#gameHomeButton").evaluate(button => button.parentElement.classList.contains("game-top-actions")), true);
+    await a.locator("#sectorCloseButton").click();
+    assert.equal(await a.locator("#gameMenuButton").evaluate(button => button.parentElement.classList.contains("game-top-actions")), true);
     assert.equal(await a.locator("#rollButton").evaluate(button => button.parentElement.classList.contains("game-bottom")), true);
     assert.equal(await a.locator(".game-bottom > button").count(), 3);
     assert.deepEqual(await a.locator(".game-bottom > button").evaluateAll(buttons => buttons.map(button => button.id)), ["rollButton","inventoryButton","upgradeButton"]);
+    await a.locator("#gameMenuButton").click();
     assert.equal(await a.locator("#endGameButton").isVisible(), true);
+    await b.locator("#gameMenuButton").click();
     assert.equal(await b.locator("#endGameButton").isVisible(), false);
+    await b.locator("#gameMenuCloseButton").click();
     assert.equal(await b.locator("#upgradeButton").isDisabled(), true);
     assert.match(await b.locator("#upgradeButton").getAttribute("title"), /自己的回合/);
     await a.locator("#endGameButton").click();
@@ -137,14 +142,9 @@ async function main() {
     assert.equal(await b.locator(".board-tile .type-mark").count(), 0);
     assert.equal(await b.locator('.board-tile[data-tile-type="property"] .tile-price').count(), 25);
     assert.match(await b.locator('.board-tile[data-tile-type="property"] .tile-price').first().textContent(), /^¥\d+$/);
-    assert.equal(await b.locator(".board-tile.has-price").evaluateAll(tiles => tiles.every(tile => {
-      const parts = [tile.querySelector(".tile-icon"), tile.querySelector(".tile-name"), tile.querySelector(".tile-price")].map(node => node.getBoundingClientRect());
-      return parts.every((rect, index) => index === 0 || rect.top >= parts[index - 1].bottom - 0.5);
-    })), true, "project icon, name and price must use separate rows");
-    assert.deepEqual(await b.locator(".board-tile.has-price").evaluateAll(tiles => {
-      const pairs=tiles.map(tile=>[tile.querySelector(".tile-name"),tile.querySelector(".tile-price")].map(node=>{const style=getComputedStyle(node);return`${style.fontSize}/${style.fontWeight}`}));
-      return {nameStyles:[...new Set(pairs.map(pair=>pair[0]))],priceStyles:[...new Set(pairs.map(pair=>pair[1]))],sameLevel:pairs.every(pair=>pair[0]===pair[1])};
-    }), { nameStyles:["5.2px/800"],priceStyles:["5.2px/800"],sameLevel:true });
+    const progressiveLabels=await b.locator(".board-tile").evaluateAll(tiles=>({visibleNames:tiles.filter(tile=>getComputedStyle(tile.querySelector('.tile-name')).display!=="none").length,visiblePrices:tiles.filter(tile=>tile.querySelector('.tile-price')&&getComputedStyle(tile.querySelector('.tile-price')).display!=="none").length}));
+    assert.equal(progressiveLabels.visibleNames,0,"board names move to the turn summary and tap details");
+    assert.equal(progressiveLabels.visiblePrices,0);
     assert.equal(await b.locator(".board-tile").evaluateAll(tiles => tiles.every(tile => { const rect=tile.getBoundingClientRect(); return Math.abs(rect.width-rect.height)<=0.5; })), true, "all board nodes must be square");
     const persistentLayoutCollisions = await b.evaluate(() => {
       const intersects = (a,b) => Math.min(a.right,b.right) > Math.max(a.left,b.left) && Math.min(a.bottom,b.bottom) > Math.max(a.top,b.top);
@@ -204,12 +204,12 @@ async function main() {
     assert.ok(waterRouteGeometry.pathRatio <= 1.35, `water route too winding ${JSON.stringify(waterRouteGeometry)}`);
     assert.ok(waterRouteGeometry.maxTurn <= 60, `water route reverses sharply ${JSON.stringify(waterRouteGeometry)}`);
     assert.ok(waterRouteGeometry.minInnerGap >= 41, `water nodes are crowded ${JSON.stringify(waterRouteGeometry)}`);
-    assert.equal(await b.locator('.board-tile[data-tile-type="event"]').count(), 9);
+    assert.equal(await b.locator('.board-tile[data-tile-type="event"]').count(), 8);
     assert.equal(await b.locator('.board-tile[data-tile-type="opportunity"],.board-tile[data-tile-type="daily"]').count(), 0);
     assert.equal(await b.locator('.board-tile[data-tile-type="supply"]').count(), 2);
     assert.equal(await b.locator(".board-tile.next-option").count(), 1);
-    assert.equal(await b.locator(".board-tile .tile-icon").evaluateAll(images => new Set(images.map(image => image.getAttribute("src"))).size), 9);
-    assert.ok(await b.locator(".board-tile").evaluateAll(tiles => new Set(tiles.map(tile => getComputedStyle(tile).backgroundColor)).size) >= 7);
+    assert.ok(await b.locator(".board-tile .tile-icon").evaluateAll(images => new Set(images.map(image => image.getAttribute("src"))).size) >= 8);
+    assert.ok(await b.locator(".board-tile").evaluateAll(tiles => new Set(tiles.map(tile => getComputedStyle(tile).backgroundColor)).size) >= 4);
     assert.equal(await b.locator('.board-tile[data-tile-type="property"]').first().evaluate(tile => getComputedStyle(tile).backgroundColor), "rgb(255, 254, 250)");
     assert.notEqual(await b.locator('.board-tile[data-tile-type="event"]').first().evaluate(tile => getComputedStyle(tile).backgroundColor), await b.locator('.board-tile[data-tile-type="property"]').first().evaluate(tile => getComputedStyle(tile).backgroundColor));
     assert.equal(await b.locator(".board-tile.route-water").count(), 8);
@@ -249,10 +249,10 @@ async function main() {
     assert.ok(fixedViewport.scrollHeight <= fixedViewport.height + 1);
     await a.screenshot({ path: path.join(screenshotDir, "03-game-two-humans-two-bots.png"), fullPage: true });
     const mobileFit = await a.evaluate(() => {
-      const shell=document.querySelector(".board-shell"),shellRect=shell.getBoundingClientRect(),tiles=[...document.querySelectorAll(".board-tile")].map(tile=>tile.getBoundingClientRect()),sectors=[...document.querySelectorAll("#sectorProgress .sector-chip")].map(tile=>tile.getBoundingClientRect());
-      return { noHorizontalScroll:shell.scrollWidth<=shell.clientWidth+1,tilesInside:tiles.every(rect=>rect.left>=shellRect.left-2&&rect.right<=shellRect.right+2&&rect.top>=shellRect.top-2&&rect.bottom<=shellRect.bottom+2),sectorsInside:sectors.length===5&&sectors.every(rect=>rect.left>=0&&rect.right<=innerWidth) };
+      const shell=document.querySelector(".board-shell"),shellRect=shell.getBoundingClientRect(),tiles=[...document.querySelectorAll(".board-tile")].map(tile=>tile.getBoundingClientRect());
+      return { noHorizontalScroll:shell.scrollWidth<=shell.clientWidth+1,tilesInside:tiles.every(rect=>rect.left>=shellRect.left-2&&rect.right<=shellRect.right+2&&rect.top>=shellRect.top-2&&rect.bottom<=shellRect.bottom+2),sectorSummaryHidden:document.querySelector("#sectorModal").hidden };
     });
-    assert.deepEqual(mobileFit,{noHorizontalScroll:true,tilesInside:true,sectorsInside:true});
+    assert.deepEqual(mobileFit,{noHorizontalScroll:true,tilesInside:true,sectorSummaryHidden:true});
     await a.screenshot({ path: path.join(screenshotDir, "03b-full-map-fitted.png"), fullPage: true });
 
     await a.bringToFront();
@@ -294,7 +294,7 @@ async function main() {
       document.querySelector("#decisionModal").hidden = false;
     });
     await a.screenshot({ path: path.join(screenshotDir, "04-opportunity-decision-modal.png"), fullPage: true });
-    await a.getByRole("button", { name: "稳妥 +60" }).click();
+    await a.getByRole("button", { name: "稳妥 +80" }).click();
     await a.locator("#decisionModal").waitFor({ state: "hidden", timeout: 500 });
     await a.locator("#cardEffectOverlay").waitFor({ state: "visible" });
     assert.equal(await a.locator("#cardEffectKicker").textContent(), "城市事件");
@@ -335,6 +335,7 @@ async function main() {
     assert.ok(soundTrace.some(item => item.name === "tap"));
     assert.ok(soundTrace.some(item => item.name === "confirm"));
 
+    await b.locator("#gameMenuButton").click();
     await b.locator("#openLogButton").click();
     await b.locator("#logModal").waitFor({ state: "visible" });
     assert.ok(await b.locator("#fullEventLog li").count() >= 4);
@@ -386,6 +387,7 @@ async function main() {
     assert.ok((await a.evaluate(() => window.__celebrationTrace)).some(item => item.type === "PARTNERSHIP_ACCEPTED"));
     assert.ok((await a.evaluate(() => window.__soundTrace)).some(item => item.name === "partnership"));
 
+    await a.locator("#gameMenuButton").click();
     await a.locator("#gameHomeButton").click();
     await a.locator("#homeView").waitFor({ state: "visible" });
     await a.locator("#resumePanel").waitFor({ state: "visible" });
@@ -419,7 +421,7 @@ async function main() {
     assert.match(await a.locator("#gameToast").textContent(), /获得道具卡/);
     assert.ok((await a.evaluate(() => window.__soundTrace)).some(item => item.name === "card"));
     await a.waitForFunction(() => document.querySelector("#itemCount").textContent === "1");
-    const deterministicCardRoom=store.getRoomByCode(secondCode);deterministicCardRoom.game.players[0].items=["coupon"];deterministicCardRoom.game.currentSeat=0;deterministicCardRoom.game.phase="roll";deterministicCardRoom.game.pending=null;deterministicCardRoom.game.movement=null;deterministicCardRoom.game.version+=1;store.saveRoom(deterministicCardRoom,deterministicCardRoom.inviteTokenHash);
+    const deterministicCardRoom=store.getRoomByCode(secondCode);deterministicCardRoom.game.players[0].items=["protection"];deterministicCardRoom.game.currentSeat=0;deterministicCardRoom.game.phase="roll";deterministicCardRoom.game.pending=null;deterministicCardRoom.game.movement=null;deterministicCardRoom.game.version+=1;store.saveRoom(deterministicCardRoom,deterministicCardRoom.inviteTokenHash);
     await a.evaluate(()=>window.__socket.send(JSON.stringify({type:"resume",lastSeq:Number.MAX_SAFE_INTEGER})));await a.waitForTimeout(180);
     const itemBadgePlacement = await a.locator("#inventoryButton").evaluate(button => { const badge=button.querySelector("#itemCount"),outer=button.getBoundingClientRect(),inner=badge.getBoundingClientRect();return{right:outer.right-inner.right,top:inner.top-outer.top}; });
     assert.ok(itemBadgePlacement.right >= 0 && itemBadgePlacement.top >= 0, `item badge placement ${JSON.stringify(itemBadgePlacement)}`);
@@ -434,6 +436,7 @@ async function main() {
     await a.waitForFunction(() => document.querySelector("#itemCount").textContent === "0");
     await a.screenshot({ path: path.join(screenshotDir, "13-item-used-mobile.png"), fullPage: true });
 
+    await a.locator("#gameMenuButton").click();
     await a.locator("#gameHomeButton").click();
     await a.locator("#homeView").waitFor({ state: "visible" });
     const purchaseRoom = store.getRoomByCode(secondCode);
@@ -460,13 +463,13 @@ async function main() {
     await a.locator("#celebrationOverlay").waitFor({ state: "hidden" });
     assert.ok((await a.evaluate(() => window.__celebrationTrace)).some(item => item.type === "PROPERTY_BOUGHT"));
     assert.ok((await a.evaluate(() => window.__soundTrace)).some(item => item.name === "investment"));
+    await a.locator("#gameMenuButton").click();
     await a.locator("#gameHomeButton").click();
     await a.locator("#homeView").waitFor({ state: "visible" });
     const rentRoom = store.getRoomByCode(secondCode);
     const rentOwner = rentRoom.game.players.find(player => player.kind === "bot");
     rentRoom.game.players[0].position = 4;
-    rentRoom.game.players[0].diceBonus = 0;
-    rentRoom.game.players[0].rentShield = false;
+    rentRoom.game.players[0].protection = false;
     rentRoom.game.currentSeat = 0;
     rentRoom.game.phase = "roll";
     rentRoom.game.pending = null;
@@ -481,15 +484,15 @@ async function main() {
     store.saveRoom(rentRoom, rentRoom.inviteTokenHash);
     await a.locator(".resume-room", { hasText: secondCode }).getByRole("button", { name: "继续" }).click();
     await a.locator("#gameView").waitFor({ state: "visible" });
-    await a.waitForFunction(() => document.querySelector('.board-tile[data-tile-index="5"] .owner-dot')?.textContent.includes("1级"));
+    await a.waitForFunction(() => document.querySelector('.board-tile[data-tile-index="5"]')?.dataset.level === "1" && Boolean(document.querySelector('.board-tile[data-tile-index="5"] .owner-dot')));
     assert.equal(await a.locator("#upgradeButton").isDisabled(), false);
     await a.locator("#upgradeButton").click();
     await a.locator("#upgradeModal").waitFor({ state: "visible" });
-    assert.match(await a.locator("#upgradeHint").textContent(), /自己的回合/);
+    assert.match(await a.locator("#upgradeHint").textContent(), /每轮最多建设一次/);
     assert.match(await a.locator('[data-upgrade-tile="1"]').locator("xpath=..").textContent(), /分红提升/);
     await a.screenshot({ path: path.join(screenshotDir, "17-upgrade-project-mobile.png"), fullPage: true });
     await a.locator('[data-upgrade-tile="1"]').click();
-    await a.waitForFunction(() => document.querySelector('.board-tile[data-tile-index="1"] .owner-dot')?.textContent.includes("2级"));
+    await a.waitForFunction(() => document.querySelector('.board-tile[data-tile-index="1"]')?.dataset.level === "2");
     await a.locator('.board-tile[data-tile-index="5"]').click();
     await a.locator("#tileDetailModal").waitFor({ state: "visible" });
     assert.match(await a.locator("#tileDetailStats").textContent(), new RegExp(`${rentOwner.nickname} 独资`));
@@ -521,6 +524,7 @@ async function main() {
     assert.equal(await a.locator("#eventModal").count(), 0);
     await a.waitForTimeout(700);
     await a.screenshot({ path: path.join(screenshotDir, "14-coin-transfer-mobile.png"), fullPage: true });
+    await a.locator("#gameMenuButton").click();
     await a.locator("#gameHomeButton").click();
     await a.locator("#homeView").waitFor({ state:"visible" });
     const soundCountAfterHome = await a.evaluate(() => window.__soundTrace.length);
@@ -549,7 +553,7 @@ async function main() {
       passiveEventModalCount: 0,
       fixedMobileViewport: "pass",
       tileIllustrations: "49/49",
-      tileTypes: 5,
+      tileTypes: 4,
       junctionMarkers: 2,
       nodeChains: "outer + water + metro",
       maxInnerNodeGap: nodeChainGaps,
@@ -564,7 +568,7 @@ async function main() {
       globalNodeOverlap,
       waterBranchNodes: 8,
       metroBranchNodes: 7,
-      cityEventNodes: 9,
+      cityEventNodes: 8,
       supplyNodes: 2,
       tileDetail: "pass",
       tileClickTrace: "click / tileIndex / room context / hidden true->false",
@@ -572,9 +576,9 @@ async function main() {
       fullEventLog: "pass",
       doubleTapZoomDisabled: "pass",
       mobileTurnLayout: "pass",
-      playerMetrics: "coins + influence + items",
+      playerMetrics: "cash always visible + total assets/projects/items on tap",
       openingTurnOrder: "non-blocking randomized order banner, auto-hides in 2.2s",
-      sectorBenefitGuide: "compact five-dot overview + inline collapsible tier guide",
+      sectorBenefitGuide: "on-demand five-sector sheet with 2/3/5 milestones",
       dice3D: "single geometry / three-axis tumble / deterministic landing",
       redundantDiceText: 0,
       movementPacing: ">=300ms per step",
@@ -587,7 +591,7 @@ async function main() {
       investmentCelebration: "investor avatar + project sprite",
       upgradeSelector: "own turn only + explicit project/cost/rent",
       ownerEndGame: "owner-only confirmed settlement",
-      soundEffects: "dice + step + city event + landmark + transit + review + vote + route + card + coin + partnership + investment",
+      soundEffects: "lazy-loaded BGM + dice + step + event + route + card + coin + partnership + investment",
       consoleErrors: 0
     }, null, 2));
   } finally {

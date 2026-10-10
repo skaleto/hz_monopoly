@@ -6,7 +6,7 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 const { WebSocketServer, WebSocket } = require("ws");
 const { Store } = require("./store");
-const { CURRENT_RULESET_VERSION, createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, stateHash, cityScore, sectorProjectCount } = require("../game-core");
+const { CURRENT_RULESET_VERSION, createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, stateHash, totalAssets, sectorProjectCount } = require("../game-core");
 const { profiles } = require("../sims/profiles");
 
 const PORT = Number(process.env.PORT || 3000);
@@ -94,7 +94,7 @@ function sanitizeRoom(room) {
     ...room.game,
     players: room.game.players.map(player => ({
       ...player,
-      cityScore: cityScore(room.game, player),
+      totalAssets: totalAssets(room.game, player),
       sectorProgress: [...new Set(room.game.board.filter(tile => tile.type === "property").map(tile => tile.group))].map(group => ({ group, count: sectorProjectCount(room.game, player.id, group) }))
     }))
   } : null;
@@ -341,7 +341,7 @@ async function api(req, res, url) {
 
 function contentType(file) {
   const ext = path.extname(file).toLowerCase();
-  return ({ ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".png": "image/png", ".webp": "image/webp", ".ogg": "audio/ogg", ".json": "application/json; charset=utf-8" })[ext] || "application/octet-stream";
+  return ({ ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".png": "image/png", ".webp": "image/webp", ".ogg": "audio/ogg", ".m4a": "audio/mp4", ".json": "application/json; charset=utf-8" })[ext] || "application/octet-stream";
 }
 
 function serveStatic(req, res, url) {

@@ -49,34 +49,43 @@ function fiveSectorsOfFive() {
     Object.assign(board[index], layout.metro[index], { inner: "metro" });
   });
 
-  const candidateBoard = board.map(tile => {
-    const candidate = ["daily", "opportunity"].includes(tile.type)
-      ? { ...tile, type: "event", name: tile.name.replace("杭城日常", "杭城事件").replace("机遇卡", "事件") }
-      : { ...tile };
+  const eventIndices = new Set([4, 6, 12, 14, 19, 25, 32, 39]);
+  const candidateBoard = board.map((tile, index) => {
+    const activeType = tile.type === "property" ? "property" : tile.type === "supply" ? "supply" : eventIndices.has(index) ? "event" : "route";
+    const candidate = {
+      ...tile,
+      type: activeType,
+      name: tile.name.replace("杭城日常", "杭城事件").replace("机遇卡", "事件"),
+      ...(tile.type === "review" ? { eventId: "project_review" } : {})
+    };
     const group = sectorByProject.get(candidate.name);
     return group ? { ...candidate, group } : candidate;
   });
   const projects = candidateBoard.filter(tile => tile.type === "property");
   const counts = new Map();
   for (const tile of projects) counts.set(tile.group, (counts.get(tile.group) || 0) + 1);
+  const typeCounts = new Map();
+  for (const tile of candidateBoard) typeCounts.set(tile.type, (typeCounts.get(tile.type) || 0) + 1);
   if (candidateBoard.length !== 49 || projects.length !== 25 || counts.size !== 5 || [...counts.values()].some(count => count !== 5)) throw new Error("INVALID_FIVE_SECTOR_BOARD");
+  if (typeCounts.size !== 4 || typeCounts.get("event") !== 8 || typeCounts.get("supply") !== 2 || typeCounts.get("route") !== 14) throw new Error("INVALID_FOCUSED_NODE_TYPES");
   return candidateBoard;
 }
 
 const sharedCandidate = {
+  maxRounds: 30,
   completeGroupRentMultiplier: 1,
   sectorBonuses: {
     enabled: true,
     rentMinProjects: 2,
     rentMultiplier: 1.15,
     flagshipMinProjects: 3,
-    scoreMinProjects: 4,
-    scoreBonus: 3
+    monopolyMinProjects: 5,
+    monopolyRentMultiplier: 1.25
   },
   startIncomeByRound: [
-    { through: 4, amount: 200 },
-    { through: 9, amount: 150 },
-    { through: 12, amount: 100 }
+    { through: 10, amount: 160 },
+    { through: 25, amount: 120 },
+    { through: 30, amount: 80 }
   ]
 };
 
@@ -89,23 +98,19 @@ const profiles = {
     botPolicy: { partnershipRate: 0, upgradeEnabled: false, upgradeAfterRound: 99, maxUpgradesPerPlayer: 0, reserveCash: 400 }
   },
   cautious: {
-    label: "M3 city events candidate",
-    rulesetVersion: "hangzhou-v4-sector-board",
+    label: "M4 focused 30-round loop",
+    rulesetVersion: "hangzhou-v5-focused-loop",
     board: fiveSectorsOfFive(),
     balance: {
       ...sharedCandidate,
-      startingCashByTurn: [1200, 1200, 1200, 1200],
-      startIncomeByRound: [
-        { through: 4, amount: 140 },
-        { through: 9, amount: 90 },
-        { through: 12, amount: 40 }
-      ],
-      sectorBonuses: { ...sharedCandidate.sectorBonuses, rentMultiplier: 1.1 },
-      rentMultiplierByLevel: [0, 1, 1.75, 3],
+      startingCashByTurn: [1650, 1725, 1800, 1875],
+      startIncomeByRound: [{ through: 10, amount: 250 }, { through: 25, amount: 220 }, { through: 30, amount: 180 }],
+      sectorBonuses: { ...sharedCandidate.sectorBonuses, rentMultiplier: 1.08 },
+      rentMultiplierByLevel: [0, 1, 1.5, 2],
       upgrade: { costMode: "ratio", ratioByCurrentLevel: { 1: 0.45, 2: 0.7 }, level3RequiresCompleteGroup: true }
-      ,botPolicy: { partnershipRate: 0.2, upgradeEnabled: true, upgradeAfterRound: 6, maxUpgradesPerPlayer: 2, reserveCash: 250 }
+      ,botPolicy: { partnershipRate: 0.2, upgradeEnabled: true, upgradeAfterRound: 8, maxUpgradesPerPlayer: 8, reserveCash: 500 }
     },
-    botPolicy: { partnershipRate: 0.2, upgradeEnabled: true, upgradeAfterRound: 6, maxUpgradesPerPlayer: 2, reserveCash: 250 }
+    botPolicy: { partnershipRate: 0.2, upgradeEnabled: true, upgradeAfterRound: 8, maxUpgradesPerPlayer: 8, reserveCash: 500 }
   },
   target: {
     label: "M2 sector target",
@@ -113,6 +118,7 @@ const profiles = {
     board: fiveSectorsOfFive(),
     balance: {
       ...sharedCandidate,
+      maxRounds: 12,
       startingCashByTurn: [1500, 1500, 1500, 1500],
       rentMultiplierByLevel: [0, 1, 2, 4],
       upgrade: { costMode: "ratio", ratioByCurrentLevel: { 1: 0.5, 2: 0.8 }, level3RequiresCompleteGroup: true }
@@ -125,6 +131,7 @@ const profiles = {
     board: fiveSectorsOfFive(),
     balance: {
       ...sharedCandidate,
+      maxRounds: 12,
       startingCashByTurn: [1500, 1500, 1500, 1500],
       startIncomeByRound: [
         { through: 4, amount: 180 },

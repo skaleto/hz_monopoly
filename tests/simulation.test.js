@@ -5,7 +5,7 @@ const assert = require("node:assert/strict");
 const { profiles, fiveSectorsOfFive } = require("../sims/profiles");
 const { simulateProfile, assertHardGates, assertCandidateGates } = require("../sims/run");
 
-test("M3 board keeps five sectors with a 34-node ring plus 8+7 branch lines", () => {
+test("M4 board keeps five sectors and geometry while exposing only four active node types", () => {
   const board = fiveSectorsOfFive();
   const counts = new Map();
   for (const tile of board.filter(tile => tile.type === "property")) {
@@ -14,6 +14,8 @@ test("M3 board keeps five sectors with a 34-node ring plus 8+7 branch lines", ()
   assert.equal(board.length, 49);
   assert.equal(counts.size, 5);
   assert.deepEqual([...counts.values()], [5, 5, 5, 5, 5]);
+  assert.deepEqual([...new Set(board.map(tile => tile.type))].sort(), ["event", "property", "route", "supply"]);
+  assert.equal(board.filter(tile => tile.type === "event").length, 8);
   assert.deepEqual(board.slice(45).map(tile => tile.name), ["钱塘会展中心", "运河运动公园", "滨江国际社区", "大运河艺术馆"]);
   // 水线：22 入口 → 28..36 → 2 出口，共 8 个内部节点
   assert.equal(board.filter(tile => tile.inner === "water").length, 8);
@@ -34,10 +36,13 @@ test("M3 board keeps five sectors with a 34-node ring plus 8+7 branch lines", ()
   assert.equal(ringOrder.every(index => !board[index].inner), true);
 });
 
-test("M3 city event candidate passes cash tension and pacing gates", () => {
+test("M4 focused 30-round loop passes cash tension and pacing gates", () => {
   const report = simulateProfile("cautious", profiles.cautious, { games: 200, seed: 20261010 });
   assert.doesNotThrow(() => assertHardGates(report));
   assert.doesNotThrow(() => assertCandidateGates(report));
+  assert.equal(profiles.cautious.balance.maxRounds, 30);
+  assert.ok(report.gameplay.upgradesPerGame >= 18);
+  assert.ok(report.gameplay.cityEventsPerGame <= 25);
 });
 
 test("fixed seeds reproduce the same simulation report", () => {

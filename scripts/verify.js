@@ -120,7 +120,7 @@ record("production dependency audit", () => command("npm", ["audit", "--omit=dev
 record("core, integration and asset tests", () => command("npm", ["test"]));
 record("390x844 product E2E", () => command("npm", ["run", "test:e2e"]));
 record("deterministic M1 simulation hard gate", () => command("npm", ["run", "sim:balance", "--", "--games", "200", "--profile", "current", "--assert-hard"]));
-record("deterministic M3 cash-pressure candidate gate", () => command("npm", ["run", "sim:balance", "--", "--games", "1000", "--profile", "cautious", "--seed", "20261010", "--assert-hard", "--assert-candidate"]));
+record("deterministic M4 30-round focused-loop gate", () => command("npm", ["run", "sim:balance", "--", "--games", "1000", "--profile", "cautious", "--seed", "20261010", "--assert-hard", "--assert-candidate"]));
 
 if (release) {
   record("release tracked-tree cleanliness", releaseCleanliness);

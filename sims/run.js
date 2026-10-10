@@ -12,7 +12,7 @@ const {
   hasCompleteGroup,
   sectorProjectCount,
   rankings,
-  cityScore
+  totalAssets
 } = require("../game-core");
 const { profiles } = require("./profiles");
 
@@ -105,7 +105,7 @@ function assertState(state) {
   if (!state || !Array.isArray(state.players) || !Array.isArray(state.board)) throw new Error("INVALID_STATE_SHAPE");
   if (!Number.isInteger(state.currentSeat) || state.currentSeat < 0 || state.currentSeat >= state.players.length) throw new Error("INVALID_CURRENT_SEAT");
   for (const player of state.players) {
-    if (!Number.isFinite(player.cash) || !Number.isFinite(player.influence)) throw new Error("NON_FINITE_PLAYER_METRIC");
+    if (!Number.isFinite(player.cash)) throw new Error("NON_FINITE_PLAYER_METRIC");
     if (!Number.isInteger(player.position) || !state.board[player.position]) throw new Error("INVALID_PLAYER_POSITION");
   }
   const playerIds = new Set(state.players.map(player => player.id));
@@ -250,7 +250,7 @@ function simulateProfile(name, profile, options) {
     if (gameTier4) metrics.gamesWithSectorTier4 += 1;
     const finalRanking = rankings(state);
     if (finalRanking[0]) metrics.winsByTurn[finalRanking[0].seat] += 1;
-    if (finalRanking[1]) metrics.finalScoreGaps.push(cityScore(state, finalRanking[0]) - cityScore(state, finalRanking[1]));
+    if (finalRanking[1]) metrics.finalScoreGaps.push(totalAssets(state, finalRanking[0]) - totalAssets(state, finalRanking[1]));
   }
 
   const perGame = value => Number((value / options.games).toFixed(3));
@@ -297,8 +297,8 @@ function simulateProfile(name, profile, options) {
       gamesWithSectorTier3Pct: Number((metrics.gamesWithSectorTier3 * 100 / options.games).toFixed(1)),
       gamesWithSectorTier4Pct: Number((metrics.gamesWithSectorTier4 * 100 / options.games).toFixed(1)),
       finalRoundLeadChangesPerGame: perGame(metrics.leadChangesInFinalRounds),
-      finalScoreGapP50: percentile(metrics.finalScoreGaps, 0.5),
-      finalScoreGapP90: percentile(metrics.finalScoreGaps, 0.9)
+      finalAssetGapP50: percentile(metrics.finalScoreGaps, 0.5),
+      finalAssetGapP90: percentile(metrics.finalScoreGaps, 0.9)
     }
   };
 }

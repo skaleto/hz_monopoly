@@ -40,6 +40,7 @@ test("web client references versioned WebP instead of PNG", () => {
   assert.match(renderer, /reference-rounded-mesh-v1/);
   assert.doesNotMatch(renderer, /dice-q\.v1\.glb/);
   assert.match(js, /dice-shake-short\.v2\.ogg/);
+  assert.match(js, /city-stroll\.v1\.m4a/);
   assert.match(js, /kenney-cc0-short/);
   assert.match(js, /visibilitychange/);
   assert.match(js, /sound\.rearm/);
@@ -47,6 +48,8 @@ test("web client references versioned WebP instead of PNG", () => {
   assert.match(html, /id="celebrationOverlay"/);
   assert.ok(fs.statSync(path.join(__dirname, "..", "public", "audio", "dice-shake-short.v2.ogg")).size < 25_000);
   assert.ok(fs.existsSync(path.join(__dirname, "..", "public", "audio", "dice-shake-short.v2.LICENSE.txt")));
+  assert.ok(fs.statSync(path.join(__dirname, "..", "public", "audio", "city-stroll.v1.m4a")).size < 1_000_000);
+  assert.ok(fs.existsSync(path.join(__dirname, "..", "public", "audio", "city-stroll.v1.LICENSE.txt")));
   assert.ok(!fs.existsSync(path.join(__dirname, "..", "public", "audio", "dice-shake-heavy.v1.ogg")));
 });
 
@@ -56,6 +59,7 @@ test("short multi-dice shake audio keeps the vetted CC0 derivative and server MI
   const server = fs.readFileSync(path.join(__dirname, "..", "server", "server.js"), "utf8");
   assert.equal(crypto.createHash("sha256").update(audio).digest("hex"), "589aa5853285445648b47d49e443b02e09a62e9f6099f3b9acbae4bb766f6848");
   assert.match(server, /"\.ogg": "audio\/ogg"/);
+  assert.match(server, /"\.m4a": "audio\/mp4"/);
 });
 
 test("four expanded-board projects have reproducible source PNG and compact WebP icons", () => {

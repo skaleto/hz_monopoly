@@ -22,6 +22,10 @@
 - Q 版 WebGL 骰子、短多骰音效、事件分型音效、头像到头像金币动画；
 - SQLite 持久化、结构化脱敏日志、版本化静态资源缓存。
 
+## M4 隔离原型
+
+分支 `discovery/experience-rhythm-m4` 正在验证 30 轮聚焦经营循环：删除影响力和独立城市分，以总资产结算；活跃棋盘只保留路线/项目/事件/补给 4 类节点，事件收敛为 8 个、道具收敛为 6 张；移动端次要信息改为一触展开，并加入懒加载背景音乐。该原型尚未合入或发布，范围与验收见 [docs/requirements/experience-rhythm-v1.md](docs/requirements/experience-rhythm-v1.md)。
+
 ## 目录
 
 ```text

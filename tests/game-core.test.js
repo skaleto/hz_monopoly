@@ -2,7 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { CURRENT_RULESET_VERSION, BOARD, CITY_EVENTS, ITEM_CARDS, createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, getRent, getUpgradeCost, cityScore, stateHash } = require("../game-core");
+const { CURRENT_RULESET_VERSION, BOARD, CITY_EVENTS, ITEM_CARDS, createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, getRent, getUpgradeCost, totalAssets, stateHash } = require("../game-core");
 const { fiveSectorsOfFive } = require("../sims/profiles");
 
 const players = [
@@ -18,7 +18,7 @@ test("only supports 2 to 4 total seats", () => {
 });
 
 test("new games stamp the single current ruleset version", () => {
-  assert.equal(CURRENT_RULESET_VERSION, "hangzhou-v4-sector-board");
+  assert.equal(CURRENT_RULESET_VERSION, "hangzhou-v5-focused-loop");
   assert.equal(createGame(players).rulesetVersion, CURRENT_RULESET_VERSION);
 });
 
@@ -74,7 +74,7 @@ test("sector bonuses unlock by project count without requiring the whole sector"
     board: fiveSectorsOfFive(),
     balance: {
       completeGroupRentMultiplier: 1,
-      sectorBonuses: { enabled: true, rentMinProjects: 2, rentMultiplier: 1.15, flagshipMinProjects: 3, scoreMinProjects: 4, scoreBonus: 3 },
+      sectorBonuses: { enabled: true, rentMinProjects: 2, rentMultiplier: 1.15, flagshipMinProjects: 3, monopolyMinProjects: 5, monopolyRentMultiplier: 1.25 },
       upgrade: { costMode: "ratio", ratioByCurrentLevel: { 1: 0.5, 2: 0.8 }, level3RequiresCompleteGroup: true }
     }
   });
@@ -94,7 +94,7 @@ test("sector bonuses unlock by project count without requiring the whole sector"
 test("sector unlock events state the concrete benefit", () => {
   const game = createGame(players.slice(0, 2), {
     board: fiveSectorsOfFive(),
-    balance: { sectorBonuses: { enabled: true, rentMinProjects: 2, rentMultiplier: 1.1, flagshipMinProjects: 3, scoreMinProjects: 4, scoreBonus: 3 } }
+    balance: { sectorBonuses: { enabled: true, rentMinProjects: 2, rentMultiplier: 1.1, flagshipMinProjects: 3, monopolyMinProjects: 5, monopolyRentMultiplier: 1.25 } }
   });
   const sector = game.board.filter(tile => tile.type === "property" && tile.group === "文旅消费");
   sector[0].ownerId = "u1";
@@ -138,14 +138,14 @@ test("investment is the core board loop and landmark projects keep varied visual
 test("the remaining city landmark grants a meaningful reward", () => {
   let game = createGame(players.slice(0, 2));
   game.players[0].position = 8;
-  const before = { cash: game.players[0].cash, influence: game.players[0].influence };
+  const before = game.players[0].cash;
   const result = applyCommand(game, "u1", "ROLL_DICE", {}, { nowMs: 1, forcedDice: 1 });
-  assert.equal(result.state.players[0].cash, before.cash + 100);
-  assert.equal(result.state.players[0].influence, before.influence + 2);
+  assert.equal(result.state.players[0].cash, before + 100);
+  assert.equal("influence" in result.state.players[0], false);
   assert.ok(result.events.some(event => event.type === "LANDMARK_VISITED"));
 });
 
-test("daily events state their exact cash and influence changes", () => {
+test("legacy daily events state their exact cash changes", () => {
   const game = createGame(players.slice(0, 2));
   game.players[0].position = 5;
   const before = game.players[0].cash;
@@ -157,10 +157,11 @@ test("daily events state their exact cash and influence changes", () => {
 
 test("current board unifies daily and opportunity nodes into one city event deck", () => {
   const board = fiveSectorsOfFive();
-  assert.equal(board.filter(tile => tile.type === "event").length, 9);
-  assert.equal(board.filter(tile => ["daily", "opportunity"].includes(tile.type)).length, 0);
-  assert.equal(CITY_EVENTS.length, 12);
-  assert.equal(new Set(CITY_EVENTS.map(item => item.effect)).size >= 7, true);
+  assert.deepEqual([...new Set(board.map(tile => tile.type))].sort(), ["event", "property", "route", "supply"]);
+  assert.equal(board.filter(tile => tile.type === "event").length, 8);
+  assert.equal(board.filter(tile => tile.type === "route").length, 14);
+  assert.equal(CITY_EVENTS.length, 8);
+  assert.equal(new Set(CITY_EVENTS.map(item => item.effect)).size, 7);
 });
 
 test("city events support meaningful loss, global impact and a risk choice", () => {
@@ -176,13 +177,13 @@ test("city events support meaningful loss, global impact and a risk choice", () 
   result = applyCommand(game, "u1", "ROLL_DICE", {}, { nowMs: 1, forcedDice: 1, forcedCityEventId: "venture_window" });
   assert.equal(result.state.pending.type, "city_event");
   const resolved = applyCommand(result.state, "u1", "CHOOSE_CITY_EVENT", { choice: "safe" }, { nowMs: 2, random: () => 0 });
-  assert.equal(resolved.state.players[0].cash, 1560);
+  assert.equal(resolved.state.players[0].cash, 1580);
   assert.ok(resolved.events.some(event => event.type === "CITY_EVENT_RESOLVED"));
 });
 
 test("project review requires an even roll to leave and then moves by that roll", () => {
   let game = createGame(players.slice(0, 2), { board: fiveSectorsOfFive() });
-  const reviewIndex = game.board.findIndex(tile => tile.type === "review");
+  const reviewIndex = game.board.findIndex(tile => tile.eventId === "project_review");
   const beforeReview = game.board.findIndex(tile => tile.next?.some(next => (typeof next === "object" ? next.to : next) === reviewIndex));
   game.players[0].position = beforeReview;
   game = applyCommand(game, "u1", "ROLL_DICE", {}, { nowMs: 1, forcedDice: 1 }).state;
@@ -223,7 +224,7 @@ test("passing apartment grants monthly income", () => {
   game.players[0].position = 27;
   const before = game.players[0].cash;
   const result = applyCommand(game, "u1", "ROLL_DICE", {}, { nowMs: 1, forcedDice: 2 });
-  assert.equal(result.state.players[0].cash, before + 200);
+  assert.equal(result.state.players[0].cash, before + 160);
   assert.ok(result.events.some(event => event.type === "START_PASSED"));
 });
 
@@ -249,34 +250,34 @@ test("bot resolves an opportunity card and returns control instead of stalling",
   assert.ok(resolved.events.some(event => event.type === "OPPORTUNITY_RESOLVED"));
 });
 
-test("supply node grants a usable item card without consuming the next roll", () => {
+test("supply node grants a focused item card without consuming the next roll", () => {
   let game = createGame(players.slice(0, 2));
   game.players[0].position = 26;
   game = applyCommand(game, "u1", "ROLL_DICE", {}, { nowMs: 1, forcedDice: 1, random: () => 0 }).state;
-  assert.equal(game.players[0].items[0], "coffee");
+  assert.equal(game.players[0].items[0], "exact_dice");
   assert.equal(game.currentSeat, 1);
 
   game.currentSeat = 0;
   game.phase = "roll";
-  game = applyCommand(game, "u1", "USE_ITEM", { itemId: "coffee" }, { nowMs: 2 }).state;
+  game = applyCommand(game, "u1", "USE_ITEM", { itemId: "exact_dice", value: 3 }, { nowMs: 2 }).state;
   assert.equal(game.players[0].items.length, 0);
-  assert.equal(game.players[0].diceBonus, 2);
+  assert.equal(game.players[0].fixedDice, 3);
   assert.equal(game.phase, "roll");
   const moved = applyCommand(game, "u1", "ROLL_DICE", {}, { nowMs: 3, forcedDice: 1 });
   assert.equal(moved.events.find(event => event.type === "DICE_ROLLED").payload.value, 3);
 });
 
-test("city pass halves the next rent and is consumed", () => {
+test("city insurance halves the next rent and is consumed", () => {
   let game = createGame(players.slice(0, 2));
   game.board[1].ownerId = "u2";
   game.board[1].level = 1;
-  game.players[0].items.push("pass");
-  game = applyCommand(game, "u1", "USE_ITEM", { itemId: "pass" }, { nowMs: 1 }).state;
+  game.players[0].items.push("protection");
+  game = applyCommand(game, "u1", "USE_ITEM", { itemId: "protection" }, { nowMs: 1 }).state;
   const before = game.players[0].cash;
   const result = applyCommand(game, "u1", "ROLL_DICE", {}, { nowMs: 2, forcedDice: 1 });
   assert.equal(result.state.players[0].cash, before - 14);
-  assert.equal(result.state.players[0].rentShield, false);
-  assert.equal(result.events.find(event => event.type === "RENT_PAID").payload.shieldUsed, true);
+  assert.equal(result.state.players[0].protection, false);
+  assert.equal(result.events.find(event => event.type === "RENT_PAID").payload.protectionUsed, true);
 });
 
 test("new item cards support fixed dice, construction discount and shielded demolition", () => {
@@ -293,15 +294,15 @@ test("new item cards support fixed dice, construction discount and shielded demo
   game = applyCommand(game, "u1", "UPGRADE_PROPERTY", { tileIndex: 1 }).state;
   assert.equal(before - game.players[0].cash, 45);
 
-  game.board[2].ownerId = "u2"; game.board[2].level = 2; game.players[1].attackShield = true; game.players[0].items.push("demolition");
+  game.board[2].ownerId = "u2"; game.board[2].level = 2; game.players[1].protection = true; game.players[0].items.push("demolition");
   const blocked = applyCommand(game, "u1", "USE_ITEM", { itemId: "demolition", tileIndex: 2 });
   assert.equal(blocked.state.board[2].level, 2);
-  assert.equal(blocked.state.players[1].attackShield, false);
+  assert.equal(blocked.state.players[1].protection, false);
   assert.ok(blocked.events.some(event => event.type === "ITEM_ATTACK_BLOCKED"));
 });
 
-test("expanded item deck supports investment discount, rent boost, swap and roadblock", () => {
-  assert.equal(ITEM_CARDS.length, 11);
+test("focused item deck supports investment discount and rent boost without side systems", () => {
+  assert.equal(ITEM_CARDS.length, 6);
   let game = createGame(players.slice(0, 2));
   game.players[0].items.push("invest_coupon");
   game = applyCommand(game, "u1", "USE_ITEM", { itemId: "invest_coupon" }).state;
@@ -310,17 +311,6 @@ test("expanded item deck supports investment discount, rent boost, swap and road
   const before = game.players[0].cash;
   game = applyCommand(game, "u1", "BUY_PROPERTY").state;
   assert.equal(before - game.players[0].cash, 60);
-
-  game.currentSeat = 0; game.phase = "roll"; game.players[0].items.push("swap");
-  game.players[0].position = 3; game.players[1].position = 9;
-  game = applyCommand(game, "u1", "USE_ITEM", { itemId: "swap", targetPlayerId: "u2" }).state;
-  assert.deepEqual(game.players.map(player => player.position), [9, 3]);
-
-  game.players[0].items.push("roadblock");
-  game = applyCommand(game, "u1", "USE_ITEM", { itemId: "roadblock", targetPlayerId: "u2" }).state;
-  game.currentSeat = 1; game.phase = "roll";
-  const roadblocked = applyCommand(game, "u2", "ROLL_DICE", {}, { nowMs: 2, forcedDice: 4 });
-  assert.equal(roadblocked.events.find(event => event.type === "DICE_ROLLED").payload.value, 2);
 
   game = createGame(players.slice(0, 2));
   game.players[0].items.push("rent_boost");
@@ -333,10 +323,54 @@ test("expanded item deck supports investment discount, rent boost, swap and road
   assert.equal(doubled.state.players[0].rentBoost, false);
 });
 
-test("state hash and score are deterministic", () => {
+test("state hash and total assets are deterministic", () => {
   const game = createGame(players.slice(0, 2));
   assert.equal(stateHash(game), stateHash(structuredClone(game)));
-  assert.equal(cityScore(game, game.players[0]), 5);
+  assert.equal(totalAssets(game, game.players[0]), 1500);
+});
+
+test("total assets use cash plus the player's exact project share and construction cost", () => {
+  const game = createGame(players.slice(0, 2));
+  game.players[0].cash = 1000;
+  game.board[1].ownerId = "u1";
+  game.board[1].level = 2;
+  game.players[0].properties.push(1);
+  assert.equal(totalAssets(game, game.players[0]), 1000 + 120 + 90);
+  game.board[1].partnerId = "u2";
+  game.players[1].cash = 1000;
+  game.players[1].properties.push(1);
+  assert.equal(totalAssets(game, game.players[0]), 1000 + Math.round((120 + 90) / 2));
+  assert.equal(totalAssets(game, game.players[1]), 1000 + Math.round((120 + 90) / 2));
+});
+
+test("30-round games announce growth and finale phases before full-round settlement", () => {
+  const board = fiveSectorsOfFive();
+  const game = createGame(players.slice(0, 2), { board, maxRounds: 30 });
+  const route = game.board.find(tile => tile.type === "route" && tile.next.length === 1 && game.board[tile.next[0]]?.type === "route");
+  game.currentSeat = 1;
+  game.round = 10;
+  game.phase = "roll";
+  game.players[1].position = route.index;
+  let result = applyCommand(game, "u2", "ROLL_DICE", {}, { forcedDice: 1, nowMs: 1 });
+  assert.equal(result.state.round, 11);
+  assert.ok(result.events.some(event => event.type === "GAME_PHASE_CHANGED" && event.payload.phase === "growth"));
+
+  result.state.currentSeat = 1;
+  result.state.round = 25;
+  result.state.phase = "roll";
+  result.state.players[1].position = route.index;
+  result = applyCommand(result.state, "u2", "ROLL_DICE", {}, { forcedDice: 1, nowMs: 2 });
+  assert.equal(result.state.round, 26);
+  assert.ok(result.events.some(event => event.type === "GAME_PHASE_CHANGED" && event.payload.roundsLeft === 5));
+
+  result.state.currentSeat = 1;
+  result.state.round = 30;
+  result.state.phase = "roll";
+  result.state.players[1].position = route.index;
+  result = applyCommand(result.state, "u2", "ROLL_DICE", {}, { forcedDice: 1, nowMs: 3 });
+  assert.equal(result.state.finished, true);
+  assert.equal(result.state.finishReason, "round_limit");
+  assert.equal(typeof result.state.finalRanking[0].assets, "number");
 });
 
 test("only the room owner can end a running game and current scores become final", () => {

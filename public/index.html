@@ -11,7 +11,7 @@
 <body>
   <header class="site-header">
     <div><span class="season">H5 好友联机</span><h1>杭城合伙局</h1></div>
-    <div class="header-status"><button id="soundToggle" class="sound-toggle" type="button" aria-pressed="true">音效开</button><div id="connectionBadge" class="connection offline">未连接</div></div>
+    <div class="header-status"><button id="soundToggle" class="sound-toggle" type="button" aria-pressed="true">声音开</button><div id="connectionBadge" class="connection offline">未连接</div></div>
   </header>
 
   <main>
@@ -64,18 +64,9 @@
 
     <section id="gameView" class="view game-view" hidden>
       <div class="game-top-actions">
-        <button id="gameHomeButton" class="game-corner-button" type="button">← 首页</button>
-        <button id="endGameButton" class="game-corner-button danger" type="button" hidden>结束本局</button>
+        <button id="gameMenuButton" class="game-corner-button" type="button" aria-label="打开对局菜单">•••</button>
       </div>
       <section id="playerBar" class="player-bar"></section>
-      <section class="sector-summary" aria-label="我的产业板块进度与增益规则">
-        <div class="sector-summary-head"><strong>我的板块</strong><button id="sectorGuideToggle" type="button" aria-expanded="false">规则</button></div>
-        <div id="sectorProgress" class="sector-progress"></div>
-        <div id="sectorGuide" class="sector-guide" hidden>
-          <div id="sectorLegend" class="sector-legend"></div>
-          <p>独资或合伙都计 1 个；达到档位后自动生效，且只作用于同板块项目。</p>
-        </div>
-      </section>
       <section class="board-shell">
         <div id="gameBoard" class="game-board">
           <img id="boardImage" data-src="assets/board.v3.webp" alt="西湖城市棋盘">
@@ -86,7 +77,6 @@
           <div id="pieceLayer" class="piece-layer"></div>
           <div id="diceStage" class="dice-stage" hidden>
             <canvas id="diceCanvas" class="dice-canvas" aria-hidden="true"></canvas>
-            <span id="diceBonusBadge" class="dice-bonus" hidden>+2</span>
           </div>
         </div>
       </section>
@@ -97,10 +87,7 @@
         <button id="inventoryButton" class="secondary"><span class="button-label">道具</span><span id="itemCount">0</span></button>
         <button id="upgradeButton" class="secondary">建设</button>
       </section>
-      <section class="event-preview">
-        <div class="event-preview-head"><strong>最近动态</strong><button id="openLogButton" class="text-button" type="button">查看全部</button></div>
-        <ol id="eventLog" class="event-log"></ol>
-      </section>
+      <ol id="eventLog" class="event-log" hidden></ol>
     </section>
   </main>
 
@@ -133,6 +120,41 @@
     </section>
   </div>
 
+  <div id="gameMenuModal" class="overlay game-menu-overlay" hidden>
+    <section class="modal-card game-menu-card" role="dialog" aria-modal="true" aria-labelledby="gameMenuTitle">
+      <span class="modal-tag">对局菜单</span>
+      <h2 id="gameMenuTitle">信息与设置</h2>
+      <div class="game-menu-actions">
+        <button id="openSectorButton" class="secondary" type="button">我的板块</button>
+        <button id="openLogButton" class="secondary" type="button">对局记录</button>
+        <button id="gameSoundToggle" class="secondary" type="button" aria-pressed="true">声音开</button>
+        <button id="gameHomeButton" class="secondary" type="button">返回首页</button>
+        <button id="endGameButton" class="danger-button" type="button" hidden>结束本局</button>
+      </div>
+      <button id="gameMenuCloseButton" class="primary wide" type="button">继续游戏</button>
+    </section>
+  </div>
+
+  <div id="sectorModal" class="overlay sector-overlay" hidden>
+    <section class="modal-card sector-card" role="dialog" aria-modal="true" aria-labelledby="sectorTitle">
+      <span class="modal-tag">项目经营</span>
+      <h2 id="sectorTitle">我的板块</h2>
+      <div id="sectorProgress" class="sector-progress"></div>
+      <div id="sectorLegend" class="sector-legend"></div>
+      <p class="sector-note">独资或合伙都计入进度；2 个提高分红，3 个解锁三级建设，5 个形成旗舰板块。</p>
+      <button id="sectorCloseButton" class="primary wide" type="button">关闭</button>
+    </section>
+  </div>
+
+  <div id="playerDetailModal" class="overlay player-detail-overlay" hidden>
+    <section class="modal-card player-detail-card" role="dialog" aria-modal="true" aria-labelledby="playerDetailTitle">
+      <span class="modal-tag">玩家资产</span>
+      <h2 id="playerDetailTitle">玩家详情</h2>
+      <div id="playerDetailStats" class="player-detail-stats"></div>
+      <button id="playerDetailCloseButton" class="primary wide" type="button">关闭</button>
+    </section>
+  </div>
+
   <div id="itemModal" class="overlay item-overlay" hidden>
     <section class="modal-card item-card" role="dialog" aria-modal="true" aria-labelledby="itemTitle">
       <span class="modal-tag">道具卡</span>
@@ -158,7 +180,7 @@
     <section class="modal-card end-game-card" role="dialog" aria-modal="true" aria-labelledby="endGameTitle">
       <span class="modal-tag">房主操作</span>
       <h2 id="endGameTitle">现在结束本局？</h2>
-      <p>会立即按当前城市分和金币结算，所有玩家都会结束本局；历史记录和账号不会删除。</p>
+      <p>会立即按当前总资产结算，所有玩家都会结束本局；历史记录和账号不会删除。</p>
       <div class="modal-actions">
         <button id="endGameCancelButton" class="secondary" type="button">继续游戏</button>
         <button id="endGameConfirmButton" class="danger-button" type="button">结束并结算</button>
