@@ -5,7 +5,7 @@ const assert = require("node:assert/strict");
 const { profiles, fiveSectorsOfFive } = require("../sims/profiles");
 const { simulateProfile, assertHardGates, assertCandidateGates } = require("../sims/run");
 
-test("M3 board keeps five sectors while shortening the metro branch", () => {
+test("M3 board keeps five sectors and balances both branches at nine nodes", () => {
   const board = fiveSectorsOfFive();
   const counts = new Map();
   for (const tile of board.filter(tile => tile.type === "property")) {
@@ -17,12 +17,15 @@ test("M3 board keeps five sectors while shortening the metro branch", () => {
   assert.deepEqual(board.slice(45).map(tile => tile.name), ["钱塘会展中心", "运河运动公园", "滨江国际社区", "大运河艺术馆"]);
   assert.deepEqual(board[29].next, [45]);
   assert.deepEqual(board[33].next, [46]);
-  assert.equal(board.filter(tile => tile.inner === "metro").length, 7);
-  assert.deepEqual([37,38,48,39,40,41,44].map(index => board[index].name), ["市民中心站","滨江数创园","大运河艺术馆","钱江新城","地铁快线","文三数字街","未来科技城"]);
+  assert.equal(board.filter(tile => tile.inner === "water").length, 9);
+  assert.equal(board.filter(tile => tile.inner === "metro").length, 9);
+  assert.deepEqual([37,38,48,39,30,40,41,34,44].map(index => board[index].name), ["市民中心站","滨江数创园","大运河艺术馆","钱江新城","香积寺晨市","地铁快线","文三数字街","拱宸桥码头","未来科技城"]);
   assert.deepEqual(board[38].next, [48]);
   assert.deepEqual(board[48].next, [39]);
-  assert.deepEqual(board[39].next, [40]);
-  assert.deepEqual(board[41].next, [44]);
+  assert.deepEqual(board[39].next, [30]);
+  assert.deepEqual(board[30].next, [40]);
+  assert.deepEqual(board[41].next, [34]);
+  assert.deepEqual(board[34].next, [44]);
   assert.deepEqual([[2,47],[13,42],[24,43]].map(([from,to]) => board[from].next[0] === to), [true,true,true]);
   assert.equal([42,43,47].every(index => !board[index].inner), true);
 });

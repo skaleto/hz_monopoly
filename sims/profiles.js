@@ -13,23 +13,27 @@ const sectorByProject = new Map(Object.entries({
 function fiveSectorsOfFive() {
   const board = BOARD.map(tile => ({ ...tile, next: tile.next.map(value => typeof value === "object" ? { ...value } : value) }));
   const smoothInnerPositions = {
-    28:[18,27],29:[28,32],30:[46,44],31:[50,50],32:[51,56],33:[49,62],34:[39,74],35:[35,80],36:[33,86],
-    37:[82,61],38:[73,57],39:[61,44],40:[58,36],41:[57,28],44:[58,19]
+    28:[18,27],29:[28,32],31:[46,45],32:[50,53],33:[49,61],35:[38,77],36:[33,85],
+    37:[82,61],38:[73,57],39:[61,47],40:[56,34],41:[56,27],44:[58,14]
   };
   for (const [index, [x,y]] of Object.entries(smoothInnerPositions)) Object.assign(board[Number(index)], { x, y });
-  const movedToOuter = { 42:[86,14],43:[14,38] };
+  Object.assign(board[30], { inner: "metro", x:58, y:41 });
+  Object.assign(board[34], { inner: "metro", x:57, y:20 });
+  const movedToOuter = { 42:[86,14],43:[14,50] };
   for (const [index, [x,y]] of Object.entries(movedToOuter)) { Object.assign(board[Number(index)], { x, y }); delete board[Number(index)].inner; }
   const newProjects = [
-    { type: "property", visual: "project_expo", name: "钱塘会展中心", next: [30], price: 280, rent: 78, group: "钱塘发展", inner: "water", x: 38, y: 38 },
-    { type: "property", visual: "project_sports", name: "运河运动公园", next: [34], price: 230, rent: 62, group: "生态文体", inner: "water", x: 44, y: 68 },
+    { type: "property", visual: "project_expo", name: "钱塘会展中心", next: [31], price: 280, rent: 78, group: "钱塘发展", inner: "water", x: 38, y: 38 },
+    { type: "property", visual: "project_sports", name: "运河运动公园", next: [35], price: 230, rent: 62, group: "生态文体", inner: "water", x: 44, y: 69 },
     { type: "property", visual: "project_community", name: "滨江国际社区", next: [3], price: 270, rent: 74, group: "钱塘发展", x: 38, y: 86 },
     { type: "property", visual: "project_art", name: "大运河艺术馆", next: [39], price: 220, rent: 58, group: "生态文体", inner: "metro", x: 66, y: 51 }
   ];
   board[29].next = [45];
   board[33].next = [46];
   board[38].next = [48];
-  board[39].next = [40];
-  board[41].next = [44];
+  board[39].next = [30];
+  board[30].next = [40];
+  board[41].next = [34];
+  board[34].next = [44];
   board[2].next = [47];
   board[13].next = [42]; board[42].next = [14];
   board[24].next = [43]; board[43].next = [25];
