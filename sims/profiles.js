@@ -10,23 +10,43 @@ const sectorByProject = new Map(Object.entries({
   良渚陶艺村: "生态文体", 西溪营地: "生态文体", 运河文创: "生态文体", 运河运动公园: "生态文体", 大运河艺术馆: "生态文体"
 }));
 
+function cubicPoint(start, controlA, controlB, end, progress) {
+  const remaining = 1 - progress;
+  return {
+    x: remaining ** 3 * start.x + 3 * remaining ** 2 * progress * controlA.x + 3 * remaining * progress ** 2 * controlB.x + progress ** 3 * end.x,
+    y: remaining ** 3 * start.y + 3 * remaining ** 2 * progress * controlA.y + 3 * remaining * progress ** 2 * controlB.y + progress ** 3 * end.y
+  };
+}
+
+function equallySpacedCurve(start, controlA, controlB, end, count) {
+  const samples = [{ progress: 0, point: start, distance: 0 }];
+  let previous = start, total = 0;
+  for (let step = 1; step <= 500; step += 1) {
+    const progress = step / 500, point = cubicPoint(start, controlA, controlB, end, progress);
+    total += Math.hypot(point.x - previous.x, point.y - previous.y);
+    samples.push({ progress, point, distance: total });
+    previous = point;
+  }
+  return Array.from({ length: count }, (_, index) => {
+    const target = total * (index + 1) / (count + 1);
+    const upperIndex = samples.findIndex(sample => sample.distance >= target);
+    const lower = samples[upperIndex - 1], upper = samples[upperIndex];
+    const ratio = (target - lower.distance) / Math.max(Number.EPSILON, upper.distance - lower.distance);
+    const progress = lower.progress + (upper.progress - lower.progress) * ratio;
+    const point = cubicPoint(start, controlA, controlB, end, progress);
+    return { x: Number(point.x.toFixed(2)), y: Number(point.y.toFixed(2)) };
+  });
+}
+
 function fiveSectorsOfFive() {
   const board = BOARD.map(tile => ({ ...tile, next: tile.next.map(value => typeof value === "object" ? { ...value } : value) }));
-  const smoothInnerPositions = {
-    28:[18,27],29:[28,32],31:[46,45],32:[50,53],33:[49,61],35:[38,77],36:[33,85],
-    37:[82,61],38:[73,57],39:[61,47],40:[56,34],41:[56,27],44:[58,14]
-  };
-  for (const [index, [x,y]] of Object.entries(smoothInnerPositions)) Object.assign(board[Number(index)], { x, y });
-  Object.assign(board[30], { inner: "metro", x:58, y:41 });
-  Object.assign(board[34], { inner: "metro", x:57, y:20 });
-  const movedToOuter = { 42:[86,14],43:[14,50] };
-  for (const [index, [x,y]] of Object.entries(movedToOuter)) { Object.assign(board[Number(index)], { x, y }); delete board[Number(index)].inner; }
   const newProjects = [
-    { type: "property", visual: "project_expo", name: "钱塘会展中心", next: [31], price: 280, rent: 78, group: "钱塘发展", inner: "water", x: 38, y: 38 },
-    { type: "property", visual: "project_sports", name: "运河运动公园", next: [35], price: 230, rent: 62, group: "生态文体", inner: "water", x: 44, y: 69 },
-    { type: "property", visual: "project_community", name: "滨江国际社区", next: [3], price: 270, rent: 74, group: "钱塘发展", x: 38, y: 86 },
-    { type: "property", visual: "project_art", name: "大运河艺术馆", next: [39], price: 220, rent: 58, group: "生态文体", inner: "metro", x: 66, y: 51 }
+    { type: "property", visual: "project_expo", name: "钱塘会展中心", next: [31], price: 280, rent: 78, group: "钱塘发展" },
+    { type: "property", visual: "project_sports", name: "运河运动公园", next: [35], price: 230, rent: 62, group: "生态文体" },
+    { type: "property", visual: "project_community", name: "滨江国际社区", next: [3], price: 270, rent: 74, group: "钱塘发展" },
+    { type: "property", visual: "project_art", name: "大运河艺术馆", next: [39], price: 220, rent: 58, group: "生态文体" }
   ];
+  board.push(...newProjects);
   board[29].next = [45];
   board[33].next = [46];
   board[38].next = [48];
@@ -37,7 +57,12 @@ function fiveSectorsOfFive() {
   board[2].next = [47];
   board[13].next = [42]; board[42].next = [14];
   board[24].next = [43]; board[43].next = [25];
-  board.push(...newProjects);
+  const routeDefinitions = [
+    { inner: "water", indexes: [28,29,45,31,32,33,46,35,36], points: equallySpacedCurve({x:8,y:32},{x:32,y:18},{x:74,y:64},{x:32,y:92},9) },
+    { inner: "metro", indexes: [37,38,48,39,30,40,41,34,44], points: equallySpacedCurve({x:92,y:56},{x:78,y:68},{x:47,y:48},{x:56,y:8},9) }
+  ];
+  for (const route of routeDefinitions) route.indexes.forEach((index, offset) => Object.assign(board[index], { inner: route.inner, ...route.points[offset] }));
+  for (const [index, [x,y]] of Object.entries({ 42:[86,14],43:[14,50],47:[38,86] })) { Object.assign(board[Number(index)], { x, y }); delete board[Number(index)].inner; }
   const candidateBoard = board.map(tile => {
     const candidate = ["daily", "opportunity"].includes(tile.type)
       ? { ...tile, type: "event", name: tile.name.replace("杭城日常", "杭城事件").replace("机遇卡", "事件") }
