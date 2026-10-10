@@ -17,13 +17,14 @@ const {
 const { profiles } = require("./profiles");
 
 function parseArgs(argv) {
-  const result = { games: 200, profile: "current", all: false, assertHard: false, output: null, seed: 1 };
+  const result = { games: 200, profile: "current", all: false, assertHard: false, assertCandidate: false, output: null, seed: 1 };
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
     if (value === "--games") result.games = Number(argv[++index]);
     else if (value === "--profile") result.profile = argv[++index];
     else if (value === "--all") result.all = true;
     else if (value === "--assert-hard") result.assertHard = true;
+    else if (value === "--assert-candidate") result.assertCandidate = true;
     else if (value === "--output") result.output = argv[++index];
     else if (value === "--seed") result.seed = Number(argv[++index]);
     else throw new Error(`UNKNOWN_ARGUMENT:${value}`);
@@ -130,8 +131,15 @@ function simulateProfile(name, profile, options) {
     partnerships: 0,
     upgrades: 0,
     rentEvents: 0,
+    cityEvents: 0,
+    opportunityEvents: 0,
+    reviewEntries: 0,
+    reviewHeldTurns: 0,
+    itemCardsDrawn: 0,
+    itemCardsUsed: 0,
     restructures: 0,
     gamesWithRestructure: 0,
+    gamesWithCashAtOrBelow300: 0,
     gamesWithCompleteGroup: 0,
     gamesWithSectorTier3: 0,
     gamesWithSectorTier4: 0,
@@ -142,7 +150,9 @@ function simulateProfile(name, profile, options) {
     winsByTurn: [0, 0, 0, 0],
     rentAmounts: [],
     rentShareOfPayerCash: [],
-    finalScoreGaps: []
+    finalScoreGaps: [],
+    minimumCashByPlayer: [],
+    finalCashByPlayer: []
   };
 
   for (let gameIndex = 0; gameIndex < options.games; gameIndex += 1) {
@@ -156,6 +166,8 @@ function simulateProfile(name, profile, options) {
     const playerUpgradeCounts = new Map();
     let guard = 0;
     let gameRestructured = false;
+    let gameCashAtOrBelow300 = false;
+    const minimumCash = new Map(state.players.map(player => [player.id, player.cash]));
     let lastFinalLeader = null;
     try {
       while (!state.finished && guard < 4000) {
@@ -179,6 +191,15 @@ function simulateProfile(name, profile, options) {
           else if (event.type === "PROPERTY_SKIPPED") metrics.skippedInvestments += 1;
           else if (event.type === "PARTNERSHIP_ACCEPTED") metrics.partnerships += 1;
           else if (event.type === "PROPERTY_UPGRADED") metrics.upgrades += 1;
+          else if (["DAILY_RESOLVED", "CITY_EVENT_RESOLVED"].includes(event.type)) {
+            metrics.cityEvents += 1;
+            if (event.payload?.cityEvent?.effect === "item_gain") metrics.itemCardsDrawn += 1;
+          }
+          else if (event.type === "OPPORTUNITY_RESOLVED") metrics.opportunityEvents += 1;
+          else if (["REVIEW_RESOLVED", "REVIEW_DETAINED"].includes(event.type)) metrics.reviewEntries += 1;
+          else if (event.type === "REVIEW_HELD") metrics.reviewHeldTurns += 1;
+          else if (event.type === "ITEM_CARD_DRAWN") metrics.itemCardsDrawn += 1;
+          else if (event.type === "ITEM_CARD_USED") metrics.itemCardsUsed += 1;
           else if (event.type === "PLAYER_RESTRUCTURED") { metrics.restructures += 1; gameRestructured = true; }
           else if (event.type === "RENT_PAID") {
             metrics.rentEvents += 1;
@@ -186,6 +207,10 @@ function simulateProfile(name, profile, options) {
             const before = cashBefore.get(event.payload.playerId);
             if (before > 0) metrics.rentShareOfPayerCash.push(event.payload.amount / before);
           }
+        }
+        for (const current of state.players) {
+          minimumCash.set(current.id, Math.min(minimumCash.get(current.id), current.cash));
+          if (current.cash <= 300) gameCashAtOrBelow300 = true;
         }
         if (state.round >= state.maxRounds - 2) {
           const leader = rankings(state)[0]?.id;
@@ -201,6 +226,9 @@ function simulateProfile(name, profile, options) {
     if (guard >= 4000 && !state.finished) metrics.guardFailures += 1;
     if (state.finished) metrics.finishedGames += 1;
     if (gameRestructured) metrics.gamesWithRestructure += 1;
+    if (gameCashAtOrBelow300) metrics.gamesWithCashAtOrBelow300 += 1;
+    metrics.minimumCashByPlayer.push(...minimumCash.values());
+    metrics.finalCashByPlayer.push(...state.players.map(player => player.cash));
 
     const completed = state.players.some(player => new Set(state.board
       .filter(tile => tile.type === "property" && [tile.ownerId, tile.partnerId].includes(player.id))
@@ -246,9 +274,20 @@ function simulateProfile(name, profile, options) {
       partnershipsPerGame: perGame(metrics.partnerships),
       upgradesPerGame: perGame(metrics.upgrades),
       rentEventsPerGame: perGame(metrics.rentEvents),
+      cityEventsPerGame: perGame(metrics.cityEvents),
+      opportunityEventsPerGame: perGame(metrics.opportunityEvents),
+      reviewEntriesPerGame: perGame(metrics.reviewEntries),
+      reviewHeldTurnsPerGame: perGame(metrics.reviewHeldTurns),
+      itemCardsDrawnPerGame: perGame(metrics.itemCardsDrawn),
+      itemCardsUsedPerGame: perGame(metrics.itemCardsUsed),
       rentP50: percentile(metrics.rentAmounts, 0.5),
       rentP90: percentile(metrics.rentAmounts, 0.9),
       rentShareOfCashP90: Number(percentile(metrics.rentShareOfPayerCash, 0.9).toFixed(3)),
+      minimumCashP10: percentile(metrics.minimumCashByPlayer, 0.1),
+      minimumCashP50: percentile(metrics.minimumCashByPlayer, 0.5),
+      finalCashP50: percentile(metrics.finalCashByPlayer, 0.5),
+      finalCashP90: percentile(metrics.finalCashByPlayer, 0.9),
+      gamesWithCashAtOrBelow300Pct: Number((metrics.gamesWithCashAtOrBelow300 * 100 / options.games).toFixed(1)),
       restructureEventsPerGame: perGame(metrics.restructures),
       gamesWithRestructurePct: Number((metrics.gamesWithRestructure * 100 / options.games).toFixed(1)),
       gamesWithCompleteGroupPct: Number((metrics.gamesWithCompleteGroup * 100 / options.games).toFixed(1)),
@@ -275,6 +314,18 @@ function assertHardGates(report) {
   if (failures.length) throw new Error(`SIM_HARD_GATE_FAILED:${report.profile}:${failures.join(",")}`);
 }
 
+function assertCandidateGates(report) {
+  const gameplay = report.gameplay, failures = [];
+  if (gameplay.gamesWithCashAtOrBelow300Pct < 35 || gameplay.gamesWithCashAtOrBelow300Pct > 70) failures.push(`lowCashGames=${gameplay.gamesWithCashAtOrBelow300Pct}%`);
+  if (gameplay.gamesWithRestructurePct < 1 || gameplay.gamesWithRestructurePct > 10) failures.push(`restructureGames=${gameplay.gamesWithRestructurePct}%`);
+  if (gameplay.projectsAcquiredPerGame < 12) failures.push(`projects=${gameplay.projectsAcquiredPerGame}`);
+  if (gameplay.itemCardsDrawnPerGame < 1.7) failures.push(`itemDraws=${gameplay.itemCardsDrawnPerGame}`);
+  const reviewHoldPerEntry = gameplay.reviewEntriesPerGame ? gameplay.reviewHeldTurnsPerGame / gameplay.reviewEntriesPerGame : 0;
+  if (reviewHoldPerEntry < 0.5 || reviewHoldPerEntry > 1.5) failures.push(`reviewHoldPerEntry=${reviewHoldPerEntry.toFixed(3)}`);
+  if (gameplay.minimumCashP50 < 250 || gameplay.minimumCashP50 > 500) failures.push(`minimumCashP50=${gameplay.minimumCashP50}`);
+  if (failures.length) throw new Error(`SIM_CANDIDATE_GATE_FAILED:${report.profile}:${failures.join(",")}`);
+}
+
 function markdown(reports) {
   const lines = [
     "# 玩法模拟报告",
@@ -298,6 +349,7 @@ function main() {
   for (const name of names) if (!profiles[name]) throw new Error(`UNKNOWN_PROFILE:${name}`);
   const reports = names.map(name => simulateProfile(name, profiles[name], options));
   if (options.assertHard) reports.forEach(assertHardGates);
+  if (options.assertCandidate) reports.forEach(assertCandidateGates);
   const payload = { generatedAt: new Date().toISOString(), reports };
   if (options.output) {
     const prefix = path.resolve(options.output);
@@ -310,4 +362,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { parseArgs, seededRandom, simulateProfile, assertHardGates, markdown };
+module.exports = { parseArgs, seededRandom, simulateProfile, assertHardGates, assertCandidateGates, markdown };

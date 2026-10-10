@@ -18,6 +18,7 @@ const DEMO_ACCESS_KEY = process.env.DEMO_ACCESS_KEY || "";
 const TEST_DICE = process.env.NODE_ENV === "test" && Number(process.env.TEST_DICE) >= 1 && Number(process.env.TEST_DICE) <= 6 ? Number(process.env.TEST_DICE) : null;
 const TEST_DICE_SEQUENCE = process.env.NODE_ENV === "test" ? String(process.env.TEST_DICE_SEQUENCE || "").split(",").map(Number).filter(value => value >= 1 && value <= 6) : [];
 const TEST_FIRST_SEAT = process.env.NODE_ENV === "test" && Number.isInteger(Number(process.env.TEST_FIRST_SEAT)) ? Number(process.env.TEST_FIRST_SEAT) : null;
+const TEST_CITY_EVENT_ID = process.env.NODE_ENV === "test" ? String(process.env.TEST_CITY_EVENT_ID || "").trim() || null : null;
 let testDiceIndex = 0;
 const BASE_PATH = (() => {
   const value = String(process.env.BASE_PATH || "").trim();
@@ -156,7 +157,7 @@ function applyGameCommand(room, actorId, actionId, command, payload = {}) {
   if ((room.processedActionIds || []).includes(actionId)) return [];
   room.game = migrateGameState(room.game);
   const forcedDice = command === "ROLL_DICE" ? (TEST_DICE_SEQUENCE[testDiceIndex++] || TEST_DICE) : null;
-  const result = applyCommand(room.game, actorId, command, payload, { nowMs: Date.now(), random: Math.random, forcedDice, roomOwnerId: room.ownerUserId });
+  const result = applyCommand(room.game, actorId, command, payload, { nowMs: Date.now(), random: Math.random, forcedDice, forcedCityEventId: TEST_CITY_EVENT_ID, roomOwnerId: room.ownerUserId });
   room.game = result.state;
   room.status = room.game.finished ? "finished" : "playing";
   room.processedActionIds = [...(room.processedActionIds || []), actionId].slice(-200);

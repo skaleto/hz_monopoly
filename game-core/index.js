@@ -2,7 +2,7 @@
 
 const crypto = require("node:crypto");
 
-const CURRENT_RULESET_VERSION = "hangzhou-v2-sector-cautious";
+const CURRENT_RULESET_VERSION = "hangzhou-v3-city-events";
 
 const BOARD = [
   { type: "start", name: "我的公寓", next: [1] },
@@ -52,7 +52,21 @@ const BOARD = [
   { type: "transit", name: "未来科技城", next: [17], inner: "metro", x: 60, y: 16 }
 ];
 
-const DAILY_EVENTS = [
+const CITY_EVENTS = [
+  { id: "night_boom", name: "夜经济爆单", copy: "夜游客流暴涨，金币 +180", effect: "self", cash: 180, influence: 0 },
+  { id: "rain_repair", name: "梅雨抢修", copy: "设备紧急抢修，金币 -180", effect: "self", cash: -180, influence: 0 },
+  { id: "city_volunteer", name: "城市志愿行动", copy: "完成公益服务，影响力 +3", effect: "self", cash: 0, influence: 3 },
+  { id: "reputation_crisis", name: "口碑危机", copy: "紧急公关，金币 -80、影响力 -2", effect: "self", cash: -80, influence: -2 },
+  { id: "shopping_festival", name: "全城消费节", copy: "每位玩家金币 +60", effect: "all", cash: 60, influence: 0 },
+  { id: "public_welfare", name: "联合公益计划", copy: "每位玩家金币 -40、影响力 +1", effect: "all", cash: -40, influence: 1 },
+  { id: "renewal_fund", name: "城市更新基金", copy: "当前金币最少的玩家获得 200 金币", effect: "poorest", cash: 200, influence: 0 },
+  { id: "wealth_transfer", name: "联合招商分成", copy: "金币最多的玩家向最少的玩家支付 120 金币", effect: "transfer", cash: 120, influence: 0 },
+  { id: "lucky_supply", name: "神秘补给箱", copy: "立即获得 1 张随机道具卡", effect: "item_gain", cash: 0, influence: 0 },
+  { id: "lost_luggage", name: "行李遗失", copy: "随机丢失 1 张道具；没有道具则金币 -60", effect: "item_loss", cash: -60, influence: 0 },
+  { id: "green_upgrade", name: "绿色设备升级", copy: "金币 -140、影响力 +2", effect: "self", cash: -140, influence: 2 },
+  { id: "venture_window", name: "融资窗口", copy: "选择稳妥到账，或押注更高回报", effect: "venture", cash: 0, influence: 0 }
+];
+const LEGACY_DAILY_EVENTS = [
   { text: "消费券到账", cash: 80, influence: 0 },
   { text: "梅雨季设备检修", cash: -50, influence: 0 },
   { text: "邻里互助", cash: 40, influence: 1 },
@@ -66,7 +80,11 @@ const ITEM_CARDS = [
   { id: "build_coupon", name: "建设折扣券", copy: "下一次建设费用减半", effect: "upgrade_discount" },
   { id: "pass", name: "城市通行券", copy: "下一次支付到访分红时减半", effect: "rent_shield" },
   { id: "shield", name: "项目保护罩", copy: "抵消下一张针对你的使坏卡", effect: "attack_shield" },
-  { id: "demolition", name: "强拆令", copy: "指定对手项目降低 1 级，不改变产权", effect: "demolition" }
+  { id: "demolition", name: "强拆令", copy: "指定对手项目降低 1 级，不改变产权", effect: "demolition" },
+  { id: "invest_coupon", name: "首投补贴券", copy: "下一次独立投资费用减半", effect: "investment_discount" },
+  { id: "rent_boost", name: "人气加倍卡", copy: "下一次从他人收取的到访分红翻倍", effect: "rent_boost" },
+  { id: "swap", name: "城市换位卡", copy: "与指定玩家交换当前位置", effect: "swap_positions" },
+  { id: "roadblock", name: "临时路障卡", copy: "指定玩家下一次移动减少 2 格", effect: "roadblock" }
 ];
 
 const DEFAULT_BALANCE = Object.freeze({
@@ -91,6 +109,7 @@ const DEFAULT_BALANCE = Object.freeze({
   cashScoreCap: 6,
   restructureCash: 200,
   restructureInfluencePenalty: 2,
+  cashWarningThreshold: 300,
   overflowItemCash: 60,
   upgrade: {
     costMode: "fixed",
@@ -106,6 +125,7 @@ const DEFAULT_BALANCE = Object.freeze({
     successInfluence: 1,
     failureInfluence: 0
   },
+  cityEventVenture: { safeCash: 60, riskCost: 160, successChance: 0.55, successPayout: 400, successInfluence: 2 },
   reviewCost: 80,
   voteInfluence: 2,
   voteCash: 60
@@ -120,7 +140,8 @@ function normalizeBalance(input = {}) {
     ...clone(input),
     upgrade: { ...clone(DEFAULT_BALANCE.upgrade), ...clone(input.upgrade || {}) },
     sectorBonuses: { ...clone(DEFAULT_BALANCE.sectorBonuses), ...clone(input.sectorBonuses || {}) },
-    opportunity: { ...clone(DEFAULT_BALANCE.opportunity), ...clone(input.opportunity || {}) }
+    opportunity: { ...clone(DEFAULT_BALANCE.opportunity), ...clone(input.opportunity || {}) },
+    cityEventVenture: { ...clone(DEFAULT_BALANCE.cityEventVenture), ...clone(input.cityEventVenture || {}) }
   };
 }
 function balanceOf(state) { return state.balance || DEFAULT_BALANCE; }
@@ -144,6 +165,10 @@ function migrateGameState(inputState) {
     fixedDice: Number(player.fixedDice ?? 0),
     upgradeDiscount: Boolean(player.upgradeDiscount),
     attackShield: Boolean(player.attackShield),
+    investmentDiscount: Boolean(player.investmentDiscount),
+    rentBoost: Boolean(player.rentBoost),
+    movePenalty: Number(player.movePenalty ?? 0),
+    reviewDetained: Boolean(player.reviewDetained),
     reviewTurns: Number(player.reviewTurns ?? 0),
     lastUpgradeRound: Number(player.lastUpgradeRound ?? 0),
     trustee: Boolean(player.trustee)
@@ -178,6 +203,10 @@ function createGame(playerInputs, options = {}) {
     fixedDice: 0,
     upgradeDiscount: false,
     attackShield: false,
+    investmentDiscount: false,
+    rentBoost: false,
+    movePenalty: 0,
+    reviewDetained: false,
     reviewTurns: 0,
     lastUpgradeRound: 0,
     trustee: false
@@ -279,21 +308,87 @@ function restructure(state, player, events) {
   log(state, events, "PLAYER_RESTRUCTURED", `${player.nickname} 启动城市重组，获得 ${balance.restructureCash} 保底金币`, { playerId: player.id });
 }
 
-function resolveTile(state, player, events, random, nowMs) {
+function grantRandomItem(state, player, random) {
+  const pool = state.rulesetVersion === CURRENT_RULESET_VERSION ? ITEM_CARDS : ITEM_CARDS.slice(0, 7);
+  const card = pool[randomInt(random, pool.length)];
+  if (player.items.length >= 3) {
+    const cash = balanceOf(state).overflowItemCash;
+    player.cash += cash;
+    return { card, text: `道具栏已满，${card.name} 兑换为 ${cash} 金币`, cash };
+  }
+  player.items.push(card.id);
+  return { card, text: `获得道具卡：${card.name}`, cash: 0 };
+}
+
+function resolveCityEvent(state, player, cityEvent, events, random, choice = null) {
+  let result = cityEvent.copy;
+  if (cityEvent.effect === "self") {
+    player.cash += cityEvent.cash;
+    player.influence = Math.max(0, player.influence + cityEvent.influence);
+  } else if (cityEvent.effect === "all") {
+    state.players.forEach(item => {
+      item.cash += cityEvent.cash;
+      item.influence = Math.max(0, item.influence + cityEvent.influence);
+    });
+  } else if (cityEvent.effect === "poorest") {
+    const target = [...state.players].sort((left, right) => left.cash - right.cash || left.seat - right.seat)[0];
+    target.cash += cityEvent.cash;
+    result = `${target.nickname} 获得城市更新基金，金币 +${cityEvent.cash}`;
+  } else if (cityEvent.effect === "transfer") {
+    const ordered = [...state.players].sort((left, right) => right.cash - left.cash || left.seat - right.seat);
+    const richest = ordered[0], poorest = ordered.at(-1), amount = Math.min(cityEvent.cash, Math.max(0, richest.cash));
+    richest.cash -= amount;
+    poorest.cash += amount;
+    result = `${richest.nickname} 向 ${poorest.nickname} 支付联合招商分成 ${amount} 金币`;
+  } else if (cityEvent.effect === "item_gain") {
+    const grant = grantRandomItem(state, player, random);
+    result = grant.text;
+  } else if (cityEvent.effect === "item_loss") {
+    if (player.items.length) {
+      const removed = player.items.splice(randomInt(random, player.items.length), 1)[0];
+      result = `遗失 ${ITEM_CARDS.find(card => card.id === removed)?.name || "一张道具卡"}`;
+    } else {
+      player.cash += cityEvent.cash;
+      result = `没有可遗失的道具，补办物资花费 ${Math.abs(cityEvent.cash)} 金币`;
+    }
+  } else if (cityEvent.effect === "venture") {
+    const venture = balanceOf(state).cityEventVenture;
+    if (choice === "risk") {
+      player.cash -= venture.riskCost;
+      if (random() < venture.successChance) {
+        player.cash += venture.successPayout;
+        player.influence += venture.successInfluence;
+        result = `融资成功，净赚 ${venture.successPayout - venture.riskCost} 金币、影响力 +${venture.successInfluence}`;
+      } else result = `融资失败，损失 ${venture.riskCost} 金币`;
+    } else {
+      player.cash += venture.safeCash;
+      result = `稳妥到账，金币 +${venture.safeCash}`;
+    }
+  }
+  for (const affected of state.players) restructure(state, affected, events);
+  log(state, events, "CITY_EVENT_RESOLVED", `${player.nickname} 抽到「${cityEvent.name}」：${result}`, { playerId: player.id, cityEvent, choice, result });
+}
+
+function resolveTile(state, player, events, random, nowMs, forcedCityEventId = null) {
   const tile = state.board[player.position];
   log(state, events, "PLAYER_LANDED", `${player.nickname} 来到 ${tile.name}`, { playerId: player.id, tileIndex: tile.index });
   if (tile.type === "property") {
-    if (!tile.ownerId && player.cash >= tile.price) {
+    const offerPrice = player.investmentDiscount ? Math.ceil(tile.price / 2) : tile.price;
+    if (!tile.ownerId && player.cash >= offerPrice) {
       state.phase = "decision";
-      state.pending = { type: "property", actorId: player.id, tileIndex: tile.index, expiresAt: nowMs + 15000 };
-      addEvent(events, "PROPERTY_OFFERED", { playerId: player.id, tileIndex: tile.index, price: tile.price, rent: tile.rent });
+      state.pending = { type: "property", actorId: player.id, tileIndex: tile.index, price: offerPrice, expiresAt: nowMs + 15000 };
+      addEvent(events, "PROPERTY_OFFERED", { playerId: player.id, tileIndex: tile.index, price: offerPrice, basePrice: tile.price, rent: tile.rent });
       return;
     }
     if (tile.ownerId && tile.ownerId !== player.id && tile.partnerId !== player.id) {
       const baseRent = getRent(state, tile);
-      const rent = player.rentShield ? Math.ceil(baseRent / 2) : baseRent;
+      const beneficiaries = state.players.filter(item => [tile.ownerId, tile.partnerId].includes(item.id));
+      const boostedBy = beneficiaries.find(item => item.rentBoost);
+      const boostedRent = boostedBy ? baseRent * 2 : baseRent;
+      const rent = player.rentShield ? Math.ceil(boostedRent / 2) : boostedRent;
       const shieldUsed = player.rentShield;
       player.rentShield = false;
+      if (boostedBy) boostedBy.rentBoost = false;
       player.cash -= rent;
       if (tile.partnerId) {
         const owner = state.players.find(item => item.id === tile.ownerId);
@@ -301,41 +396,48 @@ function resolveTile(state, player, events, random, nowMs) {
         owner.cash += Math.ceil(rent / 2);
         partner.cash += Math.floor(rent / 2);
       } else state.players.find(item => item.id === tile.ownerId).cash += rent;
-      log(state, events, "RENT_PAID", `${player.nickname} 支付到访分红 ${rent}${shieldUsed ? "（通行券减半）" : ""}`, { playerId: player.id, ownerId: tile.ownerId, partnerId: tile.partnerId, tileIndex: tile.index, amount: rent, baseAmount: baseRent, shieldUsed });
+      log(state, events, "RENT_PAID", `${player.nickname} 支付到访分红 ${rent}${boostedBy ? "（人气加倍）" : ""}${shieldUsed ? "（通行券减半）" : ""}`, { playerId: player.id, ownerId: tile.ownerId, partnerId: tile.partnerId, tileIndex: tile.index, amount: rent, baseAmount: baseRent, shieldUsed, rentBoosted: Boolean(boostedBy), boostedById: boostedBy?.id || null });
       restructure(state, player, events);
     }
+  } else if (tile.type === "event") {
+    const cityEvent = CITY_EVENTS.find(item => item.id === forcedCityEventId) || CITY_EVENTS[randomInt(random, CITY_EVENTS.length)];
+    if (cityEvent.effect === "venture") {
+      state.phase = "decision";
+      state.pending = { type: "city_event", actorId: player.id, tileIndex: tile.index, eventId: cityEvent.id, expiresAt: nowMs + 15000 };
+      addEvent(events, "CITY_EVENT_OFFERED", { playerId: player.id, tileIndex: tile.index, cityEvent });
+      return;
+    }
+    resolveCityEvent(state, player, cityEvent, events, random);
   } else if (tile.type === "opportunity") {
     state.phase = "decision";
     state.pending = { type: "opportunity", actorId: player.id, tileIndex: tile.index, expiresAt: nowMs + 15000 };
     addEvent(events, "OPPORTUNITY_OFFERED", { playerId: player.id, tileIndex: tile.index });
     return;
   } else if (tile.type === "review") {
-    state.phase = "decision";
-    state.pending = { type: "review", actorId: player.id, tileIndex: tile.index, expiresAt: nowMs + 15000 };
-    addEvent(events, "REVIEW_OFFERED", { playerId: player.id, tileIndex: tile.index });
-    return;
+    if (state.rulesetVersion === CURRENT_RULESET_VERSION) {
+      player.reviewDetained = true;
+      log(state, events, "REVIEW_DETAINED", `${player.nickname} 进入项目验收，下回合需掷出偶数才能离开`, { playerId: player.id, tileIndex: tile.index });
+    } else {
+      state.phase = "decision";
+      state.pending = { type: "review", actorId: player.id, tileIndex: tile.index, expiresAt: nowMs + 15000 };
+      addEvent(events, "REVIEW_OFFERED", { playerId: player.id, tileIndex: tile.index });
+      return;
+    }
   } else if (tile.type === "vote") {
     state.phase = "decision";
     state.pending = { type: "vote", actorId: player.id, tileIndex: tile.index, expiresAt: nowMs + 15000 };
     addEvent(events, "VOTE_OFFERED", { playerId: player.id, tileIndex: tile.index });
     return;
   } else if (tile.type === "daily") {
-    const item = DAILY_EVENTS[randomInt(random, DAILY_EVENTS.length)];
+    const item = LEGACY_DAILY_EVENTS[randomInt(random, LEGACY_DAILY_EVENTS.length)];
     player.cash += item.cash;
     player.influence += item.influence;
     const changes = [item.cash ? `金币 ${item.cash > 0 ? "+" : ""}${item.cash}` : null, item.influence ? `影响力 ${item.influence > 0 ? "+" : ""}${item.influence}` : null].filter(Boolean).join("，");
     log(state, events, "DAILY_RESOLVED", `${player.nickname} 遇到${item.text}：${changes || "无数值变化"}`, { playerId: player.id, eventName: item.text, cash: item.cash, influence: item.influence });
     restructure(state, player, events);
   } else if (tile.type === "supply") {
-    const card = ITEM_CARDS[randomInt(random, ITEM_CARDS.length)];
-    if (player.items.length >= 3) {
-      const cash = balanceOf(state).overflowItemCash;
-      player.cash += cash;
-      log(state, events, "ITEM_CARD_EXCHANGED", `${player.nickname} 的道具栏已满，${card.name} 兑换为 ${cash} 金币`, { playerId: player.id, item: card, cash });
-    } else {
-      player.items.push(card.id);
-      log(state, events, "ITEM_CARD_DRAWN", `${player.nickname} 获得道具卡：${card.name}`, { playerId: player.id, item: card });
-    }
+    const grant = grantRandomItem(state, player, random);
+    log(state, events, grant.cash ? "ITEM_CARD_EXCHANGED" : "ITEM_CARD_DRAWN", `${player.nickname} ${grant.text}`, { playerId: player.id, item: grant.card, cash: grant.cash });
   } else if (["landmark", "park", "transit"].includes(tile.type)) {
     const influence = tile.type === "park" || tile.type === "landmark" ? 2 : 1;
     const cash = tile.type === "landmark" ? 100 : tile.type === "park" ? 80 : 40;
@@ -348,7 +450,7 @@ function resolveTile(state, player, events, random, nowMs) {
   state.phase = "turn_end";
 }
 
-function continueMovement(state, events, random, nowMs, chosenNext = null) {
+function continueMovement(state, events, random, nowMs, chosenNext = null, forcedCityEventId = null) {
   const player = currentPlayer(state);
   let choice = chosenNext;
   while (state.movement.remaining > 0) {
@@ -376,7 +478,7 @@ function continueMovement(state, events, random, nowMs, chosenNext = null) {
   }
   addEvent(events, "PLAYER_MOVED", { playerId: player.id, path: state.movement.path });
   state.movement = null;
-  resolveTile(state, player, events, random, nowMs);
+  resolveTile(state, player, events, random, nowMs, forcedCityEventId);
 }
 
 function advanceTurn(state, events) {
@@ -420,22 +522,35 @@ function applyCommand(inputState, actorId, command, payload = {}, context = {}) 
   } else if (command === "ROLL_DICE") {
     if (state.phase !== "roll") throw new Error("INVALID_PHASE");
     if (currentPlayer(state).id !== actorId) throw new Error("NOT_YOUR_TURN");
-    if (player.reviewTurns > 0) {
+    if (player.reviewTurns > 0 && !player.reviewDetained) {
       player.reviewTurns -= 1;
       player.influence += 1;
       log(state, events, "REVIEW_HELD", `${player.nickname} 停留一回合完成验收`, { playerId: player.id });
       state.phase = "turn_end";
       advanceTurn(state, events);
+      state.version += 1;
+      return { state, events };
+    }
+    const baseValue = player.fixedDice || context.forcedDice || randomInt(random, 6) + 1;
+    player.fixedDice = 0;
+    if (player.reviewDetained && baseValue % 2 !== 0) {
+      addEvent(events, "DICE_ROLLED", { playerId: actorId, value: baseValue, baseValue, bonus: 0, penalty: 0, reviewAttempt: true });
+      log(state, events, "REVIEW_HELD", `${player.nickname} 在项目验收掷出 ${baseValue}，未通过验收，继续停留`, { playerId: player.id, dice: baseValue });
+      state.phase = "turn_end";
+      advanceTurn(state, events);
     } else {
-      const baseValue = player.fixedDice || context.forcedDice || randomInt(random, 6) + 1;
-      player.fixedDice = 0;
-      const bonus = player.diceBonus || 0;
-      const dice = baseValue + bonus;
+      const releasedFromReview = player.reviewDetained;
+      if (releasedFromReview) {
+        player.reviewDetained = false;
+        log(state, events, "REVIEW_RELEASED", `${player.nickname} 在项目验收掷出偶数 ${baseValue}，通过验收并继续移动`, { playerId: player.id, dice: baseValue });
+      }
+      const bonus = player.diceBonus || 0, penalty = player.movePenalty || 0, dice = Math.max(1, baseValue + bonus - penalty);
       player.diceBonus = 0;
-      addEvent(events, "DICE_ROLLED", { playerId: actorId, value: dice, baseValue, bonus });
+      player.movePenalty = 0;
+      addEvent(events, "DICE_ROLLED", { playerId: actorId, value: dice, baseValue, bonus, penalty, reviewAttempt: releasedFromReview });
       state.phase = "moving";
       state.movement = { remaining: dice, path: [player.position] };
-      continueMovement(state, events, random, nowMs);
+      continueMovement(state, events, random, nowMs, null, context.forcedCityEventId);
       if (state.phase === "turn_end") advanceTurn(state, events);
     }
   } else if (command === "USE_ITEM") {
@@ -453,6 +568,19 @@ function applyCommand(inputState, actorId, command, payload = {}, context = {}) 
       player.fixedDice = value;
     } else if (item.effect === "upgrade_discount") player.upgradeDiscount = true;
     else if (item.effect === "attack_shield") player.attackShield = true;
+    else if (item.effect === "investment_discount") player.investmentDiscount = true;
+    else if (item.effect === "rent_boost") player.rentBoost = true;
+    else if (item.effect === "swap_positions") {
+      const target = state.players.find(item => item.id === payload.targetPlayerId && item.id !== actorId);
+      if (!target) throw new Error("INVALID_CARD_TARGET");
+      [player.position, target.position] = [target.position, player.position];
+      log(state, events, "ITEM_POSITION_SWAPPED", `${player.nickname} 使用城市换位卡，与 ${target.nickname} 交换位置`, { playerId: actorId, targetPlayerId: target.id, item });
+    } else if (item.effect === "roadblock") {
+      const target = state.players.find(item => item.id === payload.targetPlayerId && item.id !== actorId);
+      if (!target) throw new Error("INVALID_CARD_TARGET");
+      target.movePenalty = Math.max(target.movePenalty, 2);
+      log(state, events, "ITEM_ROADBLOCKED", `${player.nickname} 对 ${target.nickname} 使用临时路障卡，对方下次移动 -2`, { playerId: actorId, targetPlayerId: target.id, item });
+    }
     else if (item.effect === "demolition") {
       const tile = state.board[Number(payload.tileIndex)];
       if (!tile || tile.type !== "property" || tile.level <= 1 || [tile.ownerId, tile.partnerId].includes(actorId)) throw new Error("INVALID_CARD_TARGET");
@@ -466,7 +594,7 @@ function applyCommand(inputState, actorId, command, payload = {}, context = {}) 
         log(state, events, "ITEM_CARD_ATTACKED", `${player.nickname} 对 ${tile.name} 使用强拆令，项目降为 ${tile.level} 级`, { playerId: actorId, tileIndex: tile.index, level: tile.level, item });
       }
     }
-    addEvent(events, "ITEM_CARD_USED", { playerId: actorId, item, cash: player.cash, diceBonus: player.diceBonus, fixedDice: player.fixedDice, rentShield: player.rentShield, upgradeDiscount: player.upgradeDiscount, attackShield: player.attackShield });
+    addEvent(events, "ITEM_CARD_USED", { playerId: actorId, item, cash: player.cash, diceBonus: player.diceBonus, fixedDice: player.fixedDice, rentShield: player.rentShield, upgradeDiscount: player.upgradeDiscount, attackShield: player.attackShield, investmentDiscount: player.investmentDiscount, rentBoost: player.rentBoost });
     log(state, events, "ITEM_CARD_USED_LOG", `${player.nickname} 使用 ${item.name}`, { playerId: actorId, itemId: item.id });
   } else if (command === "CHOOSE_ROUTE") {
     if (state.phase !== "decision" || state.pending?.type !== "route" || state.pending.actorId !== actorId) throw new Error("INVALID_PHASE");
@@ -477,18 +605,20 @@ function applyCommand(inputState, actorId, command, payload = {}, context = {}) 
     state.pending = null;
     state.phase = "moving";
     addEvent(events, "ROUTE_CHOSEN", { playerId: actorId, to: choice.to, label: choice.label });
-    continueMovement(state, events, random, nowMs, choice.to);
+    continueMovement(state, events, random, nowMs, choice.to, context.forcedCityEventId);
     if (state.phase === "turn_end") advanceTurn(state, events);
   } else if (command === "BUY_PROPERTY") {
     if (state.phase !== "decision" || state.pending?.type !== "property" || state.pending.actorId !== actorId) throw new Error("INVALID_PHASE");
     const tile = state.board[state.pending.tileIndex];
     const sectorBefore = sectorTier(state, player.id, tile.group);
-    if (player.cash < tile.price || tile.ownerId) throw new Error("CANNOT_INVEST");
-    player.cash -= tile.price;
+    const price = player.investmentDiscount ? Math.ceil(tile.price / 2) : tile.price;
+    if (player.cash < price || tile.ownerId) throw new Error("CANNOT_INVEST");
+    player.cash -= price;
+    player.investmentDiscount = false;
     player.properties.push(tile.index);
     tile.ownerId = player.id;
     tile.level = 1;
-    log(state, events, "PROPERTY_BOUGHT", `${player.nickname} 投资 ${tile.name} 成功`, { playerId: player.id, tileIndex: tile.index, price: tile.price });
+    log(state, events, "PROPERTY_BOUGHT", `${player.nickname} 投资 ${tile.name} 成功${price < tile.price ? "（首投补贴半价）" : ""}`, { playerId: player.id, tileIndex: tile.index, price, basePrice: tile.price });
     announceSectorTier(state, player, tile.group, sectorBefore, events);
     state.pending = null;
     state.phase = "turn_end";
@@ -553,6 +683,14 @@ function applyCommand(inputState, actorId, command, payload = {}, context = {}) 
     tile.level += 1;
     player.lastUpgradeRound = state.round;
     log(state, events, "PROPERTY_UPGRADED", `${player.nickname} 将 ${tile.name} 建设到 ${tile.level} 级`, { playerId: actorId, tileIndex: tile.index, level: tile.level, cost });
+  } else if (command === "CHOOSE_CITY_EVENT") {
+    if (state.phase !== "decision" || state.pending?.type !== "city_event" || state.pending.actorId !== actorId) throw new Error("INVALID_PHASE");
+    const cityEvent = CITY_EVENTS.find(item => item.id === state.pending.eventId);
+    if (!cityEvent || cityEvent.effect !== "venture" || !["risk", "safe"].includes(payload.choice)) throw new Error("INVALID_EVENT_CHOICE");
+    resolveCityEvent(state, player, cityEvent, events, random, payload.choice);
+    state.pending = null;
+    state.phase = "turn_end";
+    advanceTurn(state, events);
   } else if (command === "CHOOSE_OPPORTUNITY") {
     if (state.phase !== "decision" || state.pending?.type !== "opportunity" || state.pending.actorId !== actorId) throw new Error("INVALID_PHASE");
     let outcome;
@@ -607,6 +745,9 @@ function getBotCommand(state, playerId, random = Math.random) {
       if (item?.effect === "demolition") {
         const target = state.board.filter(tile => tile.type === "property" && tile.level > 1 && ![tile.ownerId, tile.partnerId].includes(playerId)).sort((a,b)=>b.level-a.level)[0];
         if (target) return { command: "USE_ITEM", payload: { itemId: item.id, tileIndex: target.index } };
+      } else if (["swap_positions", "roadblock"].includes(item?.effect)) {
+        const target = state.players.filter(candidate => candidate.id !== playerId).sort((a,b)=>cityScore(state,b)-cityScore(state,a)||b.cash-a.cash)[0];
+        if (target) return { command: "USE_ITEM", payload: { itemId: item.id, targetPlayerId: target.id } };
       } else return { command: "USE_ITEM", payload: { itemId: player.items[0] } };
     }
     const policy = balanceOf(state).botPolicy;
@@ -631,6 +772,7 @@ function getBotCommand(state, playerId, random = Math.random) {
       }
       return player.cash - tile.price >= 400 ? { command: "BUY_PROPERTY", payload: {} } : { command: "SKIP_PROPERTY", payload: {} };
     }
+    if (state.pending.type === "city_event") return { command: "CHOOSE_CITY_EVENT", payload: { choice: player.cash > 400 ? "risk" : "safe" } };
     if (state.pending.type === "opportunity") return { command: "CHOOSE_OPPORTUNITY", payload: { choice: player.cash > 500 ? "risk" : "safe" } };
     if (state.pending.type === "review") return { command: "CHOOSE_REVIEW", payload: { choice: player.cash > 700 ? "pay" : "wait" } };
     if (state.pending.type === "vote") return { command: "CHOOSE_VOTE", payload: { choice: "coupon" } };
@@ -653,6 +795,7 @@ function getTimeoutCommand(state) {
   }
   if (pending.type === "property") return { actorId: pending.actorId, command: "SKIP_PROPERTY", payload: {} };
   if (pending.type === "opportunity") return { actorId: pending.actorId, command: "CHOOSE_OPPORTUNITY", payload: { choice: "safe" } };
+  if (pending.type === "city_event") return { actorId: pending.actorId, command: "CHOOSE_CITY_EVENT", payload: { choice: "safe" } };
   if (pending.type === "review") return { actorId: pending.actorId, command: "CHOOSE_REVIEW", payload: { choice: "wait" } };
   if (pending.type === "vote") return { actorId: pending.actorId, command: "CHOOSE_VOTE", payload: { choice: "coupon" } };
   if (pending.type === "partner") return { actorId: pending.targetPlayerId, command: "DECLINE_PARTNER", payload: {} };
@@ -661,4 +804,4 @@ function getTimeoutCommand(state) {
 
 function stateHash(state) { return crypto.createHash("sha256").update(JSON.stringify(state)).digest("hex"); }
 
-module.exports = { CURRENT_RULESET_VERSION, DEFAULT_BALANCE, BOARD, DAILY_EVENTS, ITEM_CARDS, createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, getRent, getUpgradeCost, hasCompleteGroup, sectorProjectCount, sectorTier, cityScore, rankings, stateHash };
+module.exports = { CURRENT_RULESET_VERSION, DEFAULT_BALANCE, BOARD, CITY_EVENTS, ITEM_CARDS, createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, getRent, getUpgradeCost, hasCompleteGroup, sectorProjectCount, sectorTier, cityScore, rankings, stateHash };

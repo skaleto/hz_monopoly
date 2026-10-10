@@ -17,6 +17,7 @@ process.env.NODE_ENV = "test";
 process.env.TEST_DICE_SEQUENCE = "4,1,6";
 process.env.TEST_DICE = "1";
 process.env.TEST_FIRST_SEAT = "0";
+process.env.TEST_CITY_EVENT_ID = "venture_window";
 
 const { server, store, close } = require("../server/server");
 const screenshotDir = path.join(__dirname, "..", "screenshots");
@@ -187,13 +188,14 @@ async function main() {
     assert.ok(waterRouteGeometry.pathRatio <= 1.9, `water route too winding ${JSON.stringify(waterRouteGeometry)}`);
     assert.ok(waterRouteGeometry.maxTurn <= 140, `water route reverses sharply ${JSON.stringify(waterRouteGeometry)}`);
     assert.ok(waterRouteGeometry.minInnerGap >= 29, `water nodes are crowded ${JSON.stringify(waterRouteGeometry)}`);
-    assert.equal(await b.locator('.board-tile[data-tile-type="opportunity"]').count(), 4);
+    assert.equal(await b.locator('.board-tile[data-tile-type="event"]').count(), 9);
+    assert.equal(await b.locator('.board-tile[data-tile-type="opportunity"],.board-tile[data-tile-type="daily"]').count(), 0);
     assert.equal(await b.locator('.board-tile[data-tile-type="supply"]').count(), 2);
     assert.equal(await b.locator(".board-tile.next-option").count(), 1);
     assert.equal(await b.locator(".board-tile .tile-icon").evaluateAll(images => new Set(images.map(image => image.getAttribute("src"))).size), 9);
     assert.ok(await b.locator(".board-tile").evaluateAll(tiles => new Set(tiles.map(tile => getComputedStyle(tile).backgroundColor)).size) >= 7);
     assert.equal(await b.locator('.board-tile[data-tile-type="property"]').first().evaluate(tile => getComputedStyle(tile).backgroundColor), "rgb(255, 254, 250)");
-    assert.notEqual(await b.locator('.board-tile[data-tile-type="opportunity"]').first().evaluate(tile => getComputedStyle(tile).backgroundColor), await b.locator('.board-tile[data-tile-type="daily"]').first().evaluate(tile => getComputedStyle(tile).backgroundColor));
+    assert.notEqual(await b.locator('.board-tile[data-tile-type="event"]').first().evaluate(tile => getComputedStyle(tile).backgroundColor), await b.locator('.board-tile[data-tile-type="property"]').first().evaluate(tile => getComputedStyle(tile).backgroundColor));
     assert.equal(await b.locator(".board-tile.route-water").count(), 11);
     assert.equal(await b.locator(".board-tile.route-metro").count(), 10);
     assert.equal(await b.locator(".route-water-entry").count(), 1);
@@ -247,7 +249,7 @@ async function main() {
     assert.equal(await a.locator("#diceCanvas").count(), 1);
     assert.equal(await a.locator("#diceImage").count(), 0);
     await a.locator("#decisionModal").waitFor({ state: "visible" });
-    assert.ok((await a.locator("#decisionTitle").textContent()).includes("机遇卡"));
+    assert.equal(await a.locator("#decisionTitle").textContent(), "融资窗口");
     const diceTrace = await a.evaluate(() => window.__diceTrace || []);
     assert.equal(diceTrace.length, 1);
     assert.equal(diceTrace[0].value, 4);
@@ -276,9 +278,16 @@ async function main() {
       document.querySelector("#decisionModal").hidden = false;
     });
     await a.screenshot({ path: path.join(screenshotDir, "04-opportunity-decision-modal.png"), fullPage: true });
-    await a.getByRole("button", { name: "稳妥 +40" }).click();
+    await a.getByRole("button", { name: "稳妥 +60" }).click();
     await a.locator("#decisionModal").waitFor({ state: "hidden", timeout: 500 });
-    await a.waitForFunction(() => document.querySelector("#gameToast.visible")?.textContent.includes("机遇卡"));
+    await a.locator("#cardEffectOverlay").waitFor({ state: "visible" });
+    assert.equal(await a.locator("#cardEffectKicker").textContent(), "城市事件");
+    assert.equal(await a.locator("#cardEffectName").textContent(), "融资窗口");
+    await a.locator("#cardEffectCard").evaluate(node => { const animation=node.getAnimations()[0]; if(animation){animation.currentTime=1200;animation.pause()} });
+    await a.screenshot({ path: path.join(screenshotDir, "04b-city-event-reveal.png"), fullPage: true });
+    await a.locator("#cardEffectCard").evaluate(node => node.getAnimations()[0]?.play());
+    await a.locator("#cardEffectOverlay").waitFor({ state: "hidden", timeout: 2500 });
+    await a.waitForFunction(() => document.querySelector("#gameToast.visible")?.textContent.includes("融资窗口"));
     assert.ok((await a.evaluate(() => window.__soundTrace)).some(item => item.name === "opportunity"));
     assert.equal(await a.locator("#eventModal").count(), 0);
     await b.locator("#rollButton").waitFor({ state: "visible" });
@@ -533,7 +542,7 @@ async function main() {
       branchDirections: "2 continuous routes + color-matched entry/exit endpoints",
       waterRouteGeometry,
       metroRouteGeometry,
-      opportunityNodes: 4,
+      cityEventNodes: 9,
       supplyNodes: 2,
       tileDetail: "pass",
       tileClickTrace: "click / tileIndex / room context / hidden true->false",
@@ -556,7 +565,7 @@ async function main() {
       investmentCelebration: "investor avatar + project sprite",
       upgradeSelector: "own turn only + explicit project/cost/rent",
       ownerEndGame: "owner-only confirmed settlement",
-      soundEffects: "dice + step + daily + landmark + transit + opportunity + review + vote + route + card + coin + partnership + investment",
+      soundEffects: "dice + step + city event + landmark + transit + review + vote + route + card + coin + partnership + investment",
       consoleErrors: 0
     }, null, 2));
   } finally {

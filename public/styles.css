@@ -156,6 +156,7 @@ body.game-active { height:100dvh; overflow:hidden; overscroll-behavior:none; pos
 /* M2 prototype: visible sector progression and expanded 49-node board. */
 .player-metrics { grid-template-columns:repeat(4,1fr); }
 .player-metrics .score { background:#e7e2ff; }
+.player-chip.cash-danger .coins{background:#ffd4cc;box-shadow:inset 0 0 0 1px #c74736;animation:cashDangerPulse .8s ease-in-out infinite alternate}.player-chip.cash-danger .coins b,.player-chip.cash-danger .coins em{color:#9d2b20}
 .sector-summary{display:grid;gap:3px;min-width:0}.sector-summary-head{display:flex;align-items:center;justify-content:space-between;padding:0 3px}.sector-summary-head strong{font-size:9px}.sector-summary-head button{min-height:20px;padding:1px 8px;border:1px solid var(--ink);border-radius:999px;background:#fff;font-size:8px;font-weight:800}.sector-progress { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:5px; min-height:38px; }
 .sector-chip { display:grid; align-content:center; min-width:0; padding:4px 7px; border:1.5px solid var(--ink); border-radius:10px; background:#fff; box-shadow:0 2px 0 var(--ink); color:var(--ink); text-align:left; }
 .sector-chip strong { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
@@ -234,6 +235,7 @@ button,.player-copy strong,.player-metrics b,.tile-name,.tile-price,.turn-summar
 @media(max-width:700px){.turn-order-banner{width:calc(100% - 28px);padding:11px 10px}.turn-order-banner strong{font-size:10px}.turn-order-banner span{font-size:11px}}
 @keyframes turnOrderBrief{0%{opacity:0;transform:translate(-50%,-44%) scale(.94)}12%,78%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-54%) scale(.98)}}
 @keyframes sectorUnlockPulse{from{transform:translateY(0) scale(1)}to{transform:translateY(-2px) scale(1.04)}}
+@keyframes cashDangerPulse{from{filter:brightness(1)}to{filter:brightness(1.12)}}
 
 /* Full-screen item-card reveal. */
 .card-effect-overlay{position:fixed;inset:0;z-index:260;display:grid;place-items:center;background:radial-gradient(circle,rgba(255,249,214,.72),rgba(13,37,66,.82));backdrop-filter:blur(7px);pointer-events:none}

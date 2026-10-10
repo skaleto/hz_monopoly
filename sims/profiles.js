@@ -29,7 +29,9 @@ function fiveSectorsOfFive() {
   board[42].next = [48];
   board.push(...newProjects);
   const candidateBoard = board.map(tile => {
-    const candidate = { ...tile };
+    const candidate = ["daily", "opportunity"].includes(tile.type)
+      ? { ...tile, type: "event", name: tile.name.replace("杭城日常", "杭城事件").replace("机遇卡", "事件") }
+      : { ...tile };
     const group = sectorByProject.get(candidate.name);
     return group ? { ...candidate, group } : candidate;
   });
@@ -66,18 +68,23 @@ const profiles = {
     botPolicy: { partnershipRate: 0, upgradeEnabled: false, upgradeAfterRound: 99, maxUpgradesPerPlayer: 0, reserveCash: 400 }
   },
   cautious: {
-    label: "M2 sector cautious",
-    rulesetVersion: "hangzhou-v2-sector-cautious",
+    label: "M3 city events candidate",
+    rulesetVersion: "hangzhou-v3-city-events",
     board: fiveSectorsOfFive(),
     balance: {
       ...sharedCandidate,
-      startingCashByTurn: [1500, 1500, 1500, 1500],
+      startingCashByTurn: [1200, 1200, 1200, 1200],
+      startIncomeByRound: [
+        { through: 4, amount: 140 },
+        { through: 9, amount: 90 },
+        { through: 12, amount: 40 }
+      ],
       sectorBonuses: { ...sharedCandidate.sectorBonuses, rentMultiplier: 1.1 },
       rentMultiplierByLevel: [0, 1, 1.75, 3],
       upgrade: { costMode: "ratio", ratioByCurrentLevel: { 1: 0.45, 2: 0.7 }, level3RequiresCompleteGroup: true }
-      ,botPolicy: { partnershipRate: 0.2, upgradeEnabled: true, upgradeAfterRound: 6, maxUpgradesPerPlayer: 2, reserveCash: 425 }
+      ,botPolicy: { partnershipRate: 0.2, upgradeEnabled: true, upgradeAfterRound: 6, maxUpgradesPerPlayer: 2, reserveCash: 250 }
     },
-    botPolicy: { partnershipRate: 0.2, upgradeEnabled: true, upgradeAfterRound: 6, maxUpgradesPerPlayer: 2, reserveCash: 425 }
+    botPolicy: { partnershipRate: 0.2, upgradeEnabled: true, upgradeAfterRound: 6, maxUpgradesPerPlayer: 2, reserveCash: 250 }
   },
   target: {
     label: "M2 sector target",

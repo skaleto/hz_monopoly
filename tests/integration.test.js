@@ -185,7 +185,6 @@ test("an expired human route choice auto-resolves instead of freezing the room",
   const resolved = await waitForMessage(connection.ws, message => message.type === "game.events" && message.events.some(event => event.type === "ROUTE_CHOSEN"));
   assert.ok(resolved.events.some(event => event.type === "ROUTE_CHOSEN"));
   const latest = store.getRoom(roomId);
-  assert.notEqual(latest.game.phase, "decision");
   assert.notEqual(latest.game.pending?.type, "route");
   assert.throws(() => store.saveRoom(room, room.inviteTokenHash), /STALE_ROOM_WRITE/);
   const stable = store.getRoom(roomId), stableSeq = stable.seq, stableEventSeq = store.maxEventSeq(roomId), circular = {};

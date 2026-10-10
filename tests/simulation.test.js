@@ -3,7 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { profiles, fiveSectorsOfFive } = require("../sims/profiles");
-const { simulateProfile, assertHardGates } = require("../sims/run");
+const { simulateProfile, assertHardGates, assertCandidateGates } = require("../sims/run");
 
 test("M2 candidate board contains five sectors of five projects", () => {
   const board = fiveSectorsOfFive();
@@ -21,6 +21,12 @@ test("M2 candidate board contains five sectors of five projects", () => {
   assert.deepEqual(board[42].next, [48]);
 });
 
+test("M3 city event candidate passes cash tension and pacing gates", () => {
+  const report = simulateProfile("cautious", profiles.cautious, { games: 200, seed: 20261010 });
+  assert.doesNotThrow(() => assertHardGates(report));
+  assert.doesNotThrow(() => assertCandidateGates(report));
+});
+
 test("fixed seeds reproduce the same simulation report", () => {
   const options = { games: 5, seed: 20261009 };
   const first = simulateProfile("current", profiles.current, options);
@@ -30,4 +36,8 @@ test("fixed seeds reproduce the same simulation report", () => {
   assert.doesNotThrow(() => assertHardGates(first));
   assert.equal(first.gameplay.partnershipsPerGame, 0);
   assert.equal(first.gameplay.upgradesPerGame, 0);
+  assert.equal(typeof first.gameplay.minimumCashP50, "number");
+  assert.equal(typeof first.gameplay.gamesWithCashAtOrBelow300Pct, "number");
+  assert.equal(typeof first.gameplay.cityEventsPerGame, "number");
+  assert.equal(typeof first.gameplay.reviewEntriesPerGame, "number");
 });

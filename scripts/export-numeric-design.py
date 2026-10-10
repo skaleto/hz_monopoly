@@ -12,8 +12,8 @@ from xml.sax.saxutils import escape
 
 
 ROOT = Path(__file__).resolve().parents[1]
-OUTPUT = ROOT / "docs" / "design" / "杭城合伙局-数值设计-v0.6.4.xlsx"
-BASELINE_COMMIT = "260e57d697a0da5364983c1424e17f3d41417041"
+OUTPUT = ROOT / "docs" / "design" / "杭城合伙局-数值设计-M3候选.xlsx"
+BASELINE_COMMIT = "1cf62a9"
 
 
 def load_rules() -> dict:
@@ -29,7 +29,7 @@ process.stdout.write(JSON.stringify({
   board: active.board,
   balance: normalized.balance,
   botPolicy: active.botPolicy,
-  dailyEvents: core.DAILY_EVENTS,
+  cityEvents: core.CITY_EVENTS,
   itemCards: core.ITEM_CARDS
 }));
 """
@@ -63,12 +63,10 @@ def node_effect(tile: dict, balance: dict) -> str:
         return "每次经过或停在此处，按轮次领取月度收入"
     if node_type == "property":
         return "无主时可独资或五五合伙投资；到访他人项目时支付分红"
-    if node_type == "opportunity":
-        return "二选一：冒险投入 100，或稳妥获得 40"
-    if node_type == "daily":
-        return "等概率触发 1 个杭城日常事件"
+    if node_type == "event":
+        return "等概率触发 1 个城市事件；包含个人、全员、互动、道具和融资选择"
     if node_type == "review":
-        return f"支付 {balance['reviewCost']} 金币加急，或停留下一回合"
+        return "进入验收状态；之后每回合掷骰，偶数离开并移动，奇数继续停留"
     if node_type == "vote":
         return f"个人影响力 +{balance['voteInfluence']}，或全员金币 +{balance['voteCash']}"
     if node_type == "park":
@@ -92,8 +90,7 @@ def build_sheets(data: dict) -> list[tuple[str, list[list[object]]]]:
     type_names = {
         "start": "起点",
         "property": "可投资项目",
-        "opportunity": "城市机遇",
-        "daily": "杭城日常",
+        "event": "城市事件",
         "review": "项目验收",
         "vote": "城市公投",
         "park": "城市公园",
@@ -118,7 +115,7 @@ def build_sheets(data: dict) -> list[tuple[str, list[list[object]]]]:
     ]
 
     node_types = [["类型代码", "用户名称", "节点数", "停留效果", "是否需要玩家选择"]]
-    choice_types = {"property", "opportunity", "review", "vote"}
+    choice_types = {"property", "event", "vote"}
     for node_type in type_names:
         sample = next(tile for tile in board if tile["type"] == node_type)
         node_types.append([
@@ -176,24 +173,20 @@ def build_sheets(data: dict) -> list[tuple[str, list[list[object]]]]:
         [5, "板块集齐", "无新增数值", "保持 4 档全部累计增益", "仅该板块", "是"],
     ]
 
-    daily_rows = [["事件名称", "金币变化", "影响力变化", "触发概率", "用户可见结果"]]
-    probability = f"{100 / len(data['dailyEvents']):g}%"
-    for event in data["dailyEvents"]:
-        changes = []
-        if event["cash"]:
-            changes.append(f"金币 {event['cash']:+d}")
-        if event["influence"]:
-            changes.append(f"影响力 {event['influence']:+d}")
-        daily_rows.append([event["text"], event["cash"], event["influence"], probability, "，".join(changes) or "无数值变化"])
+    event_effect_names = {"self":"自己", "all":"所有玩家", "poorest":"金币最少者", "transfer":"最多转给最少", "item_gain":"自己获得道具", "item_loss":"自己失去道具", "venture":"自己二选一"}
+    city_event_rows = [["事件 ID", "事件名称", "影响对象", "基础金币", "基础影响力", "触发概率", "用户可见效果"]]
+    probability = f"{100 / len(data['cityEvents']):.2f}%"
+    for event in data["cityEvents"]:
+        city_event_rows.append([event["id"], event["name"], event_effect_names[event["effect"]], event["cash"], event["influence"], probability, event["copy"]])
 
-    opportunity = balance["opportunity"]
+    venture = balance["cityEventVenture"]
     event_rows = [
         ["场景", "选项/触发", "金币效果", "影响力效果", "其他效果", "备注"],
-        ["城市机遇", "稳妥接单", opportunity["safeCash"], 0, "立即结束选择", "确定收益"],
-        ["城市机遇", "冒险成功", opportunity["successPayout"] - opportunity["riskCost"], opportunity["successInfluence"], "成功率 60%", f"先扣 {opportunity['riskCost']}，再返还 {opportunity['successPayout']}"],
-        ["城市机遇", "冒险失败", -opportunity["riskCost"], opportunity["failureInfluence"], "失败率 40%", "无返还"],
-        ["项目验收", "加急", -balance["reviewCost"], 0, "不跳过下回合", "立即完成"],
-        ["项目验收", "停留", 0, 0, "下一回合跳过掷骰", "停留期间仍可收分红"],
+        ["融资窗口", "稳妥到账", venture["safeCash"], 0, "立即结束选择", "确定收益"],
+        ["融资窗口", "冒险成功", venture["successPayout"] - venture["riskCost"], venture["successInfluence"], f"成功率 {venture['successChance']*100:.0f}%", f"先扣 {venture['riskCost']}，再返还 {venture['successPayout']}"],
+        ["融资窗口", "冒险失败", -venture["riskCost"], 0, f"失败率 {(1-venture['successChance'])*100:.0f}%", "无返还"],
+        ["项目验收", "掷出奇数", 0, 0, "继续停留并结束回合", "下回合继续尝试"],
+        ["项目验收", "掷出偶数", 0, 0, "通过验收并按点数移动", "定向骰子可以指定偶数"],
         ["城市公投", "发展文旅", 0, balance["voteInfluence"], "仅自己", "影响力直接计入城市分"],
         ["城市公投", "全民券", balance["voteCash"], 0, "每位玩家都获得", "表中金币为每人变化"],
         ["经过起点", "第 1–4 轮", 200, 0, "月度收入", "经过或停在起点时触发"],
@@ -216,6 +209,10 @@ def build_sheets(data: dict) -> list[tuple[str, list[list[object]]]]:
         "pass": ("自己", "自己的回合、掷骰前", "下一次支付到访分红时减半，向上取整"),
         "shield": ("自己", "自己的回合、掷骰前", "抵消下一张针对自己的强拆令"),
         "demolition": ("对手项目", "自己的回合、掷骰前", "指定 2 级或 3 级对手项目降低 1 级；产权不变"),
+        "invest_coupon": ("自己", "自己的回合、掷骰前", "下一次独立投资费用减半"),
+        "rent_boost": ("自己", "自己的回合、掷骰前", "下一次从他人收取的到访分红翻倍"),
+        "swap": ("指定玩家", "自己的回合、掷骰前", "与指定玩家交换当前位置"),
+        "roadblock": ("指定玩家", "自己的回合、掷骰前", "指定玩家下一次移动减少 2 格，最低仍移动 1 格"),
     }
     item_rows = [["卡片 ID", "卡片名称", "类型", "目标", "使用时机", "实际效果", "补给站抽取概率"]]
     for card in data["itemCards"]:
@@ -234,9 +231,10 @@ def build_sheets(data: dict) -> list[tuple[str, list[list[object]]]]:
     economy_rows = [
         ["类别", "参数", "当前值", "说明"],
         ["开局", "行动顺序", "随机", "每局随机先手，其余玩家按席位循环"],
-        ["开局", "每位初始金币", 1500, "当前 M2 不再按席位补偿"],
+        ["开局", "每位初始金币", balance["startingCashByTurn"][0], "M3 现金压力候选，所有行动位相同"],
         ["局长", "最大轮数", balance["maxRounds"], "达到后按城市分结算"],
         ["局长", "当前轮次边界", "回到席位 0 时加轮次", "随机先手不是席位 0 时，部分席位实际会少行动 1 次；本次仅记录现状，未改规则"],
+        ["现金", "资金告急阈值", balance["cashWarningThreshold"], "达到或低于该值时玩家栏红色提示"],
         ["建设", "1级分红倍率", multipliers[1], "项目投资后即为 1 级"],
         ["建设", "2级分红倍率", multipliers[2], "相对项目基础分红"],
         ["建设", "3级分红倍率", multipliers[3], "需在本板块参与至少 3 个项目"],
@@ -261,7 +259,7 @@ def build_sheets(data: dict) -> list[tuple[str, list[list[object]]]]:
         ("地图节点", map_rows),
         ("板块项目", project_rows),
         ("板块增益", sector_rows),
-        ("随机日常", daily_rows),
+        ("城市事件", city_event_rows),
         ("事件与选择", event_rows),
         ("道具卡", item_rows),
         ("经济与计分", economy_rows),
@@ -339,7 +337,7 @@ def write_workbook(sheets: list[tuple[str, list[list[object]]]]) -> None:
     overrides = "".join(f'<Override PartName="/xl/worksheets/sheet{index}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' for index in range(1, len(sheets) + 1))
     content_types = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>{overrides}<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>'''
     root_rels = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>'''
-    core = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>杭城合伙局数值设计 v0.6.4</dc:title><dc:creator>Coding Agent（TRAE）</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">2026-10-10T00:00:00Z</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">2026-10-10T00:00:00Z</dcterms:modified></cp:coreProperties>'''
+    core = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>杭城合伙局数值设计 M3候选</dc:title><dc:creator>Coding Agent（TRAE）</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">2026-10-10T00:00:00Z</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">2026-10-10T00:00:00Z</dcterms:modified></cp:coreProperties>'''
     app = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>Hangzhou Partners</Application><TitlesOfParts><vt:vector size="{len(sheets)}" baseType="lpstr">{"".join(f"<vt:lpstr>{escape(name)}</vt:lpstr>" for name, _ in sheets)}</vt:vector></TitlesOfParts></Properties>'''
     with zipfile.ZipFile(OUTPUT, "w") as archive:
         write_entry(archive, "[Content_Types].xml", content_types)
@@ -355,8 +353,8 @@ def write_workbook(sheets: list[tuple[str, list[list[object]]]]) -> None:
 
 def main() -> None:
     data = load_rules()
-    if data["version"] != "0.6.4":
-        raise SystemExit(f"Expected v0.6.4, got {data['version']}")
+    if data["rulesetVersion"] != "hangzhou-v3-city-events":
+        raise SystemExit(f"Expected M3 city event ruleset, got {data['rulesetVersion']}")
     sheets = build_sheets(data)
     write_workbook(sheets)
     print(f"Wrote {OUTPUT} ({len(sheets)} sheets)")

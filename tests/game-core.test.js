@@ -2,7 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { CURRENT_RULESET_VERSION, BOARD, createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, getRent, getUpgradeCost, cityScore, stateHash } = require("../game-core");
+const { CURRENT_RULESET_VERSION, BOARD, CITY_EVENTS, ITEM_CARDS, createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, getRent, getUpgradeCost, cityScore, stateHash } = require("../game-core");
 const { fiveSectorsOfFive } = require("../sims/profiles");
 
 const players = [
@@ -18,7 +18,7 @@ test("only supports 2 to 4 total seats", () => {
 });
 
 test("new games stamp the single current ruleset version", () => {
-  assert.equal(CURRENT_RULESET_VERSION, "hangzhou-v2-sector-cautious");
+  assert.equal(CURRENT_RULESET_VERSION, "hangzhou-v3-city-events");
   assert.equal(createGame(players).rulesetVersion, CURRENT_RULESET_VERSION);
 });
 
@@ -155,6 +155,48 @@ test("daily events state their exact cash and influence changes", () => {
   assert.equal(daily.payload.text, "桃桃 遇到梅雨季设备检修：金币 -50");
 });
 
+test("current board unifies daily and opportunity nodes into one city event deck", () => {
+  const board = fiveSectorsOfFive();
+  assert.equal(board.filter(tile => tile.type === "event").length, 9);
+  assert.equal(board.filter(tile => ["daily", "opportunity"].includes(tile.type)).length, 0);
+  assert.equal(CITY_EVENTS.length, 12);
+  assert.equal(new Set(CITY_EVENTS.map(item => item.effect)).size >= 7, true);
+});
+
+test("city events support meaningful loss, global impact and a risk choice", () => {
+  let game = createGame(players.slice(0, 2), { board: fiveSectorsOfFive() });
+  game.players[0].position = 3;
+  const before = game.players[0].cash;
+  let result = applyCommand(game, "u1", "ROLL_DICE", {}, { nowMs: 1, forcedDice: 1, forcedCityEventId: "rain_repair" });
+  assert.equal(result.state.players[0].cash, before - 180);
+  assert.match(result.events.find(event => event.type === "CITY_EVENT_RESOLVED").payload.text, /梅雨抢修/);
+
+  game = createGame(players.slice(0, 2), { board: fiveSectorsOfFive() });
+  game.players[0].position = 3;
+  result = applyCommand(game, "u1", "ROLL_DICE", {}, { nowMs: 1, forcedDice: 1, forcedCityEventId: "venture_window" });
+  assert.equal(result.state.pending.type, "city_event");
+  const resolved = applyCommand(result.state, "u1", "CHOOSE_CITY_EVENT", { choice: "safe" }, { nowMs: 2, random: () => 0 });
+  assert.equal(resolved.state.players[0].cash, 1560);
+  assert.ok(resolved.events.some(event => event.type === "CITY_EVENT_RESOLVED"));
+});
+
+test("project review requires an even roll to leave and then moves by that roll", () => {
+  let game = createGame(players.slice(0, 2), { board: fiveSectorsOfFive() });
+  game.players[0].position = 13;
+  game = applyCommand(game, "u1", "ROLL_DICE", {}, { nowMs: 1, forcedDice: 1 }).state;
+  assert.equal(game.players[0].reviewDetained, true);
+  game.currentSeat = 0; game.phase = "roll";
+  let attempt = applyCommand(game, "u1", "ROLL_DICE", {}, { nowMs: 2, forcedDice: 3 });
+  assert.equal(attempt.state.players[0].position, 14);
+  assert.equal(attempt.state.players[0].reviewDetained, true);
+  assert.ok(attempt.events.some(event => event.type === "REVIEW_HELD"));
+  attempt.state.currentSeat = 0; attempt.state.phase = "roll";
+  const released = applyCommand(attempt.state, "u1", "ROLL_DICE", {}, { nowMs: 3, forcedDice: 4 });
+  assert.equal(released.state.players[0].reviewDetained, false);
+  assert.notEqual(released.state.players[0].position, 14);
+  assert.ok(released.events.some(event => event.type === "REVIEW_RELEASED"));
+});
+
 test("human partnership requires target acceptance", () => {
   let game = createGame(players.slice(0, 2));
   game = applyCommand(game, "u1", "ROLL_DICE", {}, { nowMs: 1, forcedDice: 1 }).state;
@@ -254,6 +296,39 @@ test("new item cards support fixed dice, construction discount and shielded demo
   assert.equal(blocked.state.board[2].level, 2);
   assert.equal(blocked.state.players[1].attackShield, false);
   assert.ok(blocked.events.some(event => event.type === "ITEM_ATTACK_BLOCKED"));
+});
+
+test("expanded item deck supports investment discount, rent boost, swap and roadblock", () => {
+  assert.equal(ITEM_CARDS.length, 11);
+  let game = createGame(players.slice(0, 2));
+  game.players[0].items.push("invest_coupon");
+  game = applyCommand(game, "u1", "USE_ITEM", { itemId: "invest_coupon" }).state;
+  game.players[0].position = 0;
+  game = applyCommand(game, "u1", "ROLL_DICE", {}, { nowMs: 1, forcedDice: 1 }).state;
+  const before = game.players[0].cash;
+  game = applyCommand(game, "u1", "BUY_PROPERTY").state;
+  assert.equal(before - game.players[0].cash, 60);
+
+  game.currentSeat = 0; game.phase = "roll"; game.players[0].items.push("swap");
+  game.players[0].position = 3; game.players[1].position = 9;
+  game = applyCommand(game, "u1", "USE_ITEM", { itemId: "swap", targetPlayerId: "u2" }).state;
+  assert.deepEqual(game.players.map(player => player.position), [9, 3]);
+
+  game.players[0].items.push("roadblock");
+  game = applyCommand(game, "u1", "USE_ITEM", { itemId: "roadblock", targetPlayerId: "u2" }).state;
+  game.currentSeat = 1; game.phase = "roll";
+  const roadblocked = applyCommand(game, "u2", "ROLL_DICE", {}, { nowMs: 2, forcedDice: 4 });
+  assert.equal(roadblocked.events.find(event => event.type === "DICE_ROLLED").payload.value, 2);
+
+  game = createGame(players.slice(0, 2));
+  game.players[0].items.push("rent_boost");
+  game = applyCommand(game, "u1", "USE_ITEM", { itemId: "rent_boost" }).state;
+  game.board[1].ownerId = "u1"; game.board[1].level = 1; game.players[0].properties.push(1);
+  game.currentSeat = 1; game.phase = "roll";
+  const payerBefore = game.players[1].cash;
+  const doubled = applyCommand(game, "u2", "ROLL_DICE", {}, { nowMs: 3, forcedDice: 1 });
+  assert.equal(payerBefore - doubled.state.players[1].cash, 56);
+  assert.equal(doubled.state.players[0].rentBoost, false);
 });
 
 test("state hash and score are deterministic", () => {
