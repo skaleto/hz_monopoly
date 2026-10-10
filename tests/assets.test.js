@@ -22,6 +22,7 @@ test("versioned WebP game assets stay within first-game budget", () => {
 
 test("web client references versioned WebP instead of PNG", () => {
   const html = fs.readFileSync(path.join(__dirname, "..", "public", "index.html"), "utf8");
+  const version = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf8")).version;
   const js = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");
   const renderer = fs.readFileSync(path.join(__dirname, "..", "public", "dice-renderer.js"), "utf8");
   assert.match(html, /board\.v3\.webp/);
@@ -32,7 +33,7 @@ test("web client references versioned WebP instead of PNG", () => {
   assert.match(js, /project_expo\.v1\.webp/);
   assert.doesNotMatch(js, /node_property\.png/);
   assert.match(html, /id="diceCanvas"/);
-  assert.match(html, /dice-renderer\.js\?v=0\.6\.4/);
+  assert.ok(html.includes(`dice-renderer.js?v=${version}`));
   assert.doesNotMatch(html, /dice_[1-6]\.(?:png|v1\.webp)/);
   assert.doesNotMatch(js, /dice_[1-6]|diceFiles|diceImage/);
   assert.match(renderer, /visibleChanges/);

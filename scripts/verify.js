@@ -92,6 +92,21 @@ function checkSyntax() {
   return 0;
 }
 
+function checkVersionConsistency() {
+  const packageVersion = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).version;
+  const lock = JSON.parse(fs.readFileSync(path.join(root, "package-lock.json"), "utf8"));
+  const html = fs.readFileSync(path.join(root, "public", "index.html"), "utf8");
+  const cacheVersions = [...html.matchAll(/[?&]v=([0-9]+(?:\.[0-9]+)*)/g)].map(match => match[1]);
+  if (lock.version !== packageVersion || lock.packages?.[""]?.version !== packageVersion) {
+    throw new Error(`PACKAGE_LOCK_VERSION_MISMATCH: package=${packageVersion} lock=${lock.version} root=${lock.packages?.[""]?.version}`);
+  }
+  if (!cacheVersions.length || cacheVersions.some(version => version !== packageVersion)) {
+    throw new Error(`PUBLIC_CACHE_VERSION_MISMATCH: package=${packageVersion} public=${cacheVersions.join(",") || "missing"}`);
+  }
+  process.stdout.write(`version consistency: ${packageVersion}; public refs: ${cacheVersions.length}\n`);
+  return 0;
+}
+
 function releaseCleanliness() {
   const status = gitText(["status", "--porcelain", "--untracked-files=no"]);
   if (status) throw new Error(`RELEASE_REQUIRES_CLEAN_TRACKED_TREE:\n${status}`);
@@ -100,6 +115,7 @@ function releaseCleanliness() {
 
 record("tracked-file safety", checkForbiddenFiles);
 record("JavaScript syntax", checkSyntax);
+record("package and public cache version consistency", checkVersionConsistency);
 record("production dependency audit", () => command("npm", ["audit", "--omit=dev", "--audit-level=high"]));
 record("core, integration and asset tests", () => command("npm", ["test"]));
 record("390x844 product E2E", () => command("npm", ["run", "test:e2e"]));
