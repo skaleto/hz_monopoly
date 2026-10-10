@@ -172,13 +172,13 @@ async function main() {
       return { water: maxGap([23,28,29,45,30,31,32,33,46,34,35,36,2]), metro: maxGap([10,37,38,40,41,44,17]) };
     });
     assert.ok(nodeChainGaps.water <= 80, `water chain gap ${nodeChainGaps.water}`);
-    assert.ok(nodeChainGaps.metro <= 80, `metro chain gap ${nodeChainGaps.metro}`);
+    assert.ok(nodeChainGaps.metro <= 58, `metro chain gap ${nodeChainGaps.metro}`);
     const metroRouteGeometry = await b.evaluate(() => {
       const indexes=[37,38,40,41,44],centers=indexes.map(index=>{const rect=document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect();return{index,x:rect.x+rect.width/2,y:rect.y+rect.height/2}}),pairGaps=[];
       centers.forEach((point,index)=>centers.slice(index+1).forEach(other=>pairGaps.push({pair:[point.index,other.index],gap:Math.hypot(point.x-other.x,point.y-other.y)})));
       const nearest=pairGaps.sort((left,right)=>left.gap-right.gap)[0];return { minGap:nearest.gap, nearestPair:nearest.pair, rightmostX:Math.max(...centers.map(point=>point.x)), topmostY:Math.min(...centers.map(point=>point.y)) };
     });
-    assert.ok(metroRouteGeometry.minGap >= 29, `metro nodes are crowded ${JSON.stringify(metroRouteGeometry)}`);
+    assert.ok(metroRouteGeometry.minGap >= 34, `metro nodes are crowded ${JSON.stringify(metroRouteGeometry)}`);
     const topBranchOverlap = await b.evaluate(() => {
       const indexes=[10,37,38,40,41,44,17],entries=indexes.map(index=>({index,rect:document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect()})),overlaps=[];
       entries.forEach((left,index)=>entries.slice(index+1).forEach(right=>{const width=Math.max(0,Math.min(left.rect.right,right.rect.right)-Math.max(left.rect.left,right.rect.left)),height=Math.max(0,Math.min(left.rect.bottom,right.rect.bottom)-Math.max(left.rect.top,right.rect.top)),ratio=width*height/Math.min(left.rect.width*left.rect.height,right.rect.width*right.rect.height);if(ratio>0)overlaps.push({pair:[left.index,right.index],ratio})}));
