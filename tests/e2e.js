@@ -146,6 +146,7 @@ async function main() {
     assert.deepEqual(progressiveLabels,{visibleNames:25,visibleProjectNames:25,visibleNonProjectNames:0,minProjectNameSize:9,visiblePrices:0});
     assert.equal(progressiveLabels.visiblePrices,0);
     assert.equal(await b.locator('.board-tile[data-tile-type="property"]').evaluateAll(tiles=>tiles.every(tile=>tile.querySelector('.tile-name').textContent.trim()===tile.dataset.tileName&&parseFloat(getComputedStyle(tile.querySelector('.tile-name')).fontSize)>=9)),true,"all purchasable project names must remain present and readable");
+    assert.deepEqual(await b.evaluate(()=>Object.fromEntries(["property","event","supply","route"].map(type=>{const icon=document.querySelector(`.board-tile[data-tile-type="${type}"] .tile-icon`).getBoundingClientRect();return[type,Math.round(icon.width)]}))),{property:28,event:28,supply:28,route:22});
     assert.equal(await b.locator(".board-tile").evaluateAll(tiles => tiles.every(tile => { const rect=tile.getBoundingClientRect(); return Math.abs(rect.width-rect.height)<=0.5; })), true, "all board nodes must be square");
     const persistentLayoutCollisions = await b.evaluate(() => {
       const intersects = (a,b) => Math.min(a.right,b.right) > Math.max(a.left,b.left) && Math.min(a.bottom,b.bottom) > Math.max(a.top,b.top);
