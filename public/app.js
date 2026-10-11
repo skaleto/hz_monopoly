@@ -8,7 +8,7 @@
   const views={auth:$("#authView"),home:$("#homeView"),room:$("#roomView"),game:$("#gameView")};
   const avatarFiles=["character_fox.v3.webp","character_panda.v3.webp","character_dolphin.v3.webp","character_tiger.v3.webp"];
   const playerColors=["#ff6f61","#53c7a2","#32a9c7","#ffd95a"];
-  const tileAssets={property:"node_property.v1.webp",landmark:"node_landmark.v1.webp",event:"node_event.v1.webp",transit:"node_transit.v1.webp",special:"node_special.v1.webp",project_expo:"project_expo.v1.webp",project_sports:"project_sports.v1.webp",project_community:"project_community.v1.webp",project_art:"project_art.v1.webp"};
+  const tileAssets={property:"node_property.v2.webp",landmark:"node_landmark.v2.webp",event:"node_event.v2.webp",transit:"node_transit.v2.webp",special:"node_special.v2.webp",project_expo:"project_expo.v1.webp",project_sports:"project_sports.v1.webp",project_community:"project_community.v1.webp",project_art:"project_art.v1.webp"};
   const typeLabels={property:"可投资项目",event:"城市事件",supply:"道具补给",route:"城市路线"};
   const typeMarks={property:"项目",event:"事件",supply:"道具",route:"路线"};
   const itemCards={exact_dice:{name:"定向骰子",copy:"指定下一次掷骰点数"},build_coupon:{name:"建设折扣券",copy:"下一次建设费用减半"},protection:{name:"城市保险",copy:"下一次到访分红减半，或抵消一次强拆"},demolition:{name:"强拆令",copy:"指定对手项目降低 1 级，不改变产权"},invest_coupon:{name:"首投补贴券",copy:"下一次独立投资费用减半"},rent_boost:{name:"人气加倍卡",copy:"下一次从他人收取的到访分红翻倍"}};
