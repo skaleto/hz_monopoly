@@ -159,21 +159,23 @@ test("current board unifies daily and opportunity nodes into one city event deck
   const board = fiveSectorsOfFive();
   assert.deepEqual([...new Set(board.map(tile => tile.type))].sort(), ["event", "property", "route", "supply"]);
   assert.equal(board.filter(tile => tile.type === "event").length, 8);
-  assert.equal(board.filter(tile => tile.type === "route").length, 14);
+  assert.equal(board.filter(tile => tile.type === "route").length, 1);
   assert.equal(CITY_EVENTS.length, 8);
   assert.equal(new Set(CITY_EVENTS.map(item => item.effect)).size, 7);
 });
 
 test("city events support meaningful loss, global impact and a risk choice", () => {
   let game = createGame(players.slice(0, 2), { board: fiveSectorsOfFive() });
-  game.players[0].position = 3;
+  const eventIndex=game.board.findIndex(tile=>tile.type==="event"&&tile.eventId!=="project_review");
+  const eventPredecessor=game.board.findIndex(tile=>tile.next.length===1&&(typeof tile.next[0]==="number"?tile.next[0]:tile.next[0].to)===eventIndex);
+  game.players[0].position = eventPredecessor;
   const before = game.players[0].cash;
   let result = applyCommand(game, "u1", "ROLL_DICE", {}, { nowMs: 1, forcedDice: 1, forcedCityEventId: "rain_repair" });
   assert.equal(result.state.players[0].cash, before - 180);
   assert.match(result.events.find(event => event.type === "CITY_EVENT_RESOLVED").payload.text, /梅雨抢修/);
 
   game = createGame(players.slice(0, 2), { board: fiveSectorsOfFive() });
-  game.players[0].position = 3;
+  game.players[0].position = eventPredecessor;
   result = applyCommand(game, "u1", "ROLL_DICE", {}, { nowMs: 1, forcedDice: 1, forcedCityEventId: "venture_window" });
   assert.equal(result.state.pending.type, "city_event");
   const resolved = applyCommand(result.state, "u1", "CHOOSE_CITY_EVENT", { choice: "safe" }, { nowMs: 2, random: () => 0 });
@@ -346,7 +348,8 @@ test("total assets use cash plus the player's exact project share and constructi
 test("30-round games announce growth and finale phases before full-round settlement", () => {
   const board = fiveSectorsOfFive();
   const game = createGame(players.slice(0, 2), { board, maxRounds: 30 });
-  const route = game.board.find(tile => tile.type === "route" && tile.next.length === 1 && game.board[tile.next[0]]?.type === "route");
+  const supply = game.board.find(tile => tile.type === "supply");
+  const route = game.board.find(tile => tile.next.length === 1 && (typeof tile.next[0] === "number" ? tile.next[0] : tile.next[0].to) === supply.index);
   game.currentSeat = 1;
   game.round = 10;
   game.phase = "roll";

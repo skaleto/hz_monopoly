@@ -2,8 +2,8 @@
 
 /**
  * 棋盘布局生成器 —— 主环弧长均匀 + 双支线贝塞尔，一套数据源同时输出：
- *   1. 主环 33 个节点的坐标（圆角矩形轨道，弧长等距，起点=我的公寓，方向：底边→右边→顶边→左边）
- *   2. 水线/地铁两条支线各 8 个内部节点（三次贝塞尔，弧长等距采样，端点锚定在主环节点）
+ *   1. 主环 27 个节点的坐标（圆角矩形轨道，弧长等距，起点=我的公寓，方向：底边→右边→顶边→左边）
+ *   2. 水线 4 个、地铁 5 个内部节点（圆弧等距采样，端点锚定在主环节点）
  *   3. 约束自检报告：任意两节点最小间距、支线-主环间距、支线间间距
  *
  * 坐标系：先在规范画布 364×508（390×844 视口下的真实棋盘像素）内计算，
@@ -14,11 +14,11 @@
  */
 
 const CANVAS = { width: 364, height: 508 };   // 规范棋盘像素（390×844 视口实测）
-const TILE = 42;                               // 节点渲染尺寸（含描边）
+const TILE = 52;                               // M4 项目节点渲染尺寸（含描边）
 const MIN_GAP = TILE + 2;                      // 同向相邻节点最小中心距（直线段防重叠）
 const MIN_CROSS_GAP = TILE + 4;                // 支线与主环 / 支线之间的最小间距
-const RING_COUNT = 34;
-const TRACK_MARGIN = TILE / 2 + 1;             // 节点中心离棋盘边缘
+const RING_COUNT = 27;
+const TRACK_MARGIN = 24;                       // 48px 项目节点贴边但不越界
 const CORNER_RADIUS = 48;
 
 // —— 主环轨道：圆角矩形，按弧长参数化 ——
@@ -104,11 +104,8 @@ function generateLayout() {
   // 起点=我的公寓，放在底边左端弧结束处（左下角圆弧结束、底边直线开始的位置）
   const ringGap = track.total / RING_COUNT;
 
-  // 主环节点序（棋序），对应 fiveSectorsOfFive 中的主路节点表
-  const ringOrder = [
-    0, 1, 2, 47, 3, 4, 5, 32, 6, 7, 8, 46, 9, 10, 11, 12, 13, 14,
-    15, 35, 16, 17, 18, 19, 20, 21, 22, 23, 24, 43, 25, 26, 42, 27
-  ];
+  // M4 重排后，主环在候选棋盘中占 0..26。
+  const ringOrder = Array.from({ length: RING_COUNT }, (_, index) => index);
   if (ringOrder.length !== RING_COUNT) throw new Error(`ring order has ${ringOrder.length} nodes, expected ${RING_COUNT}`);
 
   const ring = ringOrder.map((index, position) => ({ index, ...pointOnTrack(track, position * ringGap) }));
@@ -116,17 +113,15 @@ function generateLayout() {
   const byIndex = new Map(ring.map(node => [node.index, node]));
 
   // 支线路标（规范画布像素）：端点=主环节点锚点，弓向棋盘中部
-  // 水线：22(运河夜游·左缘上段) → 2(断桥文旅·底边中部)，弓向城心左下象限
-  // 地铁：10(地铁换乘·右缘中部) → 17(城市公投·顶边左段)，弓向城心右上象限（避开右缘的 9）
-  const waterEntry = byIndex.get(22), waterExit = byIndex.get(2);
-  const metroEntry = byIndex.get(10), metroExit = byIndex.get(17);
+  // 水线：20(运河夜游) → 2(断桥文旅)；地铁：11(运河运动公园) → 17(云栖工坊)。
+  const waterEntry = byIndex.get(20), waterExit = byIndex.get(2);
+  const metroEntry = byIndex.get(11), metroExit = byIndex.get(17);
   if (!waterEntry || !waterExit || !metroEntry || !metroExit) throw new Error("missing branch anchor on ring");
 
-  // 两条支线 = 圆弧，各弓向自己的象限；8 内部节点 + 端点锚定，9 段 × ≥44px
-  const water = sampleArcEvenly(waterEntry, waterExit, 380, 8, { x: 182, y: 268 });
-  const metro = sampleArcEvenly(metroEntry, metroExit, 350, 7, { x: 218, y: 178 });
+  const water = sampleArcEvenly(waterEntry, waterExit, 405, 4, { x: 182, y: 268 });
+  const metro = sampleArcEvenly(metroEntry, metroExit, 330, 5, { x: 218, y: 100 });
 
-  // 全局最小间距自检（含主环、两支线全体 49 节点）
+  // 全局最小间距自检（含主环、两支线全体 36 节点）
   const all = [
     ...ring,
     ...water.interior.map((p, i) => ({ index: `w${i}`, ...p })),
@@ -149,8 +144,8 @@ function toPercent(point) {
 
 function main() {
   const layout = generateLayout();
-  const waterOrder = [28, 29, 30, 45, 31, 33, 34, 36];   // 水线内部 8 节点（棋序）
-  const metroOrder = [37, 38, 48, 39, 41, 40, 44];       // 地铁内部 7 节点（棋序；42 地铁补给站留在主路）
+  const waterOrder = [27, 28, 29, 30];
+  const metroOrder = [31, 32, 33, 34, 35];
   const data = {
     ring: Object.fromEntries(layout.ring.map(node => [node.index, toPercent(node)])),
     water: Object.fromEntries(waterOrder.map((index, i) => [index, toPercent(layout.water.interior[i])])),

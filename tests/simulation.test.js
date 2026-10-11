@@ -5,35 +5,33 @@ const assert = require("node:assert/strict");
 const { profiles, fiveSectorsOfFive } = require("../sims/profiles");
 const { simulateProfile, assertHardGates, assertCandidateGates } = require("../sims/run");
 
-test("M4 board keeps five sectors and geometry while exposing only four active node types", () => {
+test("M4 board keeps all playable content on a 27-node ring plus 4+5 branch lines", () => {
   const board = fiveSectorsOfFive();
   const counts = new Map();
   for (const tile of board.filter(tile => tile.type === "property")) {
     counts.set(tile.group, (counts.get(tile.group) || 0) + 1);
   }
-  assert.equal(board.length, 49);
+  assert.equal(board.length, 36);
   assert.equal(counts.size, 5);
   assert.deepEqual([...counts.values()], [5, 5, 5, 5, 5]);
   assert.deepEqual([...new Set(board.map(tile => tile.type))].sort(), ["event", "property", "route", "supply"]);
   assert.equal(board.filter(tile => tile.type === "event").length, 8);
-  assert.deepEqual(board.slice(45).map(tile => tile.name), ["钱塘会展中心", "运河运动公园", "滨江国际社区", "大运河艺术馆"]);
-  // 水线：22 入口 → 28..36 → 2 出口，共 8 个内部节点
-  assert.equal(board.filter(tile => tile.inner === "water").length, 8);
-  assert.deepEqual(board[22].next, [{ to: 23, label: "外环·运河线" }, { to: 28, label: "水上巴士线" }]);
-  const waterChain = [28, 29, 30, 45, 31, 33, 34, 36];
-  assert.deepEqual(waterChain.map((index, offset) => board[index].next[0]), [...waterChain.slice(1), 2]);
-  // 地铁：10 入口 → 37..44 → 17 出口，共 7 个内部节点
-  assert.equal(board.filter(tile => tile.inner === "metro").length, 7);
-  assert.deepEqual(board[10].next, [{ to: 11, label: "外环·钱塘线" }, { to: 37, label: "地铁快线" }]);
-  const metroChain = [37, 38, 48, 39, 41, 40, 44];
-  assert.deepEqual(metroChain.map((index, offset) => board[index].next[0]), [...metroChain.slice(1), 17]);
-  assert.deepEqual(metroChain.map(index => board[index].name), ["市民中心站","滨江数创园","大运河艺术馆","钱江新城","文三数字街","地铁快线","未来科技城"]);
-  // 主环 34 节点顺序完整闭合（岔路节点取外环选项），无 inner 残留
-  const ringOrder = [0, 1, 2, 47, 3, 4, 5, 32, 6, 7, 8, 46, 9, 10, 11, 12, 13, 14,
-    15, 35, 16, 17, 18, 19, 20, 21, 22, 23, 24, 43, 25, 26, 42, 27];
-  const ringNext = ringOrder.map(index => { const next = board[index].next[0]; return typeof next === "object" ? next.to : next; });
-  assert.deepEqual(ringNext, [...ringOrder.slice(1), 0]);
-  assert.equal(ringOrder.every(index => !board[index].inner), true);
+  const to = next => typeof next === "object" ? next.to : next;
+  for (const [route, expectedCount] of [["water", 4], ["metro", 5]]) {
+    const chain = board.map((tile, index) => ({ tile, index })).filter(item => item.tile.inner === route).map(item => item.index);
+    assert.equal(chain.length, expectedCount);
+    const entry = board.findIndex(tile => tile.next.some(next => to(next) === chain[0]));
+    assert.ok(entry >= 0);
+    assert.equal(board[entry].next.length, 2);
+    assert.deepEqual(chain.slice(0, -1).map((index, position) => to(board[index].next[0])), chain.slice(1));
+    assert.equal(board[to(board[chain.at(-1)].next[0])].inner, undefined);
+  }
+  const ring = [];
+  let current = 0;
+  do { ring.push(current); current = to(board[current].next[0]); } while (current !== 0 && ring.length < 40);
+  assert.equal(ring.length, 27);
+  assert.equal(new Set(ring).size, 27);
+  assert.equal(ring.every(index => !board[index].inner), true);
 });
 
 test("M4 focused 30-round loop passes cash tension and pacing gates", () => {
@@ -42,7 +40,7 @@ test("M4 focused 30-round loop passes cash tension and pacing gates", () => {
   assert.doesNotThrow(() => assertCandidateGates(report));
   assert.equal(profiles.cautious.balance.maxRounds, 30);
   assert.ok(report.gameplay.upgradesPerGame >= 18);
-  assert.ok(report.gameplay.cityEventsPerGame <= 25);
+  assert.ok(report.gameplay.cityEventsPerGame <= 32);
 });
 
 test("fixed seeds reproduce the same simulation report", () => {

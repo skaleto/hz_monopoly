@@ -117,7 +117,7 @@ async function main() {
     assert.equal(await a.locator("#sectorProgress .sector-dots").count(), 5);
     assert.equal(await a.locator("#sectorProgress .sector-dots i").count(), 25);
     assert.equal(await a.locator("#sectorModal").isVisible(), true);
-    assert.deepEqual(await a.locator("#sectorLegend [data-sector-tier]").evaluateAll(nodes => nodes.map(node => node.textContent)), ["2分红+8%","3可建3级","5旗舰+25%"]);
+    assert.deepEqual(await a.locator("#sectorLegend [data-sector-tier]").evaluateAll(nodes => nodes.map(node => node.textContent)), ["2分红+6%","3可建3级","5旗舰+25%"]);
     assert.match(await a.locator(".sector-note").textContent(), /独资或合伙.*2 个提高分红.*5 个形成旗舰板块/);
     await a.screenshot({ path: path.join(screenshotDir, "03b-sector-benefits-mobile.png"), fullPage: true });
     await a.locator("#sectorCloseButton").click();
@@ -137,16 +137,16 @@ async function main() {
     await a.screenshot({ path: path.join(screenshotDir, "18-owner-end-game-confirm-mobile.png"), fullPage: true });
     await a.locator("#endGameCancelButton").click();
     await a.locator("#endGameModal").waitFor({ state: "hidden" });
-    assert.equal(await b.locator(".board-tile").count(), 49);
-    assert.equal(await b.locator(".board-tile .tile-icon").count(), 49);
+    assert.equal(await b.locator(".board-tile").count(), 36);
+    assert.equal(await b.locator(".board-tile .tile-icon").count(), 36);
     assert.equal(await b.locator(".board-tile .type-mark").count(), 0);
     assert.equal(await b.locator('.board-tile[data-tile-type="property"] .tile-price').count(), 25);
     assert.match(await b.locator('.board-tile[data-tile-type="property"] .tile-price').first().textContent(), /^¥\d+$/);
     const progressiveLabels=await b.locator(".board-tile").evaluateAll(tiles=>{const visible=tiles.filter(tile=>getComputedStyle(tile.querySelector('.tile-name')).display!=="none");return{visibleNames:visible.length,visibleProjectNames:visible.filter(tile=>tile.dataset.tileType==="property").length,visibleNonProjectNames:visible.filter(tile=>tile.dataset.tileType!=="property").length,minProjectNameSize:Math.min(...visible.filter(tile=>tile.dataset.tileType==="property").map(tile=>parseFloat(getComputedStyle(tile.querySelector('.tile-name')).fontSize))),visiblePrices:tiles.filter(tile=>tile.querySelector('.tile-price')&&getComputedStyle(tile.querySelector('.tile-price')).display!=="none").length}});
     assert.deepEqual(progressiveLabels,{visibleNames:25,visibleProjectNames:25,visibleNonProjectNames:0,minProjectNameSize:9,visiblePrices:0});
     assert.equal(progressiveLabels.visiblePrices,0);
-    assert.equal(await b.locator('.board-tile[data-tile-type="property"]').evaluateAll(tiles=>tiles.every(tile=>tile.querySelector('.tile-name').textContent.trim()===tile.dataset.tileName&&parseFloat(getComputedStyle(tile.querySelector('.tile-name')).fontSize)>=9)),true,"all purchasable project names must remain present and readable");
-    assert.deepEqual(await b.evaluate(()=>Object.fromEntries(["property","event","supply","route"].map(type=>{const icon=document.querySelector(`.board-tile[data-tile-type="${type}"] .tile-icon`).getBoundingClientRect();return[type,Math.round(icon.width)]}))),{property:28,event:28,supply:28,route:22});
+    assert.equal(await b.locator('.board-tile[data-tile-type="property"]').evaluateAll(tiles=>tiles.every(tile=>{const name=tile.querySelector('.tile-name'),style=getComputedStyle(name);return name.textContent.trim()===tile.dataset.tileName&&parseFloat(style.fontSize)>=9&&style.whiteSpace==="nowrap"})),true,"all purchasable project names must remain present, readable and single-line");
+    assert.deepEqual(await b.evaluate(()=>Object.fromEntries(["property","event","supply","route"].map(type=>{const icon=document.querySelector(`.board-tile[data-tile-type="${type}"] .tile-icon`).getBoundingClientRect();return[type,Math.round(icon.width)]}))),{property:34,event:36,supply:36,route:32});
     assert.equal(await b.locator(".board-tile").evaluateAll(tiles => tiles.every(tile => { const rect=tile.getBoundingClientRect(); return Math.abs(rect.width-rect.height)<=0.5; })), true, "all board nodes must be square");
     const persistentLayoutCollisions = await b.evaluate(() => {
       const intersects = (a,b) => Math.min(a.right,b.right) > Math.max(a.left,b.left) && Math.min(a.bottom,b.bottom) > Math.max(a.top,b.top);
@@ -171,12 +171,12 @@ async function main() {
     const nodeChainGaps = await b.evaluate(() => {
       const center = index => { const rect = document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect(); return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }; };
       const maxGap = indexes => Math.max(...indexes.slice(1).map((index, offset) => { const a = center(indexes[offset]), b = center(index); return Math.hypot(a.x - b.x, a.y - b.y); }));
-      return { water: maxGap([22,28,29,30,45,31,33,34,36,2]), metro: maxGap([10,37,38,48,39,41,40,44,17]) };
+      return { water: maxGap([20,27,28,29,30,2]), metro: maxGap([11,31,32,33,34,35,17]) };
     });
-    assert.ok(nodeChainGaps.water <= 50, `water chain gap ${nodeChainGaps.water}`);
-    assert.ok(nodeChainGaps.metro <= 50, `metro chain gap ${nodeChainGaps.metro}`);
+    assert.ok(nodeChainGaps.water <= 90, `water chain gap ${nodeChainGaps.water}`);
+    assert.ok(nodeChainGaps.metro <= 65, `metro chain gap ${nodeChainGaps.metro}`);
     const metroRouteGeometry = await b.evaluate(() => {
-      const indexes=[10,37,38,48,39,41,40,44,17],centers=indexes.map(index=>{const rect=document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect();return{index,x:rect.x+rect.width/2,y:rect.y+rect.height/2}}),pairGaps=[],vectors=centers.slice(1).map((point,index)=>({x:point.x-centers[index].x,y:point.y-centers[index].y}));
+      const indexes=[11,31,32,33,34,35,17],centers=indexes.map(index=>{const rect=document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect();return{index,x:rect.x+rect.width/2,y:rect.y+rect.height/2}}),pairGaps=[],vectors=centers.slice(1).map((point,index)=>({x:point.x-centers[index].x,y:point.y-centers[index].y}));
       centers.forEach((point,index)=>centers.slice(index+1).forEach(other=>pairGaps.push({pair:[point.index,other.index],gap:Math.hypot(point.x-other.x,point.y-other.y)})));
       const lengths=vectors.map(vector=>Math.hypot(vector.x,vector.y)),turns=vectors.slice(1).map((vector,index)=>{const previous=vectors[index],cos=(previous.x*vector.x+previous.y*vector.y)/(Math.hypot(previous.x,previous.y)*Math.hypot(vector.x,vector.y));return Math.acos(Math.max(-1,Math.min(1,cos)))*180/Math.PI}),nearest=pairGaps.sort((left,right)=>left.gap-right.gap)[0];return { minGap:nearest.gap, nearestPair:nearest.pair, maxTurn:Math.max(...turns), pathRatio:lengths.reduce((sum,length)=>sum+length,0)/Math.hypot(centers.at(-1).x-centers[0].x,centers.at(-1).y-centers[0].y), rightmostX:Math.max(...centers.map(point=>point.x)), topmostY:Math.min(...centers.map(point=>point.y)) };
     });
@@ -184,7 +184,7 @@ async function main() {
     assert.ok(metroRouteGeometry.maxTurn <= 60, `metro route reverses sharply ${JSON.stringify(metroRouteGeometry)}`);
     assert.ok(metroRouteGeometry.pathRatio <= 1.35, `metro route too winding ${JSON.stringify(metroRouteGeometry)}`);
     const topBranchOverlap = await b.evaluate(() => {
-      const indexes=[10,37,38,48,39,41,40,44,17],entries=indexes.map(index=>({index,rect:document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect()})),overlaps=[];
+      const indexes=[11,31,32,33,34,35,17],entries=indexes.map(index=>({index,rect:document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect()})),overlaps=[];
       entries.forEach((left,index)=>entries.slice(index+1).forEach(right=>{const width=Math.max(0,Math.min(left.rect.right,right.rect.right)-Math.max(left.rect.left,right.rect.left)),height=Math.max(0,Math.min(left.rect.bottom,right.rect.bottom)-Math.max(left.rect.top,right.rect.top)),ratio=width*height/Math.min(left.rect.width*left.rect.height,right.rect.width*right.rect.height);if(ratio>0)overlaps.push({pair:[left.index,right.index],ratio})}));
       return {maxRatio:Math.max(0,...overlaps.map(item=>item.ratio)),significantPairs:overlaps.filter(item=>item.ratio>.05)};
     });
@@ -198,7 +198,7 @@ async function main() {
     assert.ok(globalNodeOverlap.maxRatio <= .02, `any two board nodes overlap ${JSON.stringify(globalNodeOverlap)}`);
     assert.ok(globalNodeOverlap.significantPairs.length === 0, `overlapping node pairs exist ${JSON.stringify(globalNodeOverlap)}`);
     const waterRouteGeometry = await b.evaluate(() => {
-      const indexes=[22,28,29,30,45,31,33,34,36,2],centers=indexes.map(index=>{const rect=document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect();return{x:rect.x+rect.width/2,y:rect.y+rect.height/2}}),vectors=centers.slice(1).map((point,index)=>({x:point.x-centers[index].x,y:point.y-centers[index].y}));
+      const indexes=[20,27,28,29,30,2],centers=indexes.map(index=>{const rect=document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect();return{x:rect.x+rect.width/2,y:rect.y+rect.height/2}}),vectors=centers.slice(1).map((point,index)=>({x:point.x-centers[index].x,y:point.y-centers[index].y}));
       const lengths=vectors.map(vector=>Math.hypot(vector.x,vector.y)),turns=vectors.slice(1).map((vector,index)=>{const previous=vectors[index],cos=(previous.x*vector.x+previous.y*vector.y)/(Math.hypot(previous.x,previous.y)*Math.hypot(vector.x,vector.y));return Math.acos(Math.max(-1,Math.min(1,cos)))*180/Math.PI}),inner=centers.slice(1,-1),pairGaps=[];
       inner.forEach((point,index)=>inner.slice(index+1).forEach(other=>pairGaps.push(Math.hypot(point.x-other.x,point.y-other.y))));
       return{pathRatio:lengths.reduce((sum,length)=>sum+length,0)/Math.hypot(centers.at(-1).x-centers[0].x,centers.at(-1).y-centers[0].y),maxTurn:Math.max(...turns),minInnerGap:Math.min(...pairGaps)};
@@ -214,8 +214,8 @@ async function main() {
     assert.ok(await b.locator(".board-tile").evaluateAll(tiles => new Set(tiles.map(tile => getComputedStyle(tile).backgroundColor)).size) >= 4);
     assert.equal(await b.locator('.board-tile[data-tile-type="property"]').first().evaluate(tile => getComputedStyle(tile).backgroundColor), "rgb(255, 254, 250)");
     assert.notEqual(await b.locator('.board-tile[data-tile-type="event"]').first().evaluate(tile => getComputedStyle(tile).backgroundColor), await b.locator('.board-tile[data-tile-type="property"]').first().evaluate(tile => getComputedStyle(tile).backgroundColor));
-    assert.equal(await b.locator(".board-tile.route-water").count(), 8);
-    assert.equal(await b.locator(".board-tile.route-metro").count(), 7);
+    assert.equal(await b.locator(".board-tile.route-water").count(), 4);
+    assert.equal(await b.locator(".board-tile.route-metro").count(), 5);
     assert.equal(await b.locator(".route-water-entry").count(), 1);
     assert.equal(await b.locator(".route-water-exit").count(), 1);
     assert.equal(await b.locator(".route-metro-entry").count(), 1);
@@ -465,7 +465,9 @@ async function main() {
     await a.locator("#homeView").waitFor({ state: "visible" });
     const rentRoom = store.getRoomByCode(secondCode);
     const rentOwner = rentRoom.game.players.find(player => player.kind === "bot");
-    rentRoom.game.players[0].position = 4;
+    const rentTile=rentRoom.game.board.find(tile=>tile.type==="property"&&tile.index!==1&&rentRoom.game.board.some(candidate=>candidate.next.length===1&&(typeof candidate.next[0]==="number"?candidate.next[0]:candidate.next[0].to)===tile.index));
+    const rentPredecessor=rentRoom.game.board.find(tile=>tile.next.length===1&&(typeof tile.next[0]==="number"?tile.next[0]:tile.next[0].to)===rentTile.index);
+    rentRoom.game.players[0].position = rentPredecessor.index;
     rentRoom.game.players[0].protection = false;
     rentRoom.game.currentSeat = 0;
     rentRoom.game.phase = "roll";
@@ -475,13 +477,13 @@ async function main() {
     rentRoom.game.board[1].partnerId = null;
     rentRoom.game.board[1].level = 1;
     if (!rentRoom.game.players[0].properties.includes(1)) rentRoom.game.players[0].properties.push(1);
-    rentRoom.game.board[5].ownerId = rentOwner.id;
-    rentRoom.game.board[5].level = 1;
-    if (!rentOwner.properties.includes(5)) rentOwner.properties.push(5);
+    rentRoom.game.board[rentTile.index].ownerId = rentOwner.id;
+    rentRoom.game.board[rentTile.index].level = 1;
+    if (!rentOwner.properties.includes(rentTile.index)) rentOwner.properties.push(rentTile.index);
     store.saveRoom(rentRoom, rentRoom.inviteTokenHash);
     await a.locator(".resume-room", { hasText: secondCode }).getByRole("button", { name: "继续" }).click();
     await a.locator("#gameView").waitFor({ state: "visible" });
-    await a.waitForFunction(() => document.querySelector('.board-tile[data-tile-index="5"]')?.dataset.level === "1" && Boolean(document.querySelector('.board-tile[data-tile-index="5"] .owner-dot')));
+    await a.waitForFunction(index => document.querySelector(`.board-tile[data-tile-index="${index}"]`)?.dataset.level === "1" && Boolean(document.querySelector(`.board-tile[data-tile-index="${index}"] .owner-dot`)),rentTile.index);
     assert.equal(await a.locator("#upgradeButton").isDisabled(), false);
     await a.locator("#upgradeButton").click();
     await a.locator("#upgradeModal").waitFor({ state: "visible" });
@@ -490,7 +492,7 @@ async function main() {
     await a.screenshot({ path: path.join(screenshotDir, "17-upgrade-project-mobile.png"), fullPage: true });
     await a.locator('[data-upgrade-tile="1"]').click();
     await a.waitForFunction(() => document.querySelector('.board-tile[data-tile-index="1"]')?.dataset.level === "2");
-    await a.locator('.board-tile[data-tile-index="5"]').click();
+    await a.locator(`.board-tile[data-tile-index="${rentTile.index}"]`).click();
     await a.locator("#tileDetailModal").waitFor({ state: "visible" });
     assert.match(await a.locator("#tileDetailStats").textContent(), new RegExp(`${rentOwner.nickname} 独资`));
     await a.locator("#tileDetailCloseButton").click();
@@ -538,7 +540,7 @@ async function main() {
       roomCode: code,
       humans: 2,
       bots: 2,
-      boardTiles: 49,
+      boardTiles: 36,
       reconnect: "pass (integration websocket resume)",
       secondLoginHome: "pass",
       createNewRoom: "pass",
@@ -549,22 +551,22 @@ async function main() {
       passiveEventToast: "prominent rail below player cards",
       passiveEventModalCount: 0,
       fixedMobileViewport: "pass",
-      tileIllustrations: "49/49",
+      tileIllustrations: "36/36",
       tileTypes: 4,
       junctionMarkers: 2,
       nodeChains: "outer + water + metro",
       maxInnerNodeGap: nodeChainGaps,
       semanticTileBackgrounds: "property white + distinct event/card/type fills",
       investableProjects: "25 across five sectors",
-      squareNodes: "49/49",
+      squareNodes: "36/36",
       routeBorders: "water cyan + metro purple + matching entry/exit fills",
       branchDirections: "2 continuous routes + color-matched entry/exit endpoints",
       waterRouteGeometry,
       metroRouteGeometry,
       topBranchOverlap,
       globalNodeOverlap,
-      waterBranchNodes: 8,
-      metroBranchNodes: 7,
+      waterBranchNodes: 4,
+      metroBranchNodes: 5,
       cityEventNodes: 8,
       supplyNodes: 2,
       tileDetail: "pass",
