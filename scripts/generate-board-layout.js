@@ -2,8 +2,8 @@
 
 /**
  * 棋盘布局生成器 —— 主环弧长均匀 + 双支线贝塞尔，一套数据源同时输出：
- *   1. 主环 27 个节点的坐标（圆角矩形轨道，弧长等距，起点=我的公寓，方向：底边→右边→顶边→左边）
- *   2. 水线 4 个、地铁 5 个内部节点（圆弧等距采样，端点锚定在主环节点）
+ *   1. 主环 28 个节点的坐标（圆角矩形轨道，弧长等距，起点=我的公寓，方向：底边→右边→顶边→左边）
+ *   2. 水线/地铁各 4 个内部节点（圆弧等距采样，端点锚定在主环节点）
  *   3. 约束自检报告：任意两节点最小间距、支线-主环间距、支线间间距
  *
  * 坐标系：先在规范画布 364×508（390×844 视口下的真实棋盘像素）内计算，
@@ -13,12 +13,12 @@
  *       node scripts/generate-board-layout.js --write   # 直接改写 sims/board-layout.json
  */
 
-const CANVAS = { width: 364, height: 508 };   // 规范棋盘像素（390×844 视口实测）
+const CANVAS = { width: 364, height: 564 };   // 规范棋盘像素（390×844 M4 实际地图区域）
 const TILE = 52;                               // M4 项目节点渲染尺寸（含描边）
 const MIN_GAP = TILE + 2;                      // 同向相邻节点最小中心距（直线段防重叠）
 const MIN_CROSS_GAP = TILE + 4;                // 支线与主环 / 支线之间的最小间距
-const RING_COUNT = 27;
-const TRACK_MARGIN = 24;                       // 48px 项目节点贴边但不越界
+const RING_COUNT = 28;
+const TRACK_MARGIN = 27;                       // 52px 项目节点留 1px 安全边距
 const CORNER_RADIUS = 48;
 
 // —— 主环轨道：圆角矩形，按弧长参数化 ——
@@ -113,13 +113,13 @@ function generateLayout() {
   const byIndex = new Map(ring.map(node => [node.index, node]));
 
   // 支线路标（规范画布像素）：端点=主环节点锚点，弓向棋盘中部
-  // 水线：20(运河夜游) → 2(断桥文旅)；地铁：11(运河运动公园) → 17(云栖工坊)。
-  const waterEntry = byIndex.get(20), waterExit = byIndex.get(2);
-  const metroEntry = byIndex.get(11), metroExit = byIndex.get(17);
+  // 水线：21(运河夜游) → 2(断桥文旅)；地铁：11(运河运动公园) → 16(良渚文创园)。
+  const waterEntry = byIndex.get(21), waterExit = byIndex.get(2);
+  const metroEntry = byIndex.get(11), metroExit = byIndex.get(16);
   if (!waterEntry || !waterExit || !metroEntry || !metroExit) throw new Error("missing branch anchor on ring");
 
-  const water = sampleArcEvenly(waterEntry, waterExit, 405, 4, { x: 182, y: 268 });
-  const metro = sampleArcEvenly(metroEntry, metroExit, 330, 5, { x: 218, y: 100 });
+  const water = sampleArcEvenly(waterEntry, waterExit, 435, 4, { x: 182, y: 294 });
+  const metro = sampleArcEvenly(metroEntry, metroExit, 300, 4, { x: 250, y: 190 });
 
   // 全局最小间距自检（含主环、两支线全体 36 节点）
   const all = [
@@ -144,8 +144,8 @@ function toPercent(point) {
 
 function main() {
   const layout = generateLayout();
-  const waterOrder = [27, 28, 29, 30];
-  const metroOrder = [31, 32, 33, 34, 35];
+  const waterOrder = [28, 29, 30, 31];
+  const metroOrder = [32, 33, 34, 35];
   const data = {
     ring: Object.fromEntries(layout.ring.map(node => [node.index, toPercent(node)])),
     water: Object.fromEntries(waterOrder.map((index, i) => [index, toPercent(layout.water.interior[i])])),

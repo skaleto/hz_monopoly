@@ -5,7 +5,7 @@ const assert = require("node:assert/strict");
 const { profiles, fiveSectorsOfFive } = require("../sims/profiles");
 const { simulateProfile, assertHardGates, assertCandidateGates } = require("../sims/run");
 
-test("M4 board keeps all playable content on a 27-node ring plus 4+5 branch lines", () => {
+test("M4 board keeps all playable content on a 28-node ring plus 4+4 branch lines", () => {
   const board = fiveSectorsOfFive();
   const counts = new Map();
   for (const tile of board.filter(tile => tile.type === "property")) {
@@ -17,7 +17,7 @@ test("M4 board keeps all playable content on a 27-node ring plus 4+5 branch line
   assert.deepEqual([...new Set(board.map(tile => tile.type))].sort(), ["event", "property", "route", "supply"]);
   assert.equal(board.filter(tile => tile.type === "event").length, 8);
   const to = next => typeof next === "object" ? next.to : next;
-  for (const [route, expectedCount] of [["water", 4], ["metro", 5]]) {
+  for (const [route, expectedCount] of [["water", 4], ["metro", 4]]) {
     const chain = board.map((tile, index) => ({ tile, index })).filter(item => item.tile.inner === route).map(item => item.index);
     assert.equal(chain.length, expectedCount);
     const entry = board.findIndex(tile => tile.next.some(next => to(next) === chain[0]));
@@ -29,8 +29,8 @@ test("M4 board keeps all playable content on a 27-node ring plus 4+5 branch line
   const ring = [];
   let current = 0;
   do { ring.push(current); current = to(board[current].next[0]); } while (current !== 0 && ring.length < 40);
-  assert.equal(ring.length, 27);
-  assert.equal(new Set(ring).size, 27);
+  assert.equal(ring.length, 28);
+  assert.equal(new Set(ring).size, 28);
   assert.equal(ring.every(index => !board[index].inner), true);
 });
 

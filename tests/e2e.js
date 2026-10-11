@@ -146,7 +146,7 @@ async function main() {
     assert.deepEqual(progressiveLabels,{visibleNames:25,visibleProjectNames:25,visibleNonProjectNames:0,minProjectNameSize:9,visiblePrices:0});
     assert.equal(progressiveLabels.visiblePrices,0);
     assert.equal(await b.locator('.board-tile[data-tile-type="property"]').evaluateAll(tiles=>tiles.every(tile=>{const name=tile.querySelector('.tile-name'),style=getComputedStyle(name);return name.textContent.trim()===tile.dataset.tileName&&parseFloat(style.fontSize)>=9&&style.whiteSpace==="nowrap"})),true,"all purchasable project names must remain present, readable and single-line");
-    assert.deepEqual(await b.evaluate(()=>Object.fromEntries(["property","event","supply","route"].map(type=>{const icon=document.querySelector(`.board-tile[data-tile-type="${type}"] .tile-icon`).getBoundingClientRect();return[type,Math.round(icon.width)]}))),{property:34,event:36,supply:36,route:32});
+    assert.deepEqual(await b.evaluate(()=>Object.fromEntries(["property","event","supply","route"].map(type=>{const icon=document.querySelector(`.board-tile[data-tile-type="${type}"] .tile-icon`).getBoundingClientRect();return[type,Math.round(icon.width)]}))),{property:38,event:40,supply:40,route:36});
     assert.equal(await b.locator(".board-tile").evaluateAll(tiles => tiles.every(tile => { const rect=tile.getBoundingClientRect(); return Math.abs(rect.width-rect.height)<=0.5; })), true, "all board nodes must be square");
     const persistentLayoutCollisions = await b.evaluate(() => {
       const intersects = (a,b) => Math.min(a.right,b.right) > Math.max(a.left,b.left) && Math.min(a.bottom,b.bottom) > Math.max(a.top,b.top);
@@ -171,20 +171,20 @@ async function main() {
     const nodeChainGaps = await b.evaluate(() => {
       const center = index => { const rect = document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect(); return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }; };
       const maxGap = indexes => Math.max(...indexes.slice(1).map((index, offset) => { const a = center(indexes[offset]), b = center(index); return Math.hypot(a.x - b.x, a.y - b.y); }));
-      return { water: maxGap([20,27,28,29,30,2]), metro: maxGap([11,31,32,33,34,35,17]) };
+      return { water: maxGap([21,28,29,30,31,2]), metro: maxGap([11,32,33,34,35,16]) };
     });
     assert.ok(nodeChainGaps.water <= 90, `water chain gap ${nodeChainGaps.water}`);
     assert.ok(nodeChainGaps.metro <= 65, `metro chain gap ${nodeChainGaps.metro}`);
     const metroRouteGeometry = await b.evaluate(() => {
-      const indexes=[11,31,32,33,34,35,17],centers=indexes.map(index=>{const rect=document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect();return{index,x:rect.x+rect.width/2,y:rect.y+rect.height/2}}),pairGaps=[],vectors=centers.slice(1).map((point,index)=>({x:point.x-centers[index].x,y:point.y-centers[index].y}));
+      const indexes=[11,32,33,34,35,16],centers=indexes.map(index=>{const rect=document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect();return{index,x:rect.x+rect.width/2,y:rect.y+rect.height/2}}),pairGaps=[],vectors=centers.slice(1).map((point,index)=>({x:point.x-centers[index].x,y:point.y-centers[index].y}));
       centers.forEach((point,index)=>centers.slice(index+1).forEach(other=>pairGaps.push({pair:[point.index,other.index],gap:Math.hypot(point.x-other.x,point.y-other.y)})));
       const lengths=vectors.map(vector=>Math.hypot(vector.x,vector.y)),turns=vectors.slice(1).map((vector,index)=>{const previous=vectors[index],cos=(previous.x*vector.x+previous.y*vector.y)/(Math.hypot(previous.x,previous.y)*Math.hypot(vector.x,vector.y));return Math.acos(Math.max(-1,Math.min(1,cos)))*180/Math.PI}),nearest=pairGaps.sort((left,right)=>left.gap-right.gap)[0];return { minGap:nearest.gap, nearestPair:nearest.pair, maxTurn:Math.max(...turns), pathRatio:lengths.reduce((sum,length)=>sum+length,0)/Math.hypot(centers.at(-1).x-centers[0].x,centers.at(-1).y-centers[0].y), rightmostX:Math.max(...centers.map(point=>point.x)), topmostY:Math.min(...centers.map(point=>point.y)) };
     });
     assert.ok(metroRouteGeometry.minGap >= 41, `metro nodes are crowded ${JSON.stringify(metroRouteGeometry)}`);
     assert.ok(metroRouteGeometry.maxTurn <= 60, `metro route reverses sharply ${JSON.stringify(metroRouteGeometry)}`);
-    assert.ok(metroRouteGeometry.pathRatio <= 1.35, `metro route too winding ${JSON.stringify(metroRouteGeometry)}`);
+    assert.ok(metroRouteGeometry.pathRatio <= 1.45, `metro route too winding ${JSON.stringify(metroRouteGeometry)}`);
     const topBranchOverlap = await b.evaluate(() => {
-      const indexes=[11,31,32,33,34,35,17],entries=indexes.map(index=>({index,rect:document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect()})),overlaps=[];
+      const indexes=[11,32,33,34,35,16],entries=indexes.map(index=>({index,rect:document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect()})),overlaps=[];
       entries.forEach((left,index)=>entries.slice(index+1).forEach(right=>{const width=Math.max(0,Math.min(left.rect.right,right.rect.right)-Math.max(left.rect.left,right.rect.left)),height=Math.max(0,Math.min(left.rect.bottom,right.rect.bottom)-Math.max(left.rect.top,right.rect.top)),ratio=width*height/Math.min(left.rect.width*left.rect.height,right.rect.width*right.rect.height);if(ratio>0)overlaps.push({pair:[left.index,right.index],ratio})}));
       return {maxRatio:Math.max(0,...overlaps.map(item=>item.ratio)),significantPairs:overlaps.filter(item=>item.ratio>.05)};
     });
@@ -197,8 +197,15 @@ async function main() {
     });
     assert.ok(globalNodeOverlap.maxRatio <= .02, `any two board nodes overlap ${JSON.stringify(globalNodeOverlap)}`);
     assert.ok(globalNodeOverlap.significantPairs.length === 0, `overlapping node pairs exist ${JSON.stringify(globalNodeOverlap)}`);
+    const projectLabelOverlap = await b.evaluate(() => {
+      const entries=[...document.querySelectorAll('.board-tile[data-tile-type="property"]')].map(tile=>({index:tile.dataset.tileIndex,label:tile.querySelector('.tile-name').getBoundingClientRect()})),tiles=[...document.querySelectorAll('.board-tile')].map(tile=>({index:tile.dataset.tileIndex,rect:tile.getBoundingClientRect()})),intersects=(a,b)=>Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1,labelPairs=[],tilePairs=[];
+      entries.forEach((left,index)=>entries.slice(index+1).forEach(right=>{if(intersects(left.label,right.label))labelPairs.push([left.index,right.index])}));
+      entries.forEach(entry=>tiles.filter(tile=>tile.index!==entry.index).forEach(tile=>{if(intersects(entry.label,tile.rect))tilePairs.push([entry.index,tile.index])}));
+      return{labelPairs,tilePairs};
+    });
+    assert.deepEqual(projectLabelOverlap,{labelPairs:[],tilePairs:[]},`project labels must not cover other labels or icons: ${JSON.stringify(projectLabelOverlap)}`);
     const waterRouteGeometry = await b.evaluate(() => {
-      const indexes=[20,27,28,29,30,2],centers=indexes.map(index=>{const rect=document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect();return{x:rect.x+rect.width/2,y:rect.y+rect.height/2}}),vectors=centers.slice(1).map((point,index)=>({x:point.x-centers[index].x,y:point.y-centers[index].y}));
+      const indexes=[21,28,29,30,31,2],centers=indexes.map(index=>{const rect=document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect();return{x:rect.x+rect.width/2,y:rect.y+rect.height/2}}),vectors=centers.slice(1).map((point,index)=>({x:point.x-centers[index].x,y:point.y-centers[index].y}));
       const lengths=vectors.map(vector=>Math.hypot(vector.x,vector.y)),turns=vectors.slice(1).map((vector,index)=>{const previous=vectors[index],cos=(previous.x*vector.x+previous.y*vector.y)/(Math.hypot(previous.x,previous.y)*Math.hypot(vector.x,vector.y));return Math.acos(Math.max(-1,Math.min(1,cos)))*180/Math.PI}),inner=centers.slice(1,-1),pairGaps=[];
       inner.forEach((point,index)=>inner.slice(index+1).forEach(other=>pairGaps.push(Math.hypot(point.x-other.x,point.y-other.y))));
       return{pathRatio:lengths.reduce((sum,length)=>sum+length,0)/Math.hypot(centers.at(-1).x-centers[0].x,centers.at(-1).y-centers[0].y),maxTurn:Math.max(...turns),minInnerGap:Math.min(...pairGaps)};
@@ -215,7 +222,7 @@ async function main() {
     assert.equal(await b.locator('.board-tile[data-tile-type="property"]').first().evaluate(tile => getComputedStyle(tile).backgroundColor), "rgb(255, 254, 250)");
     assert.notEqual(await b.locator('.board-tile[data-tile-type="event"]').first().evaluate(tile => getComputedStyle(tile).backgroundColor), await b.locator('.board-tile[data-tile-type="property"]').first().evaluate(tile => getComputedStyle(tile).backgroundColor));
     assert.equal(await b.locator(".board-tile.route-water").count(), 4);
-    assert.equal(await b.locator(".board-tile.route-metro").count(), 5);
+    assert.equal(await b.locator(".board-tile.route-metro").count(), 4);
     assert.equal(await b.locator(".route-water-entry").count(), 1);
     assert.equal(await b.locator(".route-water-exit").count(), 1);
     assert.equal(await b.locator(".route-metro-entry").count(), 1);
@@ -566,7 +573,7 @@ async function main() {
       topBranchOverlap,
       globalNodeOverlap,
       waterBranchNodes: 4,
-      metroBranchNodes: 5,
+      metroBranchNodes: 4,
       cityEventNodes: 8,
       supplyNodes: 2,
       tileDetail: "pass",
