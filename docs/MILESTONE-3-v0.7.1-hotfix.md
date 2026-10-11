@@ -2,6 +2,8 @@
 
 - 日期：2026-10-11
 - 触发：用户在生产 v0.7.0 报"很多文字被覆盖、很多图片错位"
+- 生产 release：`/opt/hangzhou-partners/releases/v0.7.1-20261011T143844Z`
+- 线上状态：页面/health 200；创建、进入、开局、掷骰与回合推进烟测通过；`PRAGMA quick_check=ok`
 - 回滚点：生产 v0.7.0（`/opt/hangzhou-partners/releases/v0.7.0-20261010T100114Z`）
 
 ## 根因（两项）

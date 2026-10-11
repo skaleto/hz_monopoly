@@ -1,14 +1,14 @@
-# M3 / v0.7.0 实现状态
+# M3 / v0.7.1 实现状态
 
 ## 结论
 
-v0.7.0 完成棋盘几何重制与 M3 城市事件/现金压力玩法，并于 2026-10-10 经用户验收和授权发布。
+v0.7.1 在 v0.7.0 的棋盘与 M3 玩法上修复不同手机比例下的文字覆盖和图片/路线错位，并于 2026-10-11 经用户验收和授权发布。
 
 - 规则版本：hangzhou-v4-sector-board（旧房间过期，提示新建）
-- 里程碑证据：docs/MILESTONE-3-v0.7.0.md
-- 线上 release：`/opt/hangzhou-partners/releases/v0.7.0-20261010T100114Z`
+- 里程碑证据：docs/MILESTONE-3-v0.7.1-hotfix.md
+- 线上 release：`/opt/hangzhou-partners/releases/v0.7.1-20261011T143844Z`
 - 线上状态：页面/health 200；创建、进入、开局、掷骰与回合推进烟测通过；`PRAGMA quick_check=ok`
-- 回滚点：`/opt/hangzhou-partners/releases/v0.6.4-20261009T172903Z`
+- 回滚点：`/opt/hangzhou-partners/releases/v0.7.0-20261010T100114Z`
 
 ---
 
