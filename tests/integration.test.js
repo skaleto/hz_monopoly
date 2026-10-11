@@ -80,7 +80,7 @@ test("phone login, 2-4 seats, bots, websocket sync and reconnect", async () => {
   const a = await register("13800000001", "桃桃");
   const b = await register("13800000002", "青团");
 
-  for (const filename of ["board.v3.webp", "node_property.v2.webp", "node_landmark.v2.webp", "node_event.v2.webp", "node_transit.v2.webp", "node_special.v2.webp"]) {
+  for (const filename of ["board.v3.webp", "node_property.v1.webp", "node_landmark.v1.webp", "node_event.v1.webp", "node_transit.v1.webp", "node_special.v1.webp"]) {
     const asset = await fetch(`${baseUrl}${basePath}/assets/${filename}`, { headers: { cookie: a.cookie } });
     assert.equal(asset.status, 200);
     assert.equal(asset.headers.get("content-type"), "image/webp");

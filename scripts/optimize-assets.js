@@ -20,11 +20,9 @@ async function main() {
 
   for (const name of ["property", "landmark", "event", "transit", "special"]) {
     await sharp(path.join(assets, `node_${name}.png`))
-      .trim({ background: { r: 0, g: 0, b: 0, alpha: 0 } })
-      .resize({ width: 176, height: 176, fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
-      .extend({ top: 8, bottom: 8, left: 8, right: 8, background: { r: 0, g: 0, b: 0, alpha: 0 } })
-      .webp({ quality: 82, alphaQuality: 92, effort: 6 })
-      .toFile(path.join(assets, `node_${name}.v2.webp`));
+      .resize({ width: 192, height: 192, fit: "contain", withoutEnlargement: true })
+      .webp({ quality: 84, alphaQuality: 92, effort: 6 })
+      .toFile(path.join(assets, `node_${name}.v1.webp`));
   }
 }
 
