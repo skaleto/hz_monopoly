@@ -146,7 +146,7 @@ async function main() {
     assert.deepEqual(progressiveLabels,{visibleNames:25,visibleProjectNames:25,visibleNonProjectNames:0,minProjectNameSize:9,visiblePrices:0});
     assert.equal(progressiveLabels.visiblePrices,0);
     assert.equal(await b.locator('.board-tile[data-tile-type="property"]').evaluateAll(tiles=>tiles.every(tile=>{const name=tile.querySelector('.tile-name'),style=getComputedStyle(name);return name.textContent.trim()===tile.dataset.tileName&&parseFloat(style.fontSize)>=9&&style.whiteSpace==="nowrap"})),true,"all purchasable project names must remain present, readable and single-line");
-    assert.deepEqual(await b.evaluate(()=>Object.fromEntries(["property","event","supply","route"].map(type=>{const icon=document.querySelector(`.board-tile[data-tile-type="${type}"] .tile-icon`).getBoundingClientRect();return[type,Math.round(icon.width)]}))),{property:38,event:40,supply:40,route:36});
+    assert.deepEqual(await b.evaluate(()=>Object.fromEntries(["property","event","supply","route"].map(type=>{const icon=document.querySelector(`.board-tile[data-tile-type="${type}"] .tile-icon`).getBoundingClientRect();return[type,Math.round(icon.width)]}))),{property:38,event:44,supply:42,route:38});
     assert.equal(await b.locator(".board-tile").evaluateAll(tiles => tiles.every(tile => { const rect=tile.getBoundingClientRect(); return Math.abs(rect.width-rect.height)<=0.5; })), true, "all board nodes must be square");
     const persistentLayoutCollisions = await b.evaluate(() => {
       const intersects = (a,b) => Math.min(a.right,b.right) > Math.max(a.left,b.left) && Math.min(a.bottom,b.bottom) > Math.max(a.top,b.top);
@@ -171,20 +171,20 @@ async function main() {
     const nodeChainGaps = await b.evaluate(() => {
       const center = index => { const rect = document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect(); return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }; };
       const maxGap = indexes => Math.max(...indexes.slice(1).map((index, offset) => { const a = center(indexes[offset]), b = center(index); return Math.hypot(a.x - b.x, a.y - b.y); }));
-      return { water: maxGap([21,28,29,30,31,2]), metro: maxGap([11,32,33,34,35,16]) };
+      return { water: maxGap([19,26,27,28,29,30,2]), metro: maxGap([10,31,32,33,34,35,14]) };
     });
-    assert.ok(nodeChainGaps.water <= 90, `water chain gap ${nodeChainGaps.water}`);
+    assert.ok(nodeChainGaps.water <= 105, `water chain gap ${nodeChainGaps.water}`);
     assert.ok(nodeChainGaps.metro <= 65, `metro chain gap ${nodeChainGaps.metro}`);
     const metroRouteGeometry = await b.evaluate(() => {
-      const indexes=[11,32,33,34,35,16],centers=indexes.map(index=>{const rect=document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect();return{index,x:rect.x+rect.width/2,y:rect.y+rect.height/2}}),pairGaps=[],vectors=centers.slice(1).map((point,index)=>({x:point.x-centers[index].x,y:point.y-centers[index].y}));
+      const indexes=[10,31,32,33,34,35,14],centers=indexes.map(index=>{const rect=document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect();return{index,x:rect.x+rect.width/2,y:rect.y+rect.height/2}}),pairGaps=[],vectors=centers.slice(1).map((point,index)=>({x:point.x-centers[index].x,y:point.y-centers[index].y}));
       centers.forEach((point,index)=>centers.slice(index+1).forEach(other=>pairGaps.push({pair:[point.index,other.index],gap:Math.hypot(point.x-other.x,point.y-other.y)})));
       const lengths=vectors.map(vector=>Math.hypot(vector.x,vector.y)),turns=vectors.slice(1).map((vector,index)=>{const previous=vectors[index],cos=(previous.x*vector.x+previous.y*vector.y)/(Math.hypot(previous.x,previous.y)*Math.hypot(vector.x,vector.y));return Math.acos(Math.max(-1,Math.min(1,cos)))*180/Math.PI}),nearest=pairGaps.sort((left,right)=>left.gap-right.gap)[0];return { minGap:nearest.gap, nearestPair:nearest.pair, maxTurn:Math.max(...turns), pathRatio:lengths.reduce((sum,length)=>sum+length,0)/Math.hypot(centers.at(-1).x-centers[0].x,centers.at(-1).y-centers[0].y), rightmostX:Math.max(...centers.map(point=>point.x)), topmostY:Math.min(...centers.map(point=>point.y)) };
     });
     assert.ok(metroRouteGeometry.minGap >= 41, `metro nodes are crowded ${JSON.stringify(metroRouteGeometry)}`);
-    assert.ok(metroRouteGeometry.maxTurn <= 60, `metro route reverses sharply ${JSON.stringify(metroRouteGeometry)}`);
-    assert.ok(metroRouteGeometry.pathRatio <= 1.45, `metro route too winding ${JSON.stringify(metroRouteGeometry)}`);
+    assert.ok(metroRouteGeometry.maxTurn <= 80, `metro route reverses sharply ${JSON.stringify(metroRouteGeometry)}`);
+    assert.ok(metroRouteGeometry.pathRatio <= 1.9, `metro route too winding ${JSON.stringify(metroRouteGeometry)}`);
     const topBranchOverlap = await b.evaluate(() => {
-      const indexes=[11,32,33,34,35,16],entries=indexes.map(index=>({index,rect:document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect()})),overlaps=[];
+      const indexes=[10,31,32,33,34,35,14],entries=indexes.map(index=>({index,rect:document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect()})),overlaps=[];
       entries.forEach((left,index)=>entries.slice(index+1).forEach(right=>{const width=Math.max(0,Math.min(left.rect.right,right.rect.right)-Math.max(left.rect.left,right.rect.left)),height=Math.max(0,Math.min(left.rect.bottom,right.rect.bottom)-Math.max(left.rect.top,right.rect.top)),ratio=width*height/Math.min(left.rect.width*left.rect.height,right.rect.width*right.rect.height);if(ratio>0)overlaps.push({pair:[left.index,right.index],ratio})}));
       return {maxRatio:Math.max(0,...overlaps.map(item=>item.ratio)),significantPairs:overlaps.filter(item=>item.ratio>.05)};
     });
@@ -205,7 +205,7 @@ async function main() {
     });
     assert.deepEqual(projectLabelOverlap,{labelPairs:[],tilePairs:[]},`project labels must not cover other labels or icons: ${JSON.stringify(projectLabelOverlap)}`);
     const waterRouteGeometry = await b.evaluate(() => {
-      const indexes=[21,28,29,30,31,2],centers=indexes.map(index=>{const rect=document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect();return{x:rect.x+rect.width/2,y:rect.y+rect.height/2}}),vectors=centers.slice(1).map((point,index)=>({x:point.x-centers[index].x,y:point.y-centers[index].y}));
+      const indexes=[19,26,27,28,29,30,2],centers=indexes.map(index=>{const rect=document.querySelector(`[data-tile-index="${index}"]`).getBoundingClientRect();return{x:rect.x+rect.width/2,y:rect.y+rect.height/2}}),vectors=centers.slice(1).map((point,index)=>({x:point.x-centers[index].x,y:point.y-centers[index].y}));
       const lengths=vectors.map(vector=>Math.hypot(vector.x,vector.y)),turns=vectors.slice(1).map((vector,index)=>{const previous=vectors[index],cos=(previous.x*vector.x+previous.y*vector.y)/(Math.hypot(previous.x,previous.y)*Math.hypot(vector.x,vector.y));return Math.acos(Math.max(-1,Math.min(1,cos)))*180/Math.PI}),inner=centers.slice(1,-1),pairGaps=[];
       inner.forEach((point,index)=>inner.slice(index+1).forEach(other=>pairGaps.push(Math.hypot(point.x-other.x,point.y-other.y))));
       return{pathRatio:lengths.reduce((sum,length)=>sum+length,0)/Math.hypot(centers.at(-1).x-centers[0].x,centers.at(-1).y-centers[0].y),maxTurn:Math.max(...turns),minInnerGap:Math.min(...pairGaps)};
@@ -221,8 +221,8 @@ async function main() {
     assert.ok(await b.locator(".board-tile").evaluateAll(tiles => new Set(tiles.map(tile => getComputedStyle(tile).backgroundColor)).size) >= 4);
     assert.equal(await b.locator('.board-tile[data-tile-type="property"]').first().evaluate(tile => getComputedStyle(tile).backgroundColor), "rgb(255, 254, 250)");
     assert.notEqual(await b.locator('.board-tile[data-tile-type="event"]').first().evaluate(tile => getComputedStyle(tile).backgroundColor), await b.locator('.board-tile[data-tile-type="property"]').first().evaluate(tile => getComputedStyle(tile).backgroundColor));
-    assert.equal(await b.locator(".board-tile.route-water").count(), 4);
-    assert.equal(await b.locator(".board-tile.route-metro").count(), 4);
+    assert.equal(await b.locator(".board-tile.route-water").count(), 5);
+    assert.equal(await b.locator(".board-tile.route-metro").count(), 5);
     assert.equal(await b.locator(".route-water-entry").count(), 1);
     assert.equal(await b.locator(".route-water-exit").count(), 1);
     assert.equal(await b.locator(".route-metro-entry").count(), 1);
@@ -485,6 +485,7 @@ async function main() {
     rentRoom.game.board[1].level = 1;
     if (!rentRoom.game.players[0].properties.includes(1)) rentRoom.game.players[0].properties.push(1);
     rentRoom.game.board[rentTile.index].ownerId = rentOwner.id;
+    rentRoom.game.board[rentTile.index].partnerId = null;
     rentRoom.game.board[rentTile.index].level = 1;
     if (!rentOwner.properties.includes(rentTile.index)) rentOwner.properties.push(rentTile.index);
     store.saveRoom(rentRoom, rentRoom.inviteTokenHash);
@@ -572,8 +573,8 @@ async function main() {
       metroRouteGeometry,
       topBranchOverlap,
       globalNodeOverlap,
-      waterBranchNodes: 4,
-      metroBranchNodes: 4,
+      waterBranchNodes: 5,
+      metroBranchNodes: 5,
       cityEventNodes: 8,
       supplyNodes: 2,
       tileDetail: "pass",

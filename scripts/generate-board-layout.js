@@ -1,9 +1,9 @@
 "use strict";
 
 /**
- * 棋盘布局生成器 —— 主环弧长均匀 + 双支线贝塞尔，一套数据源同时输出：
- *   1. 主环 28 个节点的坐标（圆角矩形轨道，弧长等距，起点=我的公寓，方向：底边→右边→顶边→左边）
- *   2. 水线/地铁各 4 个内部节点（圆弧等距采样，端点锚定在主环节点）
+ * 棋盘布局生成器 —— 矩形主环 + 圆弧/贝塞尔双支线，一套数据源同时输出：
+ *   1. 主环 26 个节点的坐标（矩形轨道，横向 6 格、纵向 9 格）
+ *   2. 水线/地铁各 5 个内部节点（按弧长等距采样，端点锚定在主环节点）
  *   3. 约束自检报告：任意两节点最小间距、支线-主环间距、支线间间距
  *
  * 坐标系：先在规范画布 364×508（390×844 视口下的真实棋盘像素）内计算，
@@ -15,51 +15,17 @@
 
 const CANVAS = { width: 364, height: 564 };   // 规范棋盘像素（390×844 M4 实际地图区域）
 const TILE = 52;                               // M4 项目节点渲染尺寸（含描边）
-const MIN_GAP = TILE + 2;                      // 同向相邻节点最小中心距（直线段防重叠）
-const MIN_CROSS_GAP = TILE + 4;                // 支线与主环 / 支线之间的最小间距
-const RING_COUNT = 28;
+const RING_COUNT = 26;
 const TRACK_MARGIN = 27;                       // 52px 项目节点留 1px 安全边距
-const CORNER_RADIUS = 48;
 
-// —— 主环轨道：圆角矩形，按弧长参数化 ——
-function buildRoundedRectTrack(width, height, margin, radius) {
+function buildRectRing(width, height, margin, horizontalCount = 6, verticalCount = 9) {
   const left = margin, right = width - margin, top = margin, bottom = height - margin;
-  const segments = [
-    // 底边：左→右
-    { kind: "line", from: { x: left + radius, y: bottom }, to: { x: right - radius, y: bottom }, length: right - radius - (left + radius) },
-    // 右下角弧
-    { kind: "arc", center: { x: right - radius, y: bottom - radius }, radius, fromAngle: Math.PI / 2, toAngle: 0, length: radius * Math.PI / 2 },
-    // 右边：下→上
-    { kind: "line", from: { x: right, y: bottom - radius }, to: { x: right, y: top + radius }, length: bottom - radius - (top + radius) },
-    // 右上角弧
-    { kind: "arc", center: { x: right - radius, y: top + radius }, radius, fromAngle: 0, toAngle: -Math.PI / 2, length: radius * Math.PI / 2 },
-    // 顶边：右→左
-    { kind: "line", from: { x: right - radius, y: top }, to: { x: left + radius, y: top }, length: right - radius - (left + radius) },
-    // 左上角弧
-    { kind: "arc", center: { x: left + radius, y: top + radius }, radius, fromAngle: -Math.PI / 2, toAngle: -Math.PI, length: radius * Math.PI / 2 },
-    // 左边：上→下
-    { kind: "line", from: { x: left, y: top + radius }, to: { x: left, y: bottom - radius }, length: bottom - radius - (top + radius) },
-    // 左下角弧
-    { kind: "arc", center: { x: left + radius, y: bottom - radius }, radius, fromAngle: Math.PI, toAngle: Math.PI / 2, length: radius * Math.PI / 2 }
-  ];
-  let acc = 0;
-  for (const segment of segments) { segment.startAt = acc; acc += segment.length; }
-  return { segments, total: acc };
-}
-
-function pointOnTrack(track, distance) {
-  const d = ((distance % track.total) + track.total) % track.total;
-  for (const segment of track.segments) {
-    if (d <= segment.startAt + segment.length) {
-      const t = (d - segment.startAt) / segment.length;
-      if (segment.kind === "line") {
-        return { x: segment.from.x + (segment.to.x - segment.from.x) * t, y: segment.from.y + (segment.to.y - segment.from.y) * t };
-      }
-      const angle = segment.fromAngle + (segment.toAngle - segment.fromAngle) * t;
-      return { x: segment.center.x + segment.radius * Math.cos(angle), y: segment.center.y + segment.radius * Math.sin(angle) };
-    }
-  }
-  return { ...track.segments.at(-1).to };
+  const points = [];
+  for (let index = 0; index < horizontalCount; index += 1) points.push({ x: left + (right - left) * index / (horizontalCount - 1), y: bottom });
+  for (let index = 1; index < verticalCount - 1; index += 1) points.push({ x: right, y: bottom - (bottom - top) * index / (verticalCount - 1) });
+  for (let index = 0; index < horizontalCount; index += 1) points.push({ x: right - (right - left) * index / (horizontalCount - 1), y: top });
+  for (let index = 1; index < verticalCount - 1; index += 1) points.push({ x: left, y: top + (bottom - top) * index / (verticalCount - 1) });
+  return points;
 }
 
 // —— 支线：圆弧（常曲率）。任意两点间等弧长 ⇒ 等弦长，节点间距天然均匀 ——
@@ -98,28 +64,53 @@ function sampleArcEvenly(entry, exit, targetLength, interiorCount, bulgeToward) 
   return { interior, length: targetLength, radius, theta, sagitta: radius - centerDist };
 }
 
+function cubicPoint(start, control1, control2, end, t) {
+  const mt = 1 - t;
+  return {
+    x: mt ** 3 * start.x + 3 * mt ** 2 * t * control1.x + 3 * mt * t ** 2 * control2.x + t ** 3 * end.x,
+    y: mt ** 3 * start.y + 3 * mt ** 2 * t * control1.y + 3 * mt * t ** 2 * control2.y + t ** 3 * end.y
+  };
+}
+
+function sampleCubicEvenly(start, control1, control2, end, interiorCount) {
+  const samples = [{ t: 0, point: start, distance: 0 }];
+  for (let index = 1; index <= 1200; index += 1) {
+    const t = index / 1200, point = cubicPoint(start, control1, control2, end, t), previous = samples.at(-1);
+    samples.push({ t, point, distance: previous.distance + Math.hypot(point.x - previous.point.x, point.y - previous.point.y) });
+  }
+  const length = samples.at(-1).distance;
+  const interior = Array.from({ length: interiorCount }, (_, index) => {
+    const target = length * (index + 1) / (interiorCount + 1);
+    const upperIndex = samples.findIndex(sample => sample.distance >= target), upper = samples[upperIndex], lower = samples[Math.max(0, upperIndex - 1)];
+    const ratio = upper.distance === lower.distance ? 0 : (target - lower.distance) / (upper.distance - lower.distance);
+    return { x: lower.point.x + (upper.point.x - lower.point.x) * ratio, y: lower.point.y + (upper.point.y - lower.point.y) * ratio };
+  });
+  return { interior, length };
+}
+
 // —— 生成 ——
 function generateLayout() {
-  const track = buildRoundedRectTrack(CANVAS.width, CANVAS.height, TRACK_MARGIN, CORNER_RADIUS);
-  // 起点=我的公寓，放在底边左端弧结束处（左下角圆弧结束、底边直线开始的位置）
-  const ringGap = track.total / RING_COUNT;
-
-  // M4 重排后，主环在候选棋盘中占 0..26。
+  // M4 重排后，主环在候选棋盘中占 0..25：横向 6 格、纵向 9 格。
   const ringOrder = Array.from({ length: RING_COUNT }, (_, index) => index);
   if (ringOrder.length !== RING_COUNT) throw new Error(`ring order has ${ringOrder.length} nodes, expected ${RING_COUNT}`);
-
-  const ring = ringOrder.map((index, position) => ({ index, ...pointOnTrack(track, position * ringGap) }));
+  const ringPoints = buildRectRing(CANVAS.width, CANVAS.height, TRACK_MARGIN);
+  if (ringPoints.length !== RING_COUNT) throw new Error(`rect ring has ${ringPoints.length} nodes, expected ${RING_COUNT}`);
+  const ring = ringOrder.map((index, position) => ({ index, ...ringPoints[position] }));
+  const ringGap = Math.min(...ring.map((point, index) => {
+    const next = ring[(index + 1) % ring.length];
+    return Math.hypot(point.x - next.x, point.y - next.y);
+  }));
 
   const byIndex = new Map(ring.map(node => [node.index, node]));
 
   // 支线路标（规范画布像素）：端点=主环节点锚点，弓向棋盘中部
-  // 水线：21(运河夜游) → 2(断桥文旅)；地铁：11(运河运动公园) → 16(良渚文创园)。
-  const waterEntry = byIndex.get(21), waterExit = byIndex.get(2);
-  const metroEntry = byIndex.get(11), metroExit = byIndex.get(16);
+  // 水线：19(运河夜游) → 2(断桥文旅)；地铁：10(运河运动公园) → 14(良渚文创园)。
+  const waterEntry = byIndex.get(19), waterExit = byIndex.get(2);
+  const metroEntry = byIndex.get(10), metroExit = byIndex.get(14);
   if (!waterEntry || !waterExit || !metroEntry || !metroExit) throw new Error("missing branch anchor on ring");
 
-  const water = sampleArcEvenly(waterEntry, waterExit, 435, 4, { x: 182, y: 294 });
-  const metro = sampleArcEvenly(metroEntry, metroExit, 300, 4, { x: 250, y: 190 });
+  const water = sampleArcEvenly(waterEntry, waterExit, 500, 5, { x: 182, y: 294 });
+  const metro = sampleCubicEvenly(metroEntry, { x: 160, y: 360 }, { x: 184, y: 138 }, metroExit, 5);
 
   // 全局最小间距自检（含主环、两支线全体 36 节点）
   const all = [
@@ -135,7 +126,7 @@ function generateLayout() {
     }
   }
 
-  return { ring, water, metro, minPair, worst, ringGap, track: track.total };
+  return { ring, water, metro, minPair, worst, ringGap };
 }
 
 function toPercent(point) {
@@ -144,8 +135,8 @@ function toPercent(point) {
 
 function main() {
   const layout = generateLayout();
-  const waterOrder = [28, 29, 30, 31];
-  const metroOrder = [32, 33, 34, 35];
+  const waterOrder = [26, 27, 28, 29, 30];
+  const metroOrder = [31, 32, 33, 34, 35];
   const data = {
     ring: Object.fromEntries(layout.ring.map(node => [node.index, toPercent(node)])),
     water: Object.fromEntries(waterOrder.map((index, i) => [index, toPercent(layout.water.interior[i])])),

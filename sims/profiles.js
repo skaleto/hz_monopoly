@@ -21,11 +21,11 @@ function fiveSectorsOfFive() {
   sourceBoard.push(...newProjects);
 
   // M4 删除 13 个无独立效果的纯路线节点，保留全部 25 项目、8 事件、2 补给与起点。
-  // 新棋盘为 28 节点主环 + 水线 4 节点 + 地铁 4 节点，共 36 个有效节点。
+  // 新棋盘为 26 节点主环 + 水线 5 节点 + 地铁 5 节点，共 36 个有效节点。
   const layout = require("./board-layout.json");
-  const RING_SOURCE = [0, 1, 2, 47, 3, 4, 5, 32, 6, 7, 8, 46, 11, 12, 13, 14, 15, 16, 18, 19, 20, 22, 23, 24, 43, 26, 42, 27];
-  const WATER_SOURCE = [29, 45, 33, 25];
-  const METRO_SOURCE = [38, 48, 39, 41];
+  const RING_SOURCE = [0, 1, 2, 47, 3, 4, 5, 32, 7, 8, 46, 11, 12, 13, 15, 16, 18, 19, 20, 22, 23, 24, 43, 26, 42, 27];
+  const WATER_SOURCE = [29, 45, 33, 25, 6];
+  const METRO_SOURCE = [38, 48, 39, 41, 14];
   const sourceOrder = [...RING_SOURCE, ...WATER_SOURCE, ...METRO_SOURCE];
   const newIndex = new Map(sourceOrder.map((sourceIndex, index) => [sourceIndex, index]));
   const eventIndices = new Set([4, 6, 12, 14, 19, 25, 32, 39]);
