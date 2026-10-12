@@ -250,7 +250,7 @@ button,.player-copy strong,.player-metrics b,.tile-name,.tile-price,.turn-summar
 .board-shell .route-guide { z-index:1; width:100%; height:100%; overflow:visible; pointer-events:none; }
 .board-shell .tile-layer { z-index:2; }
 .board-shell .piece-layer { z-index:3; pointer-events:none; }
-.game-board .board-tile { --accent:var(--green); position:absolute; width:41px; height:41px; transform:translate(-50%,-50%); display:grid; grid-template-rows:minmax(0,1fr) auto; place-items:center; padding:1px 3px 2px; border:2px solid var(--ink); border-radius:9px; box-shadow:inset 0 -5px 0 var(--accent),0 2px 0 var(--ink); font-size:7px; font-weight:950; text-align:center; transition:transform .18s,filter .18s,outline .18s; }
+.game-board .board-tile { --accent:var(--green); position:absolute; width:41px; height:41px; transform:translate(-50%,-50%); display:grid; grid-template-rows:minmax(0,1fr) auto; place-items:center; padding:1px 3px 2px; border:2px solid var(--ink); border-radius:9px; box-shadow:0 2px 0 var(--ink); font-size:7px; font-weight:950; text-align:center; transition:transform .18s,filter .18s,outline .18s; }
 .game-board .board-tile.has-price { grid-template-rows:minmax(0,1fr) auto auto; padding-bottom:2px; }
 .game-board .board-tile.property{--accent:var(--green)}.game-board .board-tile.landmark{--accent:var(--water)}.game-board .board-tile.event{--accent:var(--pink)}.game-board .board-tile.transit{--accent:var(--purple)}.game-board .board-tile.special{--accent:var(--yellow)}
 .game-board .tile-icon { display:block; width:16px; height:16px; margin-top:0; object-fit:contain; }
@@ -278,3 +278,10 @@ button,.player-copy strong,.player-metrics b,.tile-name,.tile-price,.turn-summar
 
 /* 定位上下文：shell 为缩放棋盘的包含块 */
 .board-shell { position:relative; overflow:hidden; }
+
+/* 文字行内收：对角邻对的包围盒接吻区不遮字形 */
+.board-shell .tile-name { padding:0 4px; }
+.board-shell .tile-price { padding:0 4px; }
+
+/* 底部类型色条移除：外层与内层一致白底，类型由底色微调与支线描边表达 */
+.board-shell .board-tile { box-shadow:0 2px 0 var(--ink); }

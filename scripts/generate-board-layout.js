@@ -123,8 +123,8 @@ function generateLayout() {
   if (!waterEntry || !waterExit || !metroEntry || !metroExit) throw new Error("missing branch anchor on ring");
 
   // 两条支线 = 圆弧，各弓向自己的象限；8 内部节点 + 端点锚定，9 段 × ≥44px
-  const water = sampleArcEvenly(waterEntry, waterExit, 380, 8, { x: 182, y: 268 });
-  const metro = sampleArcEvenly(metroEntry, metroExit, 350, 7, { x: 218, y: 178 });
+  const water = sampleArcEvenly(waterEntry, waterExit, 390, 8, { x: 182, y: 268 });
+  const metro = sampleArcEvenly(metroEntry, metroExit, 358, 7, { x: 218, y: 178 });
 
   // 全局最小间距自检（含主环、两支线全体 49 节点）
   const all = [
