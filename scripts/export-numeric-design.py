@@ -12,8 +12,8 @@ from xml.sax.saxutils import escape
 
 
 ROOT = Path(__file__).resolve().parents[1]
-OUTPUT = ROOT / "docs" / "design" / "杭城合伙局-数值设计-M3候选.xlsx"
-BASELINE_COMMIT = "1cf62a9"
+OUTPUT = ROOT / "docs" / "design" / "杭城合伙局-数值设计-M4候选.xlsx"
+BASELINE_COMMIT = "578e262"
 
 
 def load_rules() -> dict:
@@ -83,7 +83,6 @@ def node_effect(tile: dict, balance: dict) -> str:
 def build_sheets(data: dict) -> list[tuple[str, list[list[object]]]]:
     board = data["board"]
     balance = data["balance"]
-    bonuses = balance["sectorBonuses"]
     upgrade = balance["upgrade"]
     multipliers = balance["rentMultiplierByLevel"]
 
@@ -107,10 +106,10 @@ def build_sheets(data: dict) -> list[tuple[str, list[list[object]]]]:
         ["产品版本", data["version"], "当前线上数值基线"],
         ["规则版本", data["rulesetVersion"], "新建房间使用的权威规则标识"],
         ["基线 Commit", BASELINE_COMMIT, "本工作簿从该生产基线代码读取"],
-        ["文档日期", "2026-10-10", "试玩反馈盘点日期"],
-        ["适用范围", "cautious 当前玩法", "不包含 target/aggressive 候选参数"],
+        ["文档日期", "2026-10-12", "移动端简化与板块规则移除候选日期"],
+        ["适用范围", "cautious 当前候选玩法", "板块增益已移除"],
         ["棋盘规模", len(board), "含外环与两条交通内环"],
-        ["可投资项目", type_counts.get("property", 0), "5 个板块，每板块 5 个项目"],
+        ["可投资项目", type_counts.get("property", 0), "项目类别仅作说明，不触发进度或数值奖励"],
         ["使用说明", "所有百分比与金额均为当前实际值", "后续调数值时先更新代码，再重新导出此表"],
     ]
 
@@ -126,7 +125,7 @@ def build_sheets(data: dict) -> list[tuple[str, list[list[object]]]]:
             "是" if node_type in choice_types else "否",
         ])
 
-    map_rows = [["序号", "路线", "节点类型", "节点名称", "产业板块", "投资价", "基础分红", "下一节点", "停留效果/说明"]]
+    map_rows = [["序号", "路线", "节点类型", "节点名称", "项目类别", "投资价", "基础分红", "下一节点", "停留效果/说明"]]
     for index, tile in enumerate(board):
         map_rows.append([
             index,
@@ -141,8 +140,8 @@ def build_sheets(data: dict) -> list[tuple[str, list[list[object]]]]:
         ])
 
     project_rows = [[
-        "板块", "项目序号", "项目名称", "路线", "投资价", "1级分红", "2级分红",
-        "3级分红", "2项板块增益后1级分红", "1→2级建设费", "2→3级建设费",
+        "项目类别", "项目序号", "项目名称", "路线", "投资价", "1级分红", "2级分红",
+        "3级分红", "1→2级建设费", "2→3级建设费",
     ]]
     for index, tile in enumerate(board):
         if tile["type"] != "property":
@@ -157,21 +156,9 @@ def build_sheets(data: dict) -> list[tuple[str, list[list[object]]]]:
             js_round(rent * multipliers[1]),
             js_round(rent * multipliers[2]),
             js_round(rent * multipliers[3]),
-            js_round(rent * bonuses["rentMultiplier"]),
             math.ceil(tile["price"] * upgrade["ratioByCurrentLevel"]["1"]),
             math.ceil(tile["price"] * upgrade["ratioByCurrentLevel"]["2"]),
         ])
-
-    rent_percent = round((bonuses["rentMultiplier"] - 1) * 100)
-    sector_rows = [
-        ["参与项目数", "档位", "本档新解锁", "实际效果", "作用范围", "是否累计"],
-        [0, "未进入", "无", "无板块增益", "无", "-"],
-        [1, "进入板块", "点亮进度", "显示已参与该板块", "仅展示", "是"],
-        [bonuses["rentMinProjects"], "协同分红", f"分红 +{rent_percent}%", f"该板块所有参与项目的到访分红 ×{bonuses['rentMultiplier']}", "仅该板块", "是"],
-        [bonuses["flagshipMinProjects"], "旗舰建设", "解锁 3 级", "该板块项目允许从 2 级建设到 3 级", "仅该板块", "是"],
-        [bonuses["scoreMinProjects"], "板块主导", f"城市分 +{bonuses['scoreBonus']}", "结算时增加城市分", "该板块贡献一次", "是"],
-        [5, "板块集齐", "无新增数值", "保持 4 档全部累计增益", "仅该板块", "是"],
-    ]
 
     event_effect_names = {"self":"自己", "all":"所有玩家", "poorest":"金币最少者", "transfer":"最多转给最少", "item_gain":"自己获得道具", "item_loss":"自己失去道具", "venture":"自己二选一"}
     city_event_rows = [["事件 ID", "事件名称", "影响对象", "基础金币", "基础影响力", "触发概率", "用户可见效果"]]
@@ -197,7 +184,7 @@ def build_sheets(data: dict) -> list[tuple[str, list[list[object]]]]:
         ["交通换乘", "停留", 40, 1, "固定奖励", "岔路在后续移动时选择"],
         ["道具补给", "道具栏未满", 0, 0, "随机获得 1 张道具", "最多携带 3 张"],
         ["道具补给", "道具栏已满", balance["overflowItemCash"], 0, "抽到的道具自动兑换", "不增加道具"],
-        ["到访分红", "停在他人项目", "按项目等级与板块增益支付", 0, "独资全收；合伙五五分", "通行券可减半"],
+        ["到访分红", "停在他人项目", "按项目等级支付", 0, "独资全收；合伙五五分", "通行券可减半"],
         ["城市重组", "金币结算后小于 0", balance["restructureCash"], -balance["restructureInfluencePenalty"], "金币直接重置为保底值", "影响力最低为 0"],
     ]
 
@@ -237,7 +224,7 @@ def build_sheets(data: dict) -> list[tuple[str, list[list[object]]]]:
         ["现金", "资金告急阈值", balance["cashWarningThreshold"], "达到或低于该值时玩家栏红色提示"],
         ["建设", "1级分红倍率", multipliers[1], "项目投资后即为 1 级"],
         ["建设", "2级分红倍率", multipliers[2], "相对项目基础分红"],
-        ["建设", "3级分红倍率", multipliers[3], "需在本板块参与至少 3 个项目"],
+        ["建设", "3级分红倍率", multipliers[3], "拥有或合伙持有项目即可逐级建设"],
         ["建设", "1→2级费用", "项目价 ×45% 向上取整", "建设折扣券可减半"],
         ["建设", "2→3级费用", "项目价 ×70% 向上取整", "建设折扣券可减半"],
         ["计分", "影响力", "1 点 = 1 城市分", "实时计入"],
@@ -245,7 +232,6 @@ def build_sheets(data: dict) -> list[tuple[str, list[list[object]]]]:
         ["计分", "合伙项目基础分", balance["partneredProjectScore"], "每位参与者"],
         ["计分", "合伙附加分", balance["partnershipScore"], "每个合伙项目、每位参与者"],
         ["计分", "项目升级", "每升 1 级 +1", "1 级不加升级分"],
-        ["计分", "板块主导", bonuses["scoreBonus"], "同板块参与 4 个项目"],
         ["计分", "现金折分", f"每 {balance['cashScoreDivisor']} 金币 +1，最多 +{balance['cashScoreCap']}", "向下取整"],
         ["Bot", "发起合伙概率", f"{round(bot['partnershipRate'] * 100)}%", "满足投资条件时"],
         ["Bot", "开始建设轮次", bot["upgradeAfterRound"], "达到该轮次后考虑建设"],
@@ -257,8 +243,7 @@ def build_sheets(data: dict) -> list[tuple[str, list[list[object]]]]:
         ("版本说明", overview),
         ("节点类型", node_types),
         ("地图节点", map_rows),
-        ("板块项目", project_rows),
-        ("板块增益", sector_rows),
+        ("项目清单", project_rows),
         ("城市事件", city_event_rows),
         ("事件与选择", event_rows),
         ("道具卡", item_rows),
@@ -320,7 +305,7 @@ def styles_xml() -> str:
 
 
 def write_entry(archive: zipfile.ZipFile, name: str, content: str) -> None:
-    info = zipfile.ZipInfo(name, date_time=(2026, 10, 10, 0, 0, 0))
+    info = zipfile.ZipInfo(name, date_time=(2026, 10, 12, 0, 0, 0))
     info.compress_type = zipfile.ZIP_DEFLATED
     info.external_attr = 0o644 << 16
     archive.writestr(info, content.encode("utf-8"))
@@ -337,7 +322,7 @@ def write_workbook(sheets: list[tuple[str, list[list[object]]]]) -> None:
     overrides = "".join(f'<Override PartName="/xl/worksheets/sheet{index}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' for index in range(1, len(sheets) + 1))
     content_types = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>{overrides}<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>'''
     root_rels = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>'''
-    core = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>杭城合伙局数值设计 M3候选</dc:title><dc:creator>Coding Agent（TRAE）</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">2026-10-10T00:00:00Z</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">2026-10-10T00:00:00Z</dcterms:modified></cp:coreProperties>'''
+    core = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>杭城合伙局数值设计 M4候选</dc:title><dc:creator>Coding Agent（TRAE）</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">2026-10-12T00:00:00Z</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">2026-10-12T00:00:00Z</dcterms:modified></cp:coreProperties>'''
     app = f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>Hangzhou Partners</Application><TitlesOfParts><vt:vector size="{len(sheets)}" baseType="lpstr">{"".join(f"<vt:lpstr>{escape(name)}</vt:lpstr>" for name, _ in sheets)}</vt:vector></TitlesOfParts></Properties>'''
     with zipfile.ZipFile(OUTPUT, "w") as archive:
         write_entry(archive, "[Content_Types].xml", content_types)
@@ -353,8 +338,8 @@ def write_workbook(sheets: list[tuple[str, list[list[object]]]]) -> None:
 
 def main() -> None:
     data = load_rules()
-    if data["rulesetVersion"] != "hangzhou-v3-city-events":
-        raise SystemExit(f"Expected M3 city event ruleset, got {data['rulesetVersion']}")
+    if data["rulesetVersion"] != "hangzhou-v5-streamlined-board":
+        raise SystemExit(f"Expected M4 streamlined ruleset, got {data['rulesetVersion']}")
     sheets = build_sheets(data)
     write_workbook(sheets)
     print(f"Wrote {OUTPUT} ({len(sheets)} sheets)")

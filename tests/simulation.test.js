@@ -2,11 +2,11 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { profiles, fiveSectorsOfFive } = require("../sims/profiles");
+const { profiles, expandedBoard } = require("../sims/profiles");
 const { simulateProfile, assertHardGates, assertCandidateGates } = require("../sims/run");
 
-test("M3 board keeps five sectors with a 34-node ring plus 8+7 branch lines", () => {
-  const board = fiveSectorsOfFive();
+test("expanded board keeps 25 categorized projects with a 34-node ring plus 8+7 branch lines", () => {
+  const board = expandedBoard();
   const counts = new Map();
   for (const tile of board.filter(tile => tile.type === "property")) {
     counts.set(tile.group, (counts.get(tile.group) || 0) + 1);
@@ -34,7 +34,7 @@ test("M3 board keeps five sectors with a 34-node ring plus 8+7 branch lines", ()
   assert.equal(ringOrder.every(index => !board[index].inner), true);
 });
 
-test("M3 city event candidate passes cash tension and pacing gates", () => {
+test("M4 streamlined board candidate passes cash tension and pacing gates", () => {
   const report = simulateProfile("cautious", profiles.cautious, { games: 200, seed: 20261010 });
   assert.doesNotThrow(() => assertHardGates(report));
   assert.doesNotThrow(() => assertCandidateGates(report));

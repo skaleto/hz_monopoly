@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#53c7a2">
   <base href="__BASE_PATH__/">
   <title>杭城合伙局 · 好友联机</title>
-  <link rel="stylesheet" href="styles.css?v=0.7.3">
+  <link rel="stylesheet" href="styles.css?v=0.8.0">
 </head>
 <body>
   <header class="site-header">
@@ -68,38 +68,37 @@
         <button id="endGameButton" class="game-corner-button danger" type="button" hidden>结束本局</button>
       </div>
       <section id="playerBar" class="player-bar"></section>
-      <section class="sector-summary" aria-label="我的产业板块进度与增益规则">
-        <div class="sector-summary-head"><strong>我的板块</strong><button id="sectorGuideToggle" type="button" aria-expanded="false">规则</button></div>
-        <div id="sectorProgress" class="sector-progress"></div>
-        <div id="sectorGuide" class="sector-guide" hidden>
-          <div id="sectorLegend" class="sector-legend"></div>
-          <p>独资或合伙都计 1 个；达到档位后自动生效，且只作用于同板块项目。</p>
+      <section class="board-toolbar" aria-label="对局操作">
+        <div class="turn-summary"><div class="turn-meta"><small id="turnLabel">等待回合</small><small id="roundLabel"></small></div><strong id="locationLabel">我的公寓</strong></div>
+        <div id="decisionActions" class="decision-actions"></div>
+        <div class="board-toolbar-actions">
+          <button id="inventoryButton" class="board-tool-button" type="button"><span class="button-label">道具</span><span id="itemCount">0</span></button>
+          <button id="upgradeButton" class="board-tool-button" type="button">建设</button>
+          <button id="openLogButton" class="board-tool-button" type="button">记录</button>
         </div>
       </section>
       <section class="board-shell">
-        <div id="gameBoard" class="game-board">
-          <img id="boardImage" data-src="assets/board.v3.webp" alt="西湖城市棋盘">
-          <div id="turnOrderBanner" class="turn-order-banner" hidden aria-live="polite"><strong>本局行动顺序</strong><span id="turnOrderSummary"></span></div>
-          <div id="gameFeedbackRail" class="game-feedback-rail"><div id="gameToast" class="toast game-toast" aria-live="polite"></div></div>
-          <svg id="branchGuide" class="branch-guide" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
-          <div id="tileLayer" class="tile-layer"></div>
-          <div id="pieceLayer" class="piece-layer"></div>
-          <div id="diceStage" class="dice-stage" hidden>
-            <canvas id="diceCanvas" class="dice-canvas" aria-hidden="true"></canvas>
-            <span id="diceBonusBadge" class="dice-bonus" hidden>+2</span>
+        <div id="boardScroller" class="board-scroller" aria-label="可拖动棋盘">
+          <div id="boardStage" class="board-stage">
+            <div id="gameBoard" class="game-board">
+              <img id="boardImage" data-src="assets/board.v3.webp" alt="西湖城市棋盘">
+              <div id="turnOrderBanner" class="turn-order-banner" hidden aria-live="polite"><strong>本局行动顺序</strong><span id="turnOrderSummary"></span></div>
+              <div id="gameFeedbackRail" class="game-feedback-rail"><div id="gameToast" class="toast game-toast" aria-live="polite"></div></div>
+              <svg id="branchGuide" class="branch-guide" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+              <div id="tileLayer" class="tile-layer"></div>
+              <div id="pieceLayer" class="piece-layer"></div>
+              <div id="diceStage" class="dice-stage" hidden>
+                <canvas id="diceCanvas" class="dice-canvas" aria-hidden="true"></canvas>
+                <span id="diceBonusBadge" class="dice-bonus" hidden>+2</span>
+              </div>
+            </div>
           </div>
         </div>
-      </section>
-      <section class="game-bottom">
-        <div class="turn-summary"><div class="turn-meta"><small id="turnLabel">等待回合</small><small id="roundLabel"></small></div><strong id="locationLabel">我的公寓</strong></div>
-        <div id="decisionActions" class="decision-actions"></div>
-        <button id="rollButton" class="primary roll-button" type="button">掷骰子</button>
-        <button id="inventoryButton" class="secondary"><span class="button-label">道具</span><span id="itemCount">0</span></button>
-        <button id="upgradeButton" class="secondary">建设</button>
-      </section>
-      <section class="event-preview">
-        <div class="event-preview-head"><strong>最近动态</strong><button id="openLogButton" class="text-button" type="button">查看全部</button></div>
-        <ol id="eventLog" class="event-log"></ol>
+        <button id="rollButton" class="board-roll-button" type="button" hidden>
+          <span class="roll-die-face" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+          <span class="roll-button-label">点击掷骰</span>
+        </button>
+        <button id="boardViewToggle" class="board-view-toggle" type="button" hidden>全览</button>
       </section>
     </section>
   </main>
@@ -188,7 +187,7 @@
   </div>
 
   <div id="toast" class="toast" aria-live="polite"></div>
-  <script src="dice-renderer.js?v=0.7.3"></script>
-  <script src="app.js?v=0.7.3"></script>
+  <script src="dice-renderer.js?v=0.8.0"></script>
+  <script src="app.js?v=0.8.0"></script>
 </body>
 </html>

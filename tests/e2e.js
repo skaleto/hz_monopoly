@@ -41,8 +41,9 @@ async function main() {
   const browser = await chromium.launch({ headless: true });
   const errors = [];
   try {
-    const contextA = await browser.newContext({ viewport: { width: 390, height: 844 }, ...(previewVideoDir ? { recordVideo: { dir: previewVideoDir, size: { width: 390, height: 844 } } } : {}) });
-    const contextB = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const viewport = { width: Number(process.env.E2E_WIDTH || 390), height: Number(process.env.E2E_HEIGHT || 844) };
+    const contextA = await browser.newContext({ viewport, ...(previewVideoDir ? { recordVideo: { dir: previewVideoDir, size: viewport } } : {}) });
+    const contextB = await browser.newContext({ viewport });
     const a = await contextA.newPage();
     const b = await contextB.newPage();
     const imageRequestsA = [];
@@ -106,23 +107,16 @@ async function main() {
     assert.match(await a.locator(".player-chip").first().textContent(), /影响力/);
     assert.match(await a.locator(".player-chip").first().textContent(), /道具/);
     assert.match(await a.locator(".player-chip").first().textContent(), /城市分/);
-    assert.equal(await a.locator("#sectorProgress .sector-chip").count(), 5);
-    assert.match(await a.locator("#sectorProgress .sector-chip").first().textContent(), /0\/5.*未进入/s);
-    assert.equal(await a.locator("#sectorProgress .sector-dots").count(), 5);
-    assert.equal(await a.locator("#sectorProgress .sector-dots i").count(), 25);
-    assert.equal(await a.locator("#sectorModal").count(), 0);
-    assert.equal(await a.locator("#sectorGuide").isHidden(), true);
-    await a.locator("#sectorGuideToggle").click();
-    assert.equal(await a.locator("#sectorGuideToggle").getAttribute("aria-expanded"), "true");
-    assert.deepEqual(await a.locator("#sectorLegend [data-sector-tier]").evaluateAll(nodes => nodes.map(node => node.textContent)), ["1入局","2分红+10%","3可建3级","4城市分+3"]);
-    assert.match(await a.locator("#sectorGuide").textContent(), /独资或合伙都计 1 个.*只作用于同板块项目/);
-    await a.screenshot({ path: path.join(screenshotDir, "03b-sector-benefits-mobile.png"), fullPage: true });
-    await a.locator("#sectorGuideToggle").click();
-    assert.equal(await a.locator("#sectorGuide").isHidden(), true);
+    assert.equal(await a.locator("#sectorProgress,#sectorGuide,#sectorGuideToggle").count(), 0);
     assert.equal(await a.locator("#gameHomeButton").evaluate(button => button.parentElement.classList.contains("game-top-actions")), true);
-    assert.equal(await a.locator("#rollButton").evaluate(button => button.parentElement.classList.contains("game-bottom")), true);
-    assert.equal(await a.locator(".game-bottom > button").count(), 3);
-    assert.deepEqual(await a.locator(".game-bottom > button").evaluateAll(buttons => buttons.map(button => button.id)), ["rollButton","inventoryButton","upgradeButton"]);
+    assert.equal(await a.locator(".game-bottom,.event-preview").count(), 0);
+    assert.deepEqual(await a.locator(".board-toolbar-actions > button").evaluateAll(buttons => buttons.map(button => button.id)), ["inventoryButton","upgradeButton","openLogButton"]);
+    assert.equal(await a.locator("#rollButton").evaluate(button => button.parentElement.classList.contains("board-shell")), true);
+    assert.equal(await a.locator("#rollButton .roll-die-face i").count(), 5);
+    assert.equal(await a.locator("#rollButton").isVisible(), true);
+    assert.equal(await b.locator("#rollButton").isHidden(), true);
+    assert.equal(await a.locator("#rollButton").evaluate(button=>{const die=button.getBoundingClientRect(),board=document.querySelector(".board-shell").getBoundingClientRect();return Math.abs((die.left+die.width/2)-(board.left+board.width/2))<2&&Math.abs((die.top+die.height/2)-(board.top+board.height/2))<2}),true);
+    await a.screenshot({ path: path.join(screenshotDir, "03a-simplified-controls-mobile.png"), fullPage: true });
     assert.equal(await a.locator("#endGameButton").isVisible(), true);
     assert.equal(await b.locator("#endGameButton").isVisible(), false);
     assert.equal(await b.locator("#upgradeButton").isDisabled(), true);
@@ -132,6 +126,22 @@ async function main() {
     await a.screenshot({ path: path.join(screenshotDir, "18-owner-end-game-confirm-mobile.png"), fullPage: true });
     await a.locator("#endGameCancelButton").click();
     await a.locator("#endGameModal").waitFor({ state: "hidden" });
+    const boardNavigation = await b.evaluate(() => {
+      const scroller=document.querySelector("#boardScroller"),toggle=document.querySelector("#boardViewToggle");
+      return {canZoom:Boolean(window.__boardCanZoom),scale:Number((window.__boardScale||1).toFixed(4)),overviewScale:Number((window.__boardOverviewScale||1).toFixed(4)),readableScale:Number((window.__boardReadableScale||1).toFixed(4)),toggleHidden:toggle.hidden,toggleText:toggle.textContent,scrollableY:scroller.scrollHeight>scroller.clientHeight+1};
+    });
+    if (boardNavigation.canZoom) {
+      assert.equal(boardNavigation.toggleHidden,false);
+      assert.equal(boardNavigation.toggleText,"全览");
+      assert.ok(boardNavigation.scale>=.89,`readable board scale ${boardNavigation.scale}`);
+      assert.equal(boardNavigation.scrollableY,true);
+      await a.screenshot({ path: path.join(screenshotDir, "03a-readable-board-mobile.png"), fullPage: true });
+      await Promise.all([a.locator("#boardViewToggle").click(),b.locator("#boardViewToggle").click()]);
+      await Promise.all([a.waitForFunction(()=>Math.abs(window.__boardScale-window.__boardOverviewScale)<.001),b.waitForFunction(()=>Math.abs(window.__boardScale-window.__boardOverviewScale)<.001)]);
+      assert.equal(await b.locator("#boardViewToggle").textContent(),"放大");
+    } else {
+      assert.equal(boardNavigation.toggleHidden,true);
+    }
     assert.equal(await b.locator(".board-tile").count(), 49);
     assert.equal(await b.locator(".board-tile .tile-icon").count(), 49);
     assert.equal(await b.locator(".board-tile .type-mark").count(), 0);
@@ -143,10 +153,22 @@ async function main() {
     })), true, "project icon, name and price must use separate rows");
 
     const truncatedNames = await b.evaluate(() => [...document.querySelectorAll(".board-tile .tile-name")].filter(n => n.scrollHeight > n.clientHeight + 1 || n.scrollWidth > n.clientWidth + 1).map(n => n.textContent));
-    assert.deepEqual(truncatedNames, [], `tile names truncated: ${truncatedNames.join(",")}`);    assert.deepEqual(await b.locator(".board-tile.has-price").evaluateAll(tiles => {
+    assert.deepEqual(truncatedNames, [], `tile names truncated: ${truncatedNames.join(",")}`);
+    assert.deepEqual(await b.locator(".board-tile.has-price").evaluateAll(tiles => {
       const pairs=tiles.map(tile=>[tile.querySelector(".tile-name"),tile.querySelector(".tile-price")].map(node=>{const style=getComputedStyle(node);return`${style.fontSize}/${style.fontWeight}`}));
       return {nameStyles:[...new Set(pairs.map(pair=>pair[0]))],priceStyles:[...new Set(pairs.map(pair=>pair[1]))],sameLevel:pairs.every(pair=>pair[0]===pair[1])};
-    }), { nameStyles:["5px/950"],priceStyles:["5px/950"],sameLevel:true });
+    }), { nameStyles:["7px/950"],priceStyles:["7px/950"],sameLevel:true });
+    const boardReadability = await b.evaluate(() => {
+      const tile=document.querySelector(".board-tile"),project=document.querySelector(".board-tile.has-price"),regular=document.querySelector(".board-tile:not(.has-price)"),name=project.querySelector(".tile-name"),price=project.querySelector(".tile-price");
+      const px=(node,property)=>parseFloat(getComputedStyle(node)[property]);
+      return {viewport:[innerWidth,innerHeight],boardScale:Number((window.__boardScale||1).toFixed(4)),overviewScale:Number((window.__boardOverviewScale||1).toFixed(4)),readableScale:Number((window.__boardReadableScale||1).toFixed(4)),tileBorder:px(tile,"borderTopWidth"),tileShadow:getComputedStyle(tile).boxShadow,projectIcon:px(project.querySelector(".tile-icon"),"width"),regularIcon:px(regular.querySelector(".tile-icon"),"width"),nameFont:px(name,"fontSize"),priceFont:px(price,"fontSize")};
+    });
+    assert.equal(boardReadability.tileBorder,1);
+    assert.ok(boardReadability.tileShadow.includes("1px"));
+    assert.equal(boardReadability.projectIcon,17);
+    assert.equal(boardReadability.regularIcon,22);
+    assert.equal(boardReadability.nameFont,7);
+    assert.equal(boardReadability.priceFont,7);
     assert.equal(await b.locator(".board-tile").evaluateAll(tiles => tiles.every(tile => { const rect=tile.getBoundingClientRect(); return Math.abs(rect.width-rect.height)<=0.5; })), true, "all board nodes must be square");
     const persistentLayoutCollisions = await b.evaluate(() => {
       const intersects = (a,b) => Math.min(a.right,b.right) > Math.max(a.left,b.left) && Math.min(a.bottom,b.bottom) > Math.max(a.top,b.top);
@@ -252,15 +274,16 @@ async function main() {
     assert.ok(fixedViewport.scrollHeight <= fixedViewport.height + 1);
     await a.screenshot({ path: path.join(screenshotDir, "03-game-two-humans-two-bots.png"), fullPage: true });
     const mobileFit = await a.evaluate(() => {
-      const shell=document.querySelector(".board-shell"),shellRect=shell.getBoundingClientRect(),tiles=[...document.querySelectorAll(".board-tile")].map(tile=>tile.getBoundingClientRect()),sectors=[...document.querySelectorAll("#sectorProgress .sector-chip")].map(tile=>tile.getBoundingClientRect());
-      return { noHorizontalScroll:shell.scrollWidth<=shell.clientWidth+1,tilesInside:tiles.every(rect=>rect.left>=shellRect.left-2&&rect.right<=shellRect.right+2&&rect.top>=shellRect.top-2&&rect.bottom<=shellRect.bottom+2),sectorsInside:sectors.length===5&&sectors.every(rect=>rect.left>=0&&rect.right<=innerWidth) };
+      const shell=document.querySelector(".board-shell"),scroller=document.querySelector("#boardScroller"),shellRect=shell.getBoundingClientRect(),tiles=[...document.querySelectorAll(".board-tile")].map(tile=>tile.getBoundingClientRect());
+      return { noHorizontalScroll:scroller.scrollWidth<=scroller.clientWidth+1,tilesInside:tiles.every(rect=>rect.left>=shellRect.left-2&&rect.right<=shellRect.right+2&&rect.top>=shellRect.top-2&&rect.bottom<=shellRect.bottom+2) };
     });
-    assert.deepEqual(mobileFit,{noHorizontalScroll:true,tilesInside:true,sectorsInside:true});
+    assert.deepEqual(mobileFit,{noHorizontalScroll:true,tilesInside:true});
     await a.screenshot({ path: path.join(screenshotDir, "03b-full-map-fitted.png"), fullPage: true });
 
     await a.bringToFront();
     await a.evaluate(() => { window.__diceTrace = []; });
     await a.locator("#rollButton").click();
+    assert.equal(await a.locator("#rollButton").isHidden(), true);
     await a.locator("#diceStage").waitFor({ state: "visible" });
     const diceVisual = await a.locator("#diceStage").evaluate(stage => ({ border: getComputedStyle(stage).borderTopWidth, background: getComputedStyle(stage).backgroundColor }));
     assert.equal(diceVisual.border, "0px");
@@ -557,8 +580,10 @@ async function main() {
       nodeChains: "outer + water + metro",
       maxInnerNodeGap: nodeChainGaps,
       semanticTileBackgrounds: "property white + distinct event/card/type fills",
-      investableProjects: "25 across five sectors",
+      investableProjects: "25 categorized projects without category bonuses",
       squareNodes: "49/49",
+      boardReadability,
+      boardNavigation,
       routeBorders: "water cyan + metro purple + matching entry/exit fills",
       branchDirections: "2 continuous routes + color-matched entry/exit endpoints",
       waterRouteGeometry,
@@ -577,7 +602,9 @@ async function main() {
       mobileTurnLayout: "pass",
       playerMetrics: "coins + influence + items",
       openingTurnOrder: "non-blocking randomized order banner, auto-hides in 2.2s",
-      sectorBenefitGuide: "compact five-dot overview + inline collapsible tier guide",
+      projectCategoryBonuses: "removed",
+      topBoardTools: "inventory + upgrade + full log",
+      centerRollControl: "only visible to the player who can roll",
       dice3D: "single geometry / three-axis tumble / deterministic landing",
       redundantDiceText: 0,
       movementPacing: ">=300ms per step",

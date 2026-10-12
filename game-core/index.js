@@ -2,7 +2,7 @@
 
 const crypto = require("node:crypto");
 
-const CURRENT_RULESET_VERSION = "hangzhou-v4-sector-board";
+const CURRENT_RULESET_VERSION = "hangzhou-v5-streamlined-board";
 
 const BOARD = [
   { type: "start", name: "我的公寓", next: [1] },
@@ -92,16 +92,6 @@ const DEFAULT_BALANCE = Object.freeze({
   maxRounds: 12,
   startIncomeByRound: [{ through: 12, amount: 200 }],
   rentMultiplierByLevel: [0, 1, 1.75, 2.5],
-  completeGroupRentMultiplier: 1.5,
-  completeGroupScore: 5,
-  sectorBonuses: {
-    enabled: false,
-    rentMinProjects: 2,
-    rentMultiplier: 1.15,
-    flagshipMinProjects: 3,
-    scoreMinProjects: 4,
-    scoreBonus: 3
-  },
   ownedProjectScore: 2,
   partneredProjectScore: 1,
   partnershipScore: 1,
@@ -114,8 +104,7 @@ const DEFAULT_BALANCE = Object.freeze({
   upgrade: {
     costMode: "fixed",
     fixedByCurrentLevel: { 1: 90, 2: 120 },
-    ratioByCurrentLevel: { 1: 0.5, 2: 0.8 },
-    level3RequiresCompleteGroup: false
+    ratioByCurrentLevel: { 1: 0.5, 2: 0.8 }
   },
   opportunity: {
     safeCash: 40,
@@ -135,14 +124,18 @@ function clone(value) { return structuredClone(value); }
 function randomInt(random, max) { return Math.floor(random() * max); }
 function optionToObject(option, board) { return typeof option === "number" ? { to: option, label: board[option].name } : option; }
 function normalizeBalance(input = {}) {
-  return {
+  const balance = {
     ...clone(DEFAULT_BALANCE),
     ...clone(input),
     upgrade: { ...clone(DEFAULT_BALANCE.upgrade), ...clone(input.upgrade || {}) },
-    sectorBonuses: { ...clone(DEFAULT_BALANCE.sectorBonuses), ...clone(input.sectorBonuses || {}) },
     opportunity: { ...clone(DEFAULT_BALANCE.opportunity), ...clone(input.opportunity || {}) },
     cityEventVenture: { ...clone(DEFAULT_BALANCE.cityEventVenture), ...clone(input.cityEventVenture || {}) }
   };
+  delete balance.completeGroupRentMultiplier;
+  delete balance.completeGroupScore;
+  delete balance.sectorBonuses;
+  delete balance.upgrade.level3RequiresCompleteGroup;
+  return balance;
 }
 function balanceOf(state) { return state.balance || DEFAULT_BALANCE; }
 function startIncomeForRound(state) {
@@ -242,40 +235,7 @@ function log(state, events, type, text, payload = {}) {
 
 function getRent(state, tile) {
   const balance = balanceOf(state);
-  let rent = tile.rent * (balance.rentMultiplierByLevel[tile.level] || 1);
-  if (balance.sectorBonuses.enabled) {
-    const ownerProjects = tile.ownerId ? sectorProjectCount(state, tile.ownerId, tile.group) : 0;
-    const partnerProjects = tile.partnerId ? sectorProjectCount(state, tile.partnerId, tile.group) : 0;
-    if (Math.max(ownerProjects, partnerProjects) >= balance.sectorBonuses.rentMinProjects) rent *= balance.sectorBonuses.rentMultiplier;
-  } else {
-    if (tile.ownerId && hasCompleteGroup(state, tile.ownerId, tile.group)) rent *= balance.completeGroupRentMultiplier;
-    if (tile.partnerId && hasCompleteGroup(state, tile.partnerId, tile.group)) rent *= balance.completeGroupRentMultiplier;
-  }
-  return Math.round(rent);
-}
-
-function hasCompleteGroup(state, playerId, group) {
-  const groupTiles = state.board.filter(tile => tile.type === "property" && tile.group === group);
-  return groupTiles.length > 1 && groupTiles.every(tile => tile.ownerId === playerId || tile.partnerId === playerId);
-}
-
-function sectorProjectCount(state, playerId, group) {
-  return state.board.filter(tile => tile.type === "property" && tile.group === group && (tile.ownerId === playerId || tile.partnerId === playerId)).length;
-}
-function sectorTier(state, playerId, group) { return Math.min(4, sectorProjectCount(state, playerId, group)); }
-function sectorTierBenefit(state, tier) {
-  const bonuses = balanceOf(state).sectorBonuses;
-  if (tier === 1) return "板块进度已点亮";
-  if (tier === 2) return `本板块到访分红 +${Math.round((bonuses.rentMultiplier - 1) * 100)}%`;
-  if (tier === 3) return "本板块项目解锁 3 级建设";
-  if (tier === 4) return `结算城市分 +${bonuses.scoreBonus}`;
-  return "";
-}
-function announceSectorTier(state, player, group, before, events) {
-  const after = sectorTier(state, player.id, group);
-  if (after <= before) return;
-  const benefit = sectorTierBenefit(state, after);
-  log(state, events, "SECTOR_TIER_UNLOCKED", `${player.nickname} 的${group}达到 ${after}/5：${benefit}`, { playerId: player.id, group, tier: after, count: after, benefit });
+  return Math.round(tile.rent * (balance.rentMultiplierByLevel[tile.level] || 1));
 }
 
 function getUpgradeCost(state, tile) {
@@ -288,12 +248,8 @@ function cityScore(state, player) {
   const balance = balanceOf(state);
   const owned = state.board.filter(tile => tile.type === "property" && (tile.ownerId === player.id || tile.partnerId === player.id));
   const project = owned.reduce((sum, tile) => sum + (tile.partnerId ? balance.partneredProjectScore : balance.ownedProjectScore) + Math.max(0, tile.level - 1), 0);
-  const groups = new Set(owned.map(tile => tile.group).filter(group => balance.sectorBonuses.enabled
-    ? sectorProjectCount(state, player.id, group) >= balance.sectorBonuses.scoreMinProjects
-    : hasCompleteGroup(state, player.id, group))).size;
   const partnerships = owned.filter(tile => tile.partnerId).length;
-  const groupScore = balance.sectorBonuses.enabled ? balance.sectorBonuses.scoreBonus : balance.completeGroupScore;
-  return player.influence + project + groups * groupScore + partnerships * balance.partnershipScore + Math.min(balance.cashScoreCap, Math.floor(player.cash / balance.cashScoreDivisor));
+  return player.influence + project + partnerships * balance.partnershipScore + Math.min(balance.cashScoreCap, Math.floor(player.cash / balance.cashScoreDivisor));
 }
 
 function rankings(state) {
@@ -610,7 +566,6 @@ function applyCommand(inputState, actorId, command, payload = {}, context = {}) 
   } else if (command === "BUY_PROPERTY") {
     if (state.phase !== "decision" || state.pending?.type !== "property" || state.pending.actorId !== actorId) throw new Error("INVALID_PHASE");
     const tile = state.board[state.pending.tileIndex];
-    const sectorBefore = sectorTier(state, player.id, tile.group);
     const price = player.investmentDiscount ? Math.ceil(tile.price / 2) : tile.price;
     if (player.cash < price || tile.ownerId) throw new Error("CANNOT_INVEST");
     player.cash -= price;
@@ -619,7 +574,6 @@ function applyCommand(inputState, actorId, command, payload = {}, context = {}) 
     tile.ownerId = player.id;
     tile.level = 1;
     log(state, events, "PROPERTY_BOUGHT", `${player.nickname} 投资 ${tile.name} 成功${price < tile.price ? "（首投补贴半价）" : ""}`, { playerId: player.id, tileIndex: tile.index, price, basePrice: tile.price });
-    announceSectorTier(state, player, tile.group, sectorBefore, events);
     state.pending = null;
     state.phase = "turn_end";
     advanceTurn(state, events);
@@ -637,7 +591,6 @@ function applyCommand(inputState, actorId, command, payload = {}, context = {}) 
     const buyer = state.players.find(item => item.id === state.pending.actorId);
     const tile = state.board[state.pending.tileIndex];
     if (command === "ACCEPT_PARTNER") {
-      const buyerTierBefore = sectorTier(state, buyer.id, tile.group), partnerTierBefore = sectorTier(state, player.id, tile.group);
       const share = Math.ceil(tile.price / 2);
       if (buyer.cash < share || player.cash < share) throw new Error("CANNOT_PARTNER");
       buyer.cash -= share;
@@ -648,8 +601,6 @@ function applyCommand(inputState, actorId, command, payload = {}, context = {}) 
       tile.partnerId = player.id;
       tile.level = 1;
       log(state, events, "PARTNERSHIP_ACCEPTED", `${buyer.nickname} 与 ${player.nickname} 合伙建设 ${tile.name}`, { buyerId: buyer.id, partnerId: player.id, tileIndex: tile.index, share });
-      announceSectorTier(state, buyer, tile.group, buyerTierBefore, events);
-      announceSectorTier(state, player, tile.group, partnerTierBefore, events);
       state.pending = null;
       state.phase = "turn_end";
       advanceTurn(state, events);
@@ -668,13 +619,6 @@ function applyCommand(inputState, actorId, command, payload = {}, context = {}) 
     if (state.phase !== "roll" || currentPlayer(state).id !== actorId) throw new Error("INVALID_PHASE");
     const tile = state.board[payload.tileIndex];
     if (!tile || tile.type !== "property" || ![tile.ownerId, tile.partnerId].includes(actorId) || tile.level >= 3) throw new Error("CANNOT_UPGRADE");
-    if (tile.level === 2 && balanceOf(state).upgrade.level3RequiresCompleteGroup) {
-      const balance = balanceOf(state);
-      const unlocked = balance.sectorBonuses.enabled
-        ? sectorProjectCount(state, actorId, tile.group) >= balance.sectorBonuses.flagshipMinProjects
-        : hasCompleteGroup(state, actorId, tile.group);
-      if (!unlocked) throw new Error("COMPLETE_GROUP_REQUIRED");
-    }
     const baseCost = getUpgradeCost(state, tile);
     const cost = player.upgradeDiscount ? Math.ceil(baseCost / 2) : baseCost;
     if (player.cash < cost) throw new Error("INSUFFICIENT_FUNDS");
@@ -754,7 +698,7 @@ function getBotCommand(state, playerId, random = Math.random) {
     if (policy?.upgradeEnabled && state.round >= policy.upgradeAfterRound) {
       const upgrades = state.board.filter(tile => [tile.ownerId, tile.partnerId].includes(playerId)).reduce((sum, tile) => sum + Math.max(0, tile.level - 1), 0);
       if (upgrades < policy.maxUpgradesPerPlayer && player.lastUpgradeRound !== state.round) {
-        const candidate = state.board.find(tile => tile.type === "property" && [tile.ownerId, tile.partnerId].includes(playerId) && tile.level < 3 && player.cash - getUpgradeCost(state, tile) >= policy.reserveCash && (tile.level < 2 || !state.balance.upgrade.level3RequiresCompleteGroup || sectorProjectCount(state, playerId, tile.group) >= state.balance.sectorBonuses.flagshipMinProjects));
+        const candidate = state.board.find(tile => tile.type === "property" && [tile.ownerId, tile.partnerId].includes(playerId) && tile.level < 3 && player.cash - getUpgradeCost(state, tile) >= policy.reserveCash);
         if (candidate) return { command: "UPGRADE_PROPERTY", payload: { tileIndex: candidate.index } };
       }
     }
@@ -804,4 +748,4 @@ function getTimeoutCommand(state) {
 
 function stateHash(state) { return crypto.createHash("sha256").update(JSON.stringify(state)).digest("hex"); }
 
-module.exports = { CURRENT_RULESET_VERSION, DEFAULT_BALANCE, BOARD, CITY_EVENTS, ITEM_CARDS, createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, getRent, getUpgradeCost, hasCompleteGroup, sectorProjectCount, sectorTier, cityScore, rankings, stateHash };
+module.exports = { CURRENT_RULESET_VERSION, DEFAULT_BALANCE, BOARD, CITY_EVENTS, ITEM_CARDS, createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, getRent, getUpgradeCost, cityScore, rankings, stateHash };

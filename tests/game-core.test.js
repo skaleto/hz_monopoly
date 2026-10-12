@@ -3,7 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { CURRENT_RULESET_VERSION, BOARD, CITY_EVENTS, ITEM_CARDS, createGame, migrateGameState, applyCommand, getBotCommand, getTimeoutCommand, getRent, getUpgradeCost, cityScore, stateHash } = require("../game-core");
-const { fiveSectorsOfFive } = require("../sims/profiles");
+const { expandedBoard } = require("../sims/profiles");
 
 const players = [
   { id: "u1", nickname: "桃桃", kind: "human" },
@@ -18,7 +18,7 @@ test("only supports 2 to 4 total seats", () => {
 });
 
 test("new games stamp the single current ruleset version", () => {
-  assert.equal(CURRENT_RULESET_VERSION, "hangzhou-v4-sector-board");
+  assert.equal(CURRENT_RULESET_VERSION, "hangzhou-v5-streamlined-board");
   assert.equal(createGame(players).rulesetVersion, CURRENT_RULESET_VERSION);
 });
 
@@ -42,8 +42,7 @@ test("balance profiles are explicit while the default M1 behavior stays unchange
   const candidate = createGame(players.slice(0, 2), { balance: {
     startingCashByTurn: [1400, 1500, 1600, 1700],
     rentMultiplierByLevel: [0, 1, 2, 4],
-    completeGroupRentMultiplier: 1,
-    upgrade: { costMode: "ratio", ratioByCurrentLevel: { 1: 0.5, 2: 0.8 }, level3RequiresCompleteGroup: true }
+    upgrade: { costMode: "ratio", ratioByCurrentLevel: { 1: 0.5, 2: 0.8 } }
   } });
   assert.deepEqual(candidate.players.map(player => player.cash), [1400, 1500]);
   candidate.board[1].ownerId = "u1";
@@ -52,60 +51,30 @@ test("balance profiles are explicit while the default M1 behavior stays unchange
   assert.equal(getUpgradeCost(candidate, candidate.board[1]), 96);
 });
 
-test("candidate balance can require a complete group before level three", () => {
-  let game = createGame(players.slice(0, 2), { balance: {
-    upgrade: { costMode: "ratio", ratioByCurrentLevel: { 1: 0.5, 2: 0.8 }, level3RequiresCompleteGroup: true }
-  } });
-  const groupTiles = game.board.filter(tile => tile.type === "property" && tile.group === "钱塘");
-  assert.equal(groupTiles.length, 2);
-  groupTiles[0].ownerId = "u1";
-  groupTiles[0].level = 2;
-  game.players[0].properties.push(groupTiles[0].index);
-  assert.throws(() => applyCommand(game, "u1", "UPGRADE_PROPERTY", { tileIndex: groupTiles[0].index }), /COMPLETE_GROUP_REQUIRED/);
-  groupTiles[1].ownerId = "u1";
-  game.players[0].properties.push(groupTiles[1].index);
-  game.players[0].cash = 1000;
-  const upgraded = applyCommand(game, "u1", "UPGRADE_PROPERTY", { tileIndex: groupTiles[0].index });
-  assert.equal(upgraded.state.board[groupTiles[0].index].level, 3);
-});
-
-test("sector bonuses unlock by project count without requiring the whole sector", () => {
-  let game = createGame(players.slice(0, 2), {
-    board: fiveSectorsOfFive(),
+test("project categories are descriptive and do not gate rent, score or level-three construction", () => {
+  const game = createGame(players.slice(0, 2), {
+    board: expandedBoard(),
     balance: {
-      completeGroupRentMultiplier: 1,
-      sectorBonuses: { enabled: true, rentMinProjects: 2, rentMultiplier: 1.15, flagshipMinProjects: 3, scoreMinProjects: 4, scoreBonus: 3 },
+      sectorBonuses: { enabled: true, rentMinProjects: 1, rentMultiplier: 9, flagshipMinProjects: 5, scoreMinProjects: 1, scoreBonus: 99 },
+      completeGroupRentMultiplier: 9,
+      completeGroupScore: 99,
       upgrade: { costMode: "ratio", ratioByCurrentLevel: { 1: 0.5, 2: 0.8 }, level3RequiresCompleteGroup: true }
     }
   });
-  const sector = game.board.filter(tile => tile.type === "property" && tile.group === "文旅消费");
-  assert.equal(sector.length, 5);
-  sector[0].ownerId = "u1";
-  sector[1].partnerId = "u1";
-  assert.equal(getRent(game, sector[0]), Math.round(sector[0].rent * 1.15));
-  sector[0].level = 2;
-  assert.throws(() => applyCommand(game, "u1", "UPGRADE_PROPERTY", { tileIndex: sector[0].index }), /COMPLETE_GROUP_REQUIRED/);
-  sector[2].ownerId = "u1";
+  const categorized = game.board.filter(tile => tile.type === "property" && tile.group === "文旅消费");
+  categorized[0].ownerId = "u1";
+  categorized[0].level = 2;
+  game.players[0].properties.push(categorized[0].index);
   game.players[0].cash = 1000;
-  const upgraded = applyCommand(game, "u1", "UPGRADE_PROPERTY", { tileIndex: sector[0].index });
-  assert.equal(upgraded.state.board[sector[0].index].level, 3);
-});
-
-test("sector unlock events state the concrete benefit", () => {
-  const game = createGame(players.slice(0, 2), {
-    board: fiveSectorsOfFive(),
-    balance: { sectorBonuses: { enabled: true, rentMinProjects: 2, rentMultiplier: 1.1, flagshipMinProjects: 3, scoreMinProjects: 4, scoreBonus: 3 } }
-  });
-  const sector = game.board.filter(tile => tile.type === "property" && tile.group === "文旅消费");
-  sector[0].ownerId = "u1";
-  sector[0].level = 1;
-  game.players[0].properties.push(sector[0].index);
-  game.phase = "decision";
-  game.pending = { type: "property", actorId: "u1", tileIndex: sector[1].index };
-  const result = applyCommand(game, "u1", "BUY_PROPERTY");
-  const unlocked = result.events.find(event => event.type === "SECTOR_TIER_UNLOCKED");
-  assert.equal(unlocked.payload.benefit, "本板块到访分红 +10%");
-  assert.match(unlocked.payload.text, /文旅消费达到 2\/5：本板块到访分红 \+10%/);
+  assert.equal(game.balance.sectorBonuses, undefined);
+  assert.equal(game.balance.completeGroupRentMultiplier, undefined);
+  assert.equal(game.balance.upgrade.level3RequiresCompleteGroup, undefined);
+  assert.equal(getRent(game, categorized[0]), Math.round(categorized[0].rent * game.balance.rentMultiplierByLevel[2]));
+  const beforeScore = cityScore(game, game.players[0]);
+  const upgraded = applyCommand(game, "u1", "UPGRADE_PROPERTY", { tileIndex: categorized[0].index });
+  assert.equal(upgraded.state.board[categorized[0].index].level, 3);
+  assert.equal(upgraded.events.some(event => event.type === "SECTOR_TIER_UNLOCKED"), false);
+  assert.equal(cityScore(upgraded.state, upgraded.state.players[0]), beforeScore + 1);
 });
 
 test("server decides dice and rejects non-current player", () => {
@@ -156,7 +125,7 @@ test("daily events state their exact cash and influence changes", () => {
 });
 
 test("current board unifies daily and opportunity nodes into one city event deck", () => {
-  const board = fiveSectorsOfFive();
+  const board = expandedBoard();
   assert.equal(board.filter(tile => tile.type === "event").length, 9);
   assert.equal(board.filter(tile => ["daily", "opportunity"].includes(tile.type)).length, 0);
   assert.equal(CITY_EVENTS.length, 12);
@@ -164,14 +133,14 @@ test("current board unifies daily and opportunity nodes into one city event deck
 });
 
 test("city events support meaningful loss, global impact and a risk choice", () => {
-  let game = createGame(players.slice(0, 2), { board: fiveSectorsOfFive() });
+  let game = createGame(players.slice(0, 2), { board: expandedBoard() });
   game.players[0].position = 3;
   const before = game.players[0].cash;
   let result = applyCommand(game, "u1", "ROLL_DICE", {}, { nowMs: 1, forcedDice: 1, forcedCityEventId: "rain_repair" });
   assert.equal(result.state.players[0].cash, before - 180);
   assert.match(result.events.find(event => event.type === "CITY_EVENT_RESOLVED").payload.text, /梅雨抢修/);
 
-  game = createGame(players.slice(0, 2), { board: fiveSectorsOfFive() });
+  game = createGame(players.slice(0, 2), { board: expandedBoard() });
   game.players[0].position = 3;
   result = applyCommand(game, "u1", "ROLL_DICE", {}, { nowMs: 1, forcedDice: 1, forcedCityEventId: "venture_window" });
   assert.equal(result.state.pending.type, "city_event");
@@ -181,7 +150,7 @@ test("city events support meaningful loss, global impact and a risk choice", () 
 });
 
 test("project review requires an even roll to leave and then moves by that roll", () => {
-  let game = createGame(players.slice(0, 2), { board: fiveSectorsOfFive() });
+  let game = createGame(players.slice(0, 2), { board: expandedBoard() });
   const reviewIndex = game.board.findIndex(tile => tile.type === "review");
   const beforeReview = game.board.findIndex(tile => tile.next?.some(next => (typeof next === "object" ? next.to : next) === reviewIndex));
   game.players[0].position = beforeReview;

@@ -8,6 +8,8 @@
 - 里程碑证据：[docs/MILESTONE-3-v0.7.3.md](docs/MILESTONE-3-v0.7.3.md)
 - 当前体验合同：[docs/requirements/gameplay-experience-v1.md](docs/requirements/gameplay-experience-v1.md)
 
+> 隔离候选：2026-10-12 用户要求移除板块功能并简化移动端对局面；当前实现与验收合同见 [mobile-game-surface-simplification-v1.md](docs/requirements/mobile-game-surface-simplification-v1.md)，尚未合入或发布。
+
 ## 当前能力
 
 - 手机号验证码与昵称登录，HttpOnly 会话 Cookie；
