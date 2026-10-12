@@ -141,10 +141,12 @@ async function main() {
       const parts = [tile.querySelector(".tile-icon"), tile.querySelector(".tile-name"), tile.querySelector(".tile-price")].map(node => node.getBoundingClientRect());
       return parts.every((rect, index) => index === 0 || rect.top >= parts[index - 1].bottom - 0.5);
     })), true, "project icon, name and price must use separate rows");
-    assert.deepEqual(await b.locator(".board-tile.has-price").evaluateAll(tiles => {
+
+    const truncatedNames = await b.evaluate(() => [...document.querySelectorAll(".board-tile .tile-name")].filter(n => n.scrollHeight > n.clientHeight + 1 || n.scrollWidth > n.clientWidth + 1).map(n => n.textContent));
+    assert.deepEqual(truncatedNames, [], `tile names truncated: ${truncatedNames.join(",")}`);    assert.deepEqual(await b.locator(".board-tile.has-price").evaluateAll(tiles => {
       const pairs=tiles.map(tile=>[tile.querySelector(".tile-name"),tile.querySelector(".tile-price")].map(node=>{const style=getComputedStyle(node);return`${style.fontSize}/${style.fontWeight}`}));
       return {nameStyles:[...new Set(pairs.map(pair=>pair[0]))],priceStyles:[...new Set(pairs.map(pair=>pair[1]))],sameLevel:pairs.every(pair=>pair[0]===pair[1])};
-    }), { nameStyles:["6px/950"],priceStyles:["6px/950"],sameLevel:true });
+    }), { nameStyles:["5px/950"],priceStyles:["5px/950"],sameLevel:true });
     assert.equal(await b.locator(".board-tile").evaluateAll(tiles => tiles.every(tile => { const rect=tile.getBoundingClientRect(); return Math.abs(rect.width-rect.height)<=0.5; })), true, "all board nodes must be square");
     const persistentLayoutCollisions = await b.evaluate(() => {
       const intersects = (a,b) => Math.min(a.right,b.right) > Math.max(a.left,b.left) && Math.min(a.bottom,b.bottom) > Math.max(a.top,b.top);

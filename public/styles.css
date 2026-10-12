@@ -285,3 +285,8 @@ button,.player-copy strong,.player-metrics b,.tile-name,.tile-price,.turn-summar
 
 /* 底部类型色条移除：外层与内层一致白底，类型由底色微调与支线描边表达 */
 .board-shell .board-tile { box-shadow:0 2px 0 var(--ink); }
+
+/* 名称两行显示（v0.7.3）：中文按字换行，49 名零截断；省略号仅极端兜底 */
+.board-shell .tile-name { font-size:5px; font-weight:950; line-height:1.2; white-space:normal; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; padding:0 2px; }
+.board-shell .tile-price { font-size:5px; font-weight:950; line-height:1; padding:0 2px; }
+.board-shell .has-price .tile-icon { width:13px; height:13px; }
