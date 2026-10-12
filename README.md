@@ -1,11 +1,11 @@
 # 杭城合伙局
 
-当前稳定里程碑：**M3 / v0.7.1（已发布）**
+当前稳定里程碑：**M3 / v0.7.3（已发布）**
 
 - 公网入口：<https://skbaby.top/hangzhou-partners/>
-- 生产 release：`/opt/hangzhou-partners/releases/v0.7.1-20261011T143844Z`
+- 生产 release：`/opt/hangzhou-partners/releases/v0.7.3-20261012T031241Z`
 - 形态：H5 熟人私密房，2–4 个席位，可补 Bot
-- 里程碑证据：[docs/MILESTONE-3-v0.7.1-hotfix.md](docs/MILESTONE-3-v0.7.1-hotfix.md)
+- 里程碑证据：[docs/MILESTONE-3-v0.7.3.md](docs/MILESTONE-3-v0.7.3.md)
 - 当前体验合同：[docs/requirements/gameplay-experience-v1.md](docs/requirements/gameplay-experience-v1.md)
 
 ## 当前能力
