@@ -112,7 +112,13 @@ async function main() {
     assert.equal(await a.locator(".game-bottom,.event-preview").count(), 0);
     assert.deepEqual(await a.locator(".board-toolbar-actions > button").evaluateAll(buttons => buttons.map(button => button.id)), ["inventoryButton","upgradeButton","openLogButton"]);
     assert.equal(await a.locator("#rollButton").evaluate(button => button.parentElement.classList.contains("board-shell")), true);
-    assert.equal(await a.locator("#rollButton .roll-die-face i").count(), 5);
+    await a.waitForFunction(() => (window.__diceReadyTrace || []).length > 0);
+    assert.equal(await a.locator("#rollButton .roll-die-face").count(), 0);
+    assert.equal(await a.locator("#diceCanvas").count(), 1);
+    assert.equal(await a.locator("#diceStage").isVisible(), true);
+    assert.equal(await a.locator("#diceStage").evaluate(stage => stage.classList.contains("ready")), true);
+    assert.equal((await a.evaluate(() => window.__diceReadyTrace.at(-1))).canvasId,"diceCanvas");
+    await a.locator("#diceCanvas").evaluate(canvas => { canvas.dataset.rollContinuity="shared"; });
     assert.equal(await a.locator("#rollButton").isVisible(), true);
     assert.equal(await b.locator("#rollButton").isHidden(), true);
     assert.equal(await a.locator("#rollButton").evaluate(button=>{const die=button.getBoundingClientRect(),board=document.querySelector(".board-shell").getBoundingClientRect();return Math.abs((die.left+die.width/2)-(board.left+board.width/2))<2&&Math.abs((die.top+die.height/2)-(board.top+board.height/2))<2}),true);
@@ -285,6 +291,8 @@ async function main() {
     await a.locator("#rollButton").click();
     assert.equal(await a.locator("#rollButton").isHidden(), true);
     await a.locator("#diceStage").waitFor({ state: "visible" });
+    await a.waitForFunction(() => !document.querySelector("#diceStage").classList.contains("ready"));
+    assert.equal(await a.locator("#diceCanvas").getAttribute("data-roll-continuity"),"shared");
     const diceVisual = await a.locator("#diceStage").evaluate(stage => ({ border: getComputedStyle(stage).borderTopWidth, background: getComputedStyle(stage).backgroundColor }));
     assert.equal(diceVisual.border, "0px");
     assert.equal(diceVisual.background, "rgba(0, 0, 0, 0)");
