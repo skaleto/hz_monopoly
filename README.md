@@ -1,21 +1,19 @@
 # 杭城合伙局
 
-当前稳定里程碑：**M3 / v0.7.3（已发布）**
+当前稳定里程碑：**M4 / v0.8.0（已发布）**
 
 - 公网入口：<https://skbaby.top/hangzhou-partners/>
-- 生产 release：`/opt/hangzhou-partners/releases/v0.7.3-20261012T031241Z`
+- 生产 release：`/opt/hangzhou-partners/releases/v0.8.0-20261013T075801Z`
 - 形态：H5 熟人私密房，2–4 个席位，可补 Bot
-- 里程碑证据：[docs/MILESTONE-3-v0.7.3.md](docs/MILESTONE-3-v0.7.3.md)
-- 当前体验合同：[docs/requirements/gameplay-experience-v1.md](docs/requirements/gameplay-experience-v1.md)
-
-> 隔离候选：2026-10-12 用户要求移除板块功能并简化移动端对局面；当前实现与验收合同见 [mobile-game-surface-simplification-v1.md](docs/requirements/mobile-game-surface-simplification-v1.md)，尚未合入或发布。
+- 里程碑证据：[docs/MILESTONE-4-v0.8.0.md](docs/MILESTONE-4-v0.8.0.md)
+- 当前体验合同：[docs/requirements/mobile-game-surface-simplification-v1.md](docs/requirements/mobile-game-surface-simplification-v1.md)
 
 ## 当前能力
 
 - 手机号验证码与昵称登录，HttpOnly 会话 Cookie；
 - 创建/加入 6 位房间，真人准备，房主补 Bot 并开局；
 - 服务端权威骰子、移动、岔路、投资、合伙、分红、建设、城市事件和道具；
-- 49 个节点、25 个可投资项目、五个产业板块与两条连续岔路；
+- 49 个节点、25 个可投资项目、仅作说明的项目类别与两条连续岔路；
 - 房主可结束本局并即时结算；
 - WebSocket 快照/事件同步、刷新重连和断线宽限；
 - 旧 v1.2 快照迁移，房间快照与事件原子提交，seq/version 单调保护；

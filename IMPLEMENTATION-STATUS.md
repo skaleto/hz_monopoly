@@ -1,15 +1,16 @@
-# M3 / v0.7.3 实现状态
+# M4 / v0.8.0 实现状态
 
 ## 结论
 
-v0.7.3 延续 v0.7.1 的固定比例棋盘，清除两处支线文字残留遮挡、移除外层格底部色条，并让 49 个节点名称最多两行完整显示；于 2026-10-12 经用户验收和授权发布。v0.7.2 未进入生产。
+v0.8.0 移除板块进度与数值奖励，精简移动端对局面，并让棋盘中央的同一 WebGL 骰子承担待点击与投掷动画；于 2026-10-13 经用户双尺寸截图验收和明确授权发布并保留。
 
-- 规则版本：hangzhou-v4-sector-board（旧房间过期，提示新建）
-- 里程碑证据：docs/MILESTONE-3-v0.7.3.md
-- 线上 release：`/opt/hangzhou-partners/releases/v0.7.3-20261012T031241Z`
-- 线上状态：页面/health 200；创建、开局、掷骰、移动、回合推进与结束烟测通过；`PRAGMA quick_check=ok`
-- 375×667 / DPR3：scale 0.6319、棋盘比例 0.7165、49 个名称零截断、28/30 字形遮挡像素为 0、AABB >8% 为 0
-- 回滚点：`/opt/hangzhou-partners/releases/v0.7.1-20261011T143844Z`
+- 规则版本：hangzhou-v5-streamlined-board（旧规则房间过期，提示新建）
+- 里程碑证据：docs/MILESTONE-4-v0.8.0.md
+- 源码提交：`72fb273e3bfe65d2c94fa8ecfd72f9963d1f1418`
+- 线上 release：`/opt/hangzhou-partners/releases/v0.8.0-20261013T075801Z`
+- 线上状态：页面及内外 health 200；创建、进入、开局、投掷、移动、回合推进与结束烟测通过；`PRAGMA quick_check=ok`
+- 发布烟测房：`806025`，round 1→2、game version 2→6，最终 `finished`
+- 回滚点：`/opt/hangzhou-partners/releases/v0.7.3-20261012T031241Z`
 
 ---
 
