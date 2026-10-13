@@ -118,7 +118,7 @@ async function main() {
     assert.equal(await a.locator("#diceStage").isVisible(), true);
     assert.equal(await a.locator("#diceStage").evaluate(stage => stage.classList.contains("ready")), true);
     assert.equal((await a.evaluate(() => window.__diceReadyTrace.at(-1))).canvasId,"diceCanvas");
-    assert.deepEqual(await a.locator(".roll-button-label").evaluate(label=>{const style=getComputedStyle(label);return{background:style.backgroundColor,border:style.borderTopWidth,text:label.textContent,pointerEvents:style.pointerEvents,insideButton:Boolean(label.closest("button"))}}),{background:"rgba(255, 249, 239, 0.94)",border:"1px",text:"点击骰子",pointerEvents:"none",insideButton:false});
+    assert.deepEqual(await a.locator(".roll-button-label").evaluate(label=>{const style=getComputedStyle(label);return{tag:label.tagName,background:style.backgroundColor,border:style.borderTopWidth,text:label.textContent,pointerEvents:style.pointerEvents}}),{tag:"BUTTON",background:"rgba(255, 249, 239, 0.94)",border:"1px",text:"点击投掷",pointerEvents:"auto"});
     assert.deepEqual(await a.locator("#rollButton").evaluate(button=>{const style=getComputedStyle(button),rect=button.getBoundingClientRect();return{background:style.backgroundColor,border:style.borderTopWidth,text:button.textContent.trim(),aria:button.getAttribute("aria-label"),width:rect.width,height:rect.height}}),{background:"rgba(0, 0, 0, 0)",border:"0px",text:"",aria:"点击骰子掷骰",width:112,height:112});
     await a.locator("#diceCanvas").evaluate(canvas => { canvas.dataset.rollContinuity="shared"; });
     assert.equal(await a.locator("#rollButton").isVisible(), true);
@@ -290,9 +290,9 @@ async function main() {
 
     await a.bringToFront();
     await a.evaluate(() => { window.__diceTrace = []; });
-    await a.locator("#rollButton").click();
+    await a.locator("#rollPromptButton").click();
     assert.equal(await a.locator("#rollButton").isHidden(), true);
-    assert.equal(await a.locator("#rollPromptLabel").isHidden(), true);
+    assert.equal(await a.locator("#rollPromptButton").isHidden(), true);
     await a.locator("#diceStage").waitFor({ state: "visible" });
     await a.waitForFunction(() => !document.querySelector("#diceStage").classList.contains("ready"));
     assert.equal(await a.locator("#diceCanvas").getAttribute("data-roll-continuity"),"shared");

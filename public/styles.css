@@ -294,7 +294,7 @@ button,.player-copy strong,.player-metrics b,.tile-name,.tile-price,.turn-summar
 #inventoryButton { padding:0 19px 0 7px; }
 #inventoryButton .item-count { right:3px; min-width:14px; height:14px; border-width:1px; font-size:7px; }
 .board-roll-button:not([hidden]) { position:absolute; z-index:40; left:50%; top:50%; width:120px; height:120px; display:block; padding:0; transform:translate(-50%,-50%); border:0; background:transparent; box-shadow:none; }
-.roll-button-label { position:absolute; z-index:40; left:50%; top:calc(50% + 68px); transform:translateX(-50%); padding:5px 10px; border:1px solid var(--ink); border-radius:999px; background:rgba(255,249,239,.94); box-shadow:0 2px 0 var(--ink); color:var(--ink); font-size:12px; font-weight:950; white-space:nowrap; pointer-events:none; backdrop-filter:blur(6px); }
+.roll-button-label { position:absolute; z-index:40; left:50%; top:calc(50% + 68px); min-height:28px; transform:translateX(-50%); padding:4px 10px; border:1px solid var(--ink); border-radius:999px; background:rgba(255,249,239,.94); box-shadow:0 2px 0 var(--ink); color:var(--ink); font-size:12px; font-weight:950; white-space:nowrap; backdrop-filter:blur(6px); }
 .roll-button-label[hidden] { display:none; }
 
 @media(max-width:700px){
