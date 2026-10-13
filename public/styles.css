@@ -297,14 +297,17 @@ button,.player-copy strong,.player-metrics b,.tile-name,.tile-price,.turn-summar
 .roll-button-label { position:absolute; z-index:40; left:50%; top:calc(50% + 68px); min-height:28px; transform:translateX(-50%); padding:4px 10px; border:1px solid var(--ink); border-radius:999px; background:rgba(255,249,239,.94); box-shadow:0 2px 0 var(--ink); color:var(--ink); font-size:12px; font-weight:950; white-space:nowrap; backdrop-filter:blur(6px); }
 .roll-button-label[hidden] { display:none; }
 
-/* M4 visual hierarchy: top controls and the personal status row are quiet rectangles, not pills. */
-.game-active .game-corner-button,.game-active .sound-toggle,.game-active .connection,.game-active .game-header-button { min-height:28px; padding:0 8px; border:1px solid rgba(23,48,79,.52); border-radius:5px; background:rgba(255,249,239,.82); box-shadow:none; font-size:9px; font-weight:800; backdrop-filter:blur(6px); }
+/* M4 视觉层级：对局页控件 = 安静的游戏框——软矩形、细墨线、轻硬影；与棋盘同语言、低一级音量 */
+.game-active .game-corner-button,.game-active .sound-toggle,.game-active .connection,.game-active .game-header-button { min-height:28px; padding:0 10px; border:1px solid rgba(23,48,79,.6); border-radius:10px; background:rgba(255,249,239,.92); box-shadow:0 2px 0 rgba(23,48,79,.18); font-size:9px; font-weight:800; backdrop-filter:blur(6px); }
 .game-active .connection { display:flex; align-items:center; }
-.game-active .connection.online { background:rgba(201,243,223,.82); }.game-active .connection.offline { background:rgba(255,225,223,.82); }
-.game-active .game-corner-button.danger { background:rgba(255,225,223,.84); color:#8c312d; }
+.game-active .connection.online { background:rgba(201,243,223,.92); }.game-active .connection.offline { background:rgba(255,225,223,.92); }
+.game-active .game-corner-button.danger { background:rgba(255,225,223,.92); color:#8c312d; }
+.game-active .game-corner-button:active,.game-active .sound-toggle:active,.game-active .game-header-button:active { transform:translateY(1px); box-shadow:0 1px 0 rgba(23,48,79,.18); }
 .game-header-button[hidden] { display:none; }
-.board-toolbar { min-height:32px; padding:3px 4px 3px 7px; border:1px solid rgba(23,48,79,.34); border-radius:4px; background:rgba(255,249,239,.76); box-shadow:none; }
-.board-tool-button { min-height:26px; border:0; border-radius:4px; background:rgba(23,48,79,.07); box-shadow:none; font-weight:800; }
+.board-toolbar { min-height:34px; padding:4px 6px 4px 9px; border:1px solid rgba(23,48,79,.4); border-radius:10px; background:rgba(255,249,239,.86); box-shadow:0 2px 0 rgba(23,48,79,.12); }
+.board-tool-button { min-height:26px; border:1px solid rgba(23,48,79,.3); border-radius:8px; background:rgba(23,48,79,.07); box-shadow:none; font-weight:800; }
+.board-tool-button:active { transform:translateY(1px); background:rgba(23,48,79,.12); }
+.game-active .player-chip { border-width:1.5px; border-radius:10px; box-shadow:0 2px 0 rgba(23,48,79,.15); }
 .board-tool-button:focus-visible,.game-header-button:focus-visible,.game-corner-button:focus-visible,.sound-toggle:focus-visible { outline:2px solid var(--water); outline-offset:1px; }
 
 @media(max-width:700px){

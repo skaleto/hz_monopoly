@@ -117,7 +117,11 @@ async function main() {
       const styleSummary=selector=>{const node=document.querySelector(selector),style=getComputedStyle(node);return{radius:parseFloat(style.borderRadius),shadow:style.boxShadow,border:parseFloat(style.borderTopWidth)}};
       return {home:styleSummary("#gameHomeButton"),sound:styleSummary("#soundToggle"),log:styleSummary("#openLogButton"),toolbar:styleSummary(".board-toolbar"),inventory:styleSummary("#inventoryButton"),upgrade:styleSummary("#upgradeButton")};
     });
-    assert.deepEqual(quietControls,{home:{radius:5,shadow:"none",border:1},sound:{radius:5,shadow:"none",border:1},log:{radius:5,shadow:"none",border:1},toolbar:{radius:4,shadow:"none",border:1},inventory:{radius:4,shadow:"none",border:0},upgrade:{radius:4,shadow:"none",border:0}});
+    const box = { home:quietControls.home, sound:quietControls.sound, log:quietControls.log };
+    for (const part of Object.values(box)) { assert.equal(part.radius, 10, `radius ${JSON.stringify(part)}`); assert.equal(part.border, 1, `border ${JSON.stringify(part)}`); assert.notEqual(part.shadow, "none", `shadow ${JSON.stringify(part)}`); }
+    assert.equal(quietControls.toolbar.radius, 10); assert.equal(quietControls.toolbar.border, 1);
+    assert.equal(quietControls.inventory.radius, 8); assert.equal(quietControls.inventory.border, 1);
+    assert.equal(quietControls.upgrade.radius, 8);
     assert.equal(await a.locator("#rollButton").evaluate(button => button.parentElement.classList.contains("board-shell")), true);
     await a.waitForFunction(() => (window.__diceReadyTrace || []).length > 0);
     assert.equal(await a.locator("#rollButton .roll-die-face").count(), 0);
