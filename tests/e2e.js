@@ -118,6 +118,7 @@ async function main() {
     assert.equal(await a.locator("#diceStage").isVisible(), true);
     assert.equal(await a.locator("#diceStage").evaluate(stage => stage.classList.contains("ready")), true);
     assert.equal((await a.evaluate(() => window.__diceReadyTrace.at(-1))).canvasId,"diceCanvas");
+    assert.deepEqual(await a.locator(".roll-button-label").evaluate(label=>{const style=getComputedStyle(label);return{background:style.backgroundColor,border:style.borderTopWidth,text:label.textContent}}),{background:"rgba(255, 249, 239, 0.94)",border:"1px",text:"点击掷骰"});
     await a.locator("#diceCanvas").evaluate(canvas => { canvas.dataset.rollContinuity="shared"; });
     assert.equal(await a.locator("#rollButton").isVisible(), true);
     assert.equal(await b.locator("#rollButton").isHidden(), true);
