@@ -297,7 +297,17 @@ button,.player-copy strong,.player-metrics b,.tile-name,.tile-price,.turn-summar
 .roll-button-label { position:absolute; z-index:40; left:50%; top:calc(50% + 68px); min-height:28px; transform:translateX(-50%); padding:4px 10px; border:1px solid var(--ink); border-radius:999px; background:rgba(255,249,239,.94); box-shadow:0 2px 0 var(--ink); color:var(--ink); font-size:12px; font-weight:950; white-space:nowrap; backdrop-filter:blur(6px); }
 .roll-button-label[hidden] { display:none; }
 
+/* M4 visual hierarchy: top controls and the personal status row are quiet rectangles, not pills. */
+.game-active .game-corner-button,.game-active .sound-toggle,.game-active .connection,.game-active .game-header-button { min-height:28px; padding:0 8px; border:1px solid rgba(23,48,79,.52); border-radius:5px; background:rgba(255,249,239,.82); box-shadow:none; font-size:9px; font-weight:800; backdrop-filter:blur(6px); }
+.game-active .connection { display:flex; align-items:center; }
+.game-active .connection.online { background:rgba(201,243,223,.82); }.game-active .connection.offline { background:rgba(255,225,223,.82); }
+.game-active .game-corner-button.danger { background:rgba(255,225,223,.84); color:#8c312d; }
+.game-header-button[hidden] { display:none; }
+.board-toolbar { min-height:32px; padding:3px 4px 3px 7px; border:1px solid rgba(23,48,79,.34); border-radius:4px; background:rgba(255,249,239,.76); box-shadow:none; }
+.board-tool-button { min-height:26px; border:0; border-radius:4px; background:rgba(23,48,79,.07); box-shadow:none; font-weight:800; }
+.board-tool-button:focus-visible,.game-header-button:focus-visible,.game-corner-button:focus-visible,.sound-toggle:focus-visible { outline:2px solid var(--water); outline-offset:1px; }
+
 @media(max-width:700px){
-  .board-toolbar{grid-template-columns:minmax(72px,1fr) minmax(0,.8fr) auto;gap:3px;padding:2px 3px 2px 6px}.board-toolbar-actions{gap:3px}.board-tool-button{min-width:40px;min-height:27px;padding:0 6px;font-size:8px}#inventoryButton{padding:0 17px 0 5px}
+  .board-toolbar{grid-template-columns:minmax(72px,1fr) minmax(0,.8fr) auto;gap:3px;padding:2px 3px 2px 6px}.board-toolbar-actions{gap:3px}.board-tool-button{min-width:40px;min-height:25px;padding:0 6px;font-size:8px}#inventoryButton{padding:0 17px 0 5px}
   .board-roll-button:not([hidden]){width:112px;height:112px}.roll-button-label{top:calc(50% + 63px);padding:4px 9px;font-size:11px}
 }

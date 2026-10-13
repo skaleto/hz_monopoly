@@ -110,7 +110,14 @@ async function main() {
     assert.equal(await a.locator("#sectorProgress,#sectorGuide,#sectorGuideToggle").count(), 0);
     assert.equal(await a.locator("#gameHomeButton").evaluate(button => button.parentElement.classList.contains("game-top-actions")), true);
     assert.equal(await a.locator(".game-bottom,.event-preview").count(), 0);
-    assert.deepEqual(await a.locator(".board-toolbar-actions > button").evaluateAll(buttons => buttons.map(button => button.id)), ["inventoryButton","upgradeButton","openLogButton"]);
+    assert.deepEqual(await a.locator(".board-toolbar-actions > button").evaluateAll(buttons => buttons.map(button => button.id)), ["inventoryButton","upgradeButton"]);
+    assert.equal(await a.locator("#openLogButton").evaluate(button => button.parentElement.classList.contains("header-status")), true);
+    assert.equal(await a.locator("#openLogButton").isVisible(), true);
+    const quietControls = await a.evaluate(() => {
+      const styleSummary=selector=>{const node=document.querySelector(selector),style=getComputedStyle(node);return{radius:parseFloat(style.borderRadius),shadow:style.boxShadow,border:parseFloat(style.borderTopWidth)}};
+      return {home:styleSummary("#gameHomeButton"),sound:styleSummary("#soundToggle"),log:styleSummary("#openLogButton"),toolbar:styleSummary(".board-toolbar"),inventory:styleSummary("#inventoryButton"),upgrade:styleSummary("#upgradeButton")};
+    });
+    assert.deepEqual(quietControls,{home:{radius:5,shadow:"none",border:1},sound:{radius:5,shadow:"none",border:1},log:{radius:5,shadow:"none",border:1},toolbar:{radius:4,shadow:"none",border:1},inventory:{radius:4,shadow:"none",border:0},upgrade:{radius:4,shadow:"none",border:0}});
     assert.equal(await a.locator("#rollButton").evaluate(button => button.parentElement.classList.contains("board-shell")), true);
     await a.waitForFunction(() => (window.__diceReadyTrace || []).length > 0);
     assert.equal(await a.locator("#rollButton .roll-die-face").count(), 0);
