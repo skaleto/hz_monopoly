@@ -90,12 +90,24 @@ async function main() {
     assert.equal(await a.locator("#turnOrderBanner button").count(), 0);
     await a.locator("#turnOrderBanner").waitFor({ state: "hidden", timeout: 3000 });
     await b.locator("#turnOrderBanner").waitFor({ state: "hidden", timeout: 3000 });
+    assert.equal(await a.locator("#musicToggle").textContent(), "音乐开");
+    await a.waitForFunction(() => (window.__musicTrace || []).some(item => item.type === "step"));
+    assert.equal(await a.evaluate(() => window.__soundController.isMusicPlaying()), true);
     assert.equal(await a.locator("#soundToggle").textContent(), "音效开");
     await a.locator("#soundToggle").click();
     assert.equal(await a.locator("#soundToggle").textContent(), "音效关");
     assert.equal(await a.evaluate(() => localStorage.getItem("hc_sound_enabled")), "0");
+    assert.equal(await a.evaluate(() => window.__soundController.isMusicPlaying()), true, "music must stay on when effects are off");
+    await a.locator("#musicToggle").click();
+    assert.equal(await a.locator("#musicToggle").textContent(), "音乐关");
+    assert.equal(await a.evaluate(() => localStorage.getItem("hc_music_enabled")), "0");
+    assert.equal(await a.evaluate(() => window.__soundController.isMusicPlaying()), false);
     await a.locator("#soundToggle").click();
     assert.equal(await a.locator("#soundToggle").getAttribute("aria-pressed"), "true");
+    assert.equal(await a.evaluate(() => window.__soundController.isMusicPlaying()), false, "effects must not turn music back on");
+    await a.locator("#musicToggle").click();
+    assert.equal(await a.locator("#musicToggle").getAttribute("aria-pressed"), "true");
+    await a.waitForFunction(() => window.__soundController.isMusicPlaying());
     assert.equal(await a.evaluate(() => window.__soundController.suspendForTest()), "suspended");
     await a.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
     await a.locator(".player-chip").first().click();
@@ -115,9 +127,9 @@ async function main() {
     assert.equal(await a.locator("#openLogButton").isVisible(), true);
     const quietControls = await a.evaluate(() => {
       const styleSummary=selector=>{const node=document.querySelector(selector),style=getComputedStyle(node);return{radius:parseFloat(style.borderRadius),shadow:style.boxShadow,border:parseFloat(style.borderTopWidth)}};
-      return {home:styleSummary("#gameHomeButton"),sound:styleSummary("#soundToggle"),log:styleSummary("#openLogButton"),toolbar:styleSummary(".board-toolbar"),inventory:styleSummary("#inventoryButton"),upgrade:styleSummary("#upgradeButton")};
+      return {home:styleSummary("#gameHomeButton"),music:styleSummary("#musicToggle"),sound:styleSummary("#soundToggle"),log:styleSummary("#openLogButton"),toolbar:styleSummary(".board-toolbar"),inventory:styleSummary("#inventoryButton"),upgrade:styleSummary("#upgradeButton")};
     });
-    const box = { home:quietControls.home, sound:quietControls.sound, log:quietControls.log };
+    const box = { home:quietControls.home, music:quietControls.music, sound:quietControls.sound, log:quietControls.log };
     for (const part of Object.values(box)) { assert.equal(part.radius, 10, `radius ${JSON.stringify(part)}`); assert.equal(part.border, 1, `border ${JSON.stringify(part)}`); assert.notEqual(part.shadow, "none", `shadow ${JSON.stringify(part)}`); }
     assert.equal(quietControls.toolbar.radius, 10); assert.equal(quietControls.toolbar.border, 1);
     assert.equal(quietControls.inventory.radius, 8); assert.equal(quietControls.inventory.border, 1);
@@ -347,12 +359,26 @@ async function main() {
     await a.locator("#cardEffectOverlay").waitFor({ state: "visible" });
     assert.equal(await a.locator("#cardEffectKicker").textContent(), "城市事件");
     assert.equal(await a.locator("#cardEffectName").textContent(), "融资窗口");
-    await a.locator("#cardEffectCard").evaluate(node => { const animation=node.getAnimations()[0]; if(animation){animation.currentTime=1200;animation.pause()} });
+    await a.waitForFunction(() => document.querySelector("#cardEffectCard").classList.contains("settled"));
+    const cardMotion = await a.locator("#cardEffectCard").evaluate(node => { const style=getComputedStyle(node),animation=node.getAnimations()[0],frames=animation?.effect?.getKeyframes?.()||[];return{backface:style.backfaceVisibility,duration:animation?.effect?.getTiming?.().duration||0,transforms:frames.map(frame=>String(frame.transform||""))}; });
+    assert.equal(cardMotion.backface, "hidden");
+    assert.ok(Number(cardMotion.duration) <= 850, `card reveal duration ${cardMotion.duration}`);
+    assert.equal(cardMotion.transforms.some(transform => /rotateY\((?:-?1[89]0|360|1080)deg\)/.test(transform)), false, `mirrored card frame ${JSON.stringify(cardMotion.transforms)}`);
+    assert.equal(await a.locator("#cardEffectCash").textContent(), "金币 +60");
+    assert.match(await a.locator("#cardEffectCash").getAttribute("class"), /gain/);
+    assert.ok(await a.locator(".event-cash-coin.gain").count() > 0);
+    assert.ok((await a.evaluate(() => window.__soundTrace)).some(item => item.name === "coin"));
+    assert.deepEqual((await a.evaluate(() => window.__cashFeedbackTrace.at(-1))).changes, [{ playerId: (await a.evaluate(() => window.__renderedPlayerIds[0])), delta: 60 }]);
     await a.screenshot({ path: path.join(screenshotDir, "04b-city-event-reveal.png"), fullPage: true });
-    await a.locator("#cardEffectCard").evaluate(node => node.getAnimations()[0]?.play());
-    await a.locator("#cardEffectOverlay").waitFor({ state: "hidden", timeout: 2500 });
+    await a.locator("#cardEffectOverlay").waitFor({ state: "hidden", timeout: 3000 });
+    const cardTrace = await a.evaluate(() => window.__cardRevealTrace.at(-1));
+    assert.ok(cardTrace.duration >= 3100, `card total duration ${cardTrace.duration}`);
+    assert.ok(cardTrace.stableDuration >= 2300, `card stable duration ${cardTrace.stableDuration}`);
     await a.waitForFunction(() => document.querySelector("#gameToast.visible")?.textContent.includes("融资窗口"));
     assert.ok((await a.evaluate(() => window.__soundTrace)).some(item => item.name === "opportunity"));
+    await a.evaluate(async () => { window.__cashFeedbackTrace=[];window.__soundTrace=[];const playerId=window.__renderedPlayerIds[0];await window.__cashFeedbackForTest([{playerId,delta:-180}]); });
+    assert.equal((await a.evaluate(() => window.__cashFeedbackTrace.at(-1))).kind, "loss");
+    assert.ok((await a.evaluate(() => window.__soundTrace)).some(item => item.name === "coinLoss"));
     assert.equal(await a.locator("#eventModal").count(), 0);
     await b.locator("#rollButton").waitFor({ state: "visible" });
     await b.waitForFunction(() => !document.querySelector("#rollButton").disabled);
@@ -569,15 +595,19 @@ async function main() {
     assert.equal(await a.locator("#eventModal").count(), 0);
     await a.waitForTimeout(700);
     await a.screenshot({ path: path.join(screenshotDir, "14-coin-transfer-mobile.png"), fullPage: true });
+    assert.equal(await a.evaluate(() => window.__soundController.isMusicPlaying()), true);
     await a.locator("#gameHomeButton").click();
     await a.locator("#homeView").waitFor({ state:"visible" });
     const soundCountAfterHome = await a.evaluate(() => window.__soundTrace.length);
+    const musicStepsAfterHome = await a.evaluate(() => window.__musicTrace.filter(item => item.type === "step").length);
+    assert.equal(await a.evaluate(() => window.__soundController.isMusicPlaying()), false);
     await a.waitForTimeout(1600);
     assert.equal(await a.locator(".flying-coin").count(), 0);
     assert.equal(await a.locator("#gameToast.visible").count(), 0);
     assert.equal(await a.locator("#diceStage").isHidden(), true);
     assert.equal(await a.locator("#celebrationOverlay").isHidden(), true);
     assert.equal(await a.evaluate(() => window.__soundTrace.length), soundCountAfterHome, "no queued game sound may play after returning home");
+    assert.equal(await a.evaluate(() => window.__musicTrace.filter(item => item.type === "step").length), musicStepsAfterHome, "background music scheduler must stop after returning home");
 
     if (errors.length) throw new Error(errors.join("\n"));
     console.log(JSON.stringify({
@@ -640,6 +670,9 @@ async function main() {
       upgradeSelector: "own turn only + explicit project/cost/rent",
       ownerEndGame: "owner-only confirmed settlement",
       soundEffects: "dice + step + city event + landmark + transit + review + vote + route + card + coin + partnership + investment",
+      backgroundMusic: "independent toggle + game-only lifecycle + procedural loop",
+      eventCashFeedback: "authoritative cashChanges + gain/loss sound and particles",
+      readableCardReveal: ">=2.3s stable front face, no mirrored keyframe",
       consoleErrors: 0
     }, null, 2));
   } finally {

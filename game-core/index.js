@@ -277,6 +277,7 @@ function grantRandomItem(state, player, random) {
 }
 
 function resolveCityEvent(state, player, cityEvent, events, random, choice = null) {
+  const cashBefore = new Map(state.players.map(item => [item.id, item.cash]));
   let result = cityEvent.copy;
   if (cityEvent.effect === "self") {
     player.cash += cityEvent.cash;
@@ -321,8 +322,9 @@ function resolveCityEvent(state, player, cityEvent, events, random, choice = nul
       result = `稳妥到账，金币 +${venture.safeCash}`;
     }
   }
+  const cashChanges = state.players.map(item => ({ playerId: item.id, delta: item.cash - cashBefore.get(item.id) })).filter(item => item.delta !== 0);
   for (const affected of state.players) restructure(state, affected, events);
-  log(state, events, "CITY_EVENT_RESOLVED", `${player.nickname} 抽到「${cityEvent.name}」：${result}`, { playerId: player.id, cityEvent, choice, result });
+  log(state, events, "CITY_EVENT_RESOLVED", `${player.nickname} 抽到「${cityEvent.name}」：${result}`, { playerId: player.id, cityEvent, choice, result, cashChanges });
 }
 
 function resolveTile(state, player, events, random, nowMs, forcedCityEventId = null) {

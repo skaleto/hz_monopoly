@@ -43,6 +43,11 @@ test("web client references versioned WebP instead of PNG", () => {
   assert.match(js, /kenney-cc0-short/);
   assert.match(js, /visibilitychange/);
   assert.match(js, /sound\.rearm/);
+  assert.match(js, /hc_music_enabled/);
+  assert.match(js, /setGameActive/);
+  assert.match(js, /pauseForVisibility/);
+  assert.match(html, /id="musicToggle"/);
+  assert.match(html, /id="cardEffectCash"/);
   assert.match(js, /context\.state==="closed"/);
   assert.match(html, /id="celebrationOverlay"/);
   assert.ok(fs.statSync(path.join(__dirname, "..", "public", "audio", "dice-shake-short.v2.ogg")).size < 25_000);

@@ -138,7 +138,9 @@ test("city events support meaningful loss, global impact and a risk choice", () 
   const before = game.players[0].cash;
   let result = applyCommand(game, "u1", "ROLL_DICE", {}, { nowMs: 1, forcedDice: 1, forcedCityEventId: "rain_repair" });
   assert.equal(result.state.players[0].cash, before - 180);
-  assert.match(result.events.find(event => event.type === "CITY_EVENT_RESOLVED").payload.text, /梅雨抢修/);
+  const lossEvent = result.events.find(event => event.type === "CITY_EVENT_RESOLVED");
+  assert.match(lossEvent.payload.text, /梅雨抢修/);
+  assert.deepEqual(lossEvent.payload.cashChanges, [{ playerId: "u1", delta: -180 }]);
 
   game = createGame(players.slice(0, 2), { board: expandedBoard() });
   game.players[0].position = 3;
@@ -146,7 +148,12 @@ test("city events support meaningful loss, global impact and a risk choice", () 
   assert.equal(result.state.pending.type, "city_event");
   const resolved = applyCommand(result.state, "u1", "CHOOSE_CITY_EVENT", { choice: "safe" }, { nowMs: 2, random: () => 0 });
   assert.equal(resolved.state.players[0].cash, 1560);
-  assert.ok(resolved.events.some(event => event.type === "CITY_EVENT_RESOLVED"));
+  assert.deepEqual(resolved.events.find(event => event.type === "CITY_EVENT_RESOLVED").payload.cashChanges, [{ playerId: "u1", delta: 60 }]);
+
+  game = createGame(players.slice(0, 2), { board: expandedBoard() });
+  game.players[0].position = 3;
+  result = applyCommand(game, "u1", "ROLL_DICE", {}, { nowMs: 1, forcedDice: 1, forcedCityEventId: "wealth_transfer" });
+  assert.deepEqual(result.events.find(event => event.type === "CITY_EVENT_RESOLVED").payload.cashChanges, [{ playerId: "u1", delta: 120 }, { playerId: "u2", delta: -120 }]);
 });
 
 test("project review requires an even roll to leave and then moves by that roll", () => {
