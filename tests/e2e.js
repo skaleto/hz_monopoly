@@ -139,8 +139,17 @@ async function main() {
     const box = { home:quietControls.home, music:quietControls.music, sound:quietControls.sound, log:quietControls.log };
     for (const part of Object.values(box)) { assert.equal(part.radius, 7, `radius ${JSON.stringify(part)}`); assert.equal(part.border, 1, `border ${JSON.stringify(part)}`); assert.equal(part.shadow, "none", `shadow ${JSON.stringify(part)}`); assert.equal(part.height,28); }
     assert.equal(quietControls.toolbar.radius, 0); assert.equal(quietControls.toolbar.border, 0); assert.equal(quietControls.toolbar.shadow,"none");
-    assert.equal(quietControls.inventory.radius, 7); assert.equal(quietControls.inventory.border, 1);
-    assert.equal(quietControls.upgrade.radius, 7);
+    assert.equal(quietControls.inventory.radius, 4); assert.equal(quietControls.inventory.border, 0); assert.equal(quietControls.inventory.shadow,"none");
+    assert.equal(quietControls.upgrade.radius, 4); assert.equal(quietControls.upgrade.border,0); assert.equal(quietControls.upgrade.shadow,"none");
+    const boardActions = await a.evaluate(() => {
+      const summary=selector=>{const node=document.querySelector(selector),style=getComputedStyle(node),rect=node.getBoundingClientRect();return{tag:node.tagName,text:node.textContent.trim(),width:rect.width,height:rect.height,border:parseFloat(style.borderTopWidth),radius:parseFloat(style.borderRadius),background:style.backgroundColor,shadow:style.boxShadow,position:style.position,transform:style.transform}};
+      return {inventory:summary("#inventoryButton"),upgrade:summary("#upgradeButton"),itemIcon:summary("#inventoryButton .board-tool-icon"),buildIcon:summary("#upgradeButton .board-tool-icon"),count:summary("#itemCount")};
+    });
+    assert.deepEqual({inventory:[boardActions.inventory.border,boardActions.inventory.radius,boardActions.inventory.background,boardActions.inventory.shadow],upgrade:[boardActions.upgrade.border,boardActions.upgrade.radius,boardActions.upgrade.background,boardActions.upgrade.shadow]}, {inventory:[0,4,"rgba(0, 0, 0, 0)","none"],upgrade:[0,4,"rgba(0, 0, 0, 0)","none"]});
+    assert.equal(boardActions.itemIcon.width,18); assert.equal(boardActions.itemIcon.height,18); assert.equal(boardActions.itemIcon.radius,5); assert.equal(boardActions.itemIcon.border,1);
+    assert.equal(boardActions.buildIcon.width,18); assert.equal(boardActions.buildIcon.height,18); assert.equal(boardActions.buildIcon.radius,5); assert.equal(boardActions.buildIcon.border,1);
+    assert.notEqual(boardActions.itemIcon.background,"rgba(0, 0, 0, 0)"); assert.notEqual(boardActions.buildIcon.background,"rgba(0, 0, 0, 0)");
+    assert.equal(boardActions.count.position,"static"); assert.equal(boardActions.count.border,0); assert.equal(boardActions.count.background,"rgba(0, 0, 0, 0)"); assert.equal(boardActions.count.shadow,"none"); assert.match(boardActions.count.text,/^\d+$/);
     assert.equal(quietControls.connection.width,8);
     assert.equal(quietControls.connection.height,8);
     const hierarchy = await a.evaluate(() => {

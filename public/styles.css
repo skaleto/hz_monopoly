@@ -368,6 +368,19 @@ button,.player-copy strong,.player-metrics b,.tile-name,.tile-price,.turn-summar
 .board-tool-button { min-height:28px; border:1px solid rgba(23,48,79,.28); border-radius:7px; background:rgba(255,249,239,.72); box-shadow:none; font-size:9px; }
 .board-tool-button:active { background:rgba(23,48,79,.1); }
 
+/* Board actions read as part of the crown, not two compact form buttons. */
+.board-toolbar-actions { align-items:center; gap:2px; }
+.board-tool-button { min-width:0; min-height:30px; display:inline-grid; grid-auto-flow:column; grid-auto-columns:max-content; align-items:center; gap:3px; padding:0 4px; border:0; border-radius:4px; background:transparent; box-shadow:none; }
+.board-tool-button:active { transform:none; background:transparent; }
+.board-tool-button:not(:disabled):active .board-tool-icon { transform:translateY(1px) scale(.96); }
+.board-tool-button:disabled { opacity:.42; }
+.board-tool-icon { width:18px; height:18px; display:grid; place-items:center; border:1px solid rgba(23,48,79,.38); border-radius:5px; box-shadow:0 1px 0 rgba(23,48,79,.16); color:var(--ink); font-size:9px; font-weight:900; line-height:1; transition:transform .12s; }
+.board-tool-icon.item-icon { background:#ffdbe8; }
+.board-tool-icon.build-icon { background:#d7f1e5; }
+#inventoryButton { padding:0 4px; }
+#inventoryButton .item-count { position:static; min-width:0; width:auto; height:auto; display:inline; transform:none; border:0; border-radius:0; background:transparent; box-shadow:none; color:rgba(23,48,79,.62); font-size:8px; line-height:1; }
+#inventoryButton .item-count::before { content:"×"; }
+
 @media(max-width:700px){
   body.game-active .site-header{height:36px;padding:0 8px}
   body.game-active main{height:calc(100dvh - 36px);padding:3px 10px 6px}
@@ -383,5 +396,5 @@ button,.player-copy strong,.player-metrics b,.tile-name,.tile-price,.turn-summar
   .game-active .player-copy strong{font-size:9px}.game-active .player-chip.me .player-copy strong{font-size:10px}
   .game-active .player-metrics{gap:3px}.game-active .player-metrics span{font-size:8px}.game-active .player-metrics .coins{font-size:12px}
   .board-toolbar{min-height:30px;grid-template-columns:minmax(100px,1fr) minmax(0,.68fr) auto;gap:3px;padding:0 1px 0 6px}
-  .board-toolbar-actions{gap:3px}.board-tool-button{min-width:40px;min-height:27px;padding:0 6px;font-size:8px}#inventoryButton{padding:0 17px 0 5px}
+  .board-toolbar-actions{gap:1px}.board-tool-button{min-width:0;min-height:28px;padding:0 3px;font-size:9px}#inventoryButton{padding:0 3px}.board-tool-icon{width:18px;height:18px;font-size:9px}
 }
