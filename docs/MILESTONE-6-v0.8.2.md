@@ -1,10 +1,10 @@
 # M6：v0.8.2
 
 - 日期：2026-10-16
-- 状态：D4 已通过，允许从最终锁定 SHA 进入生产准备
+- 状态：D4 已发布并保留，未触发回滚
 - 规则版本：`hangzhou-v5-streamlined-board`（不改变 v0.8.1 玩法）
 - 用户验收：用户从纠正后的三套背景实机图中选择 A“西湖水园”，并明确要求发布
-- 发布源码：本次 D4 提交推送后，以 origin/main 唯一完整 SHA 锁定；`156e4d2…` 仅作预检证据且其产物禁用
+- 发布源码：`7eef2f41de8cc97fdfd7f0b13470b165b0a18277`；`156e4d2…` 仅作预检证据且其产物未使用
 - 生产基线：`/opt/hangzhou-partners/releases/v0.8.1-20261016T053327Z`（My Mac 已实时只读复核）
 - 回滚点：精确生产 v0.8.1 release；不得覆盖 current 或任何历史 release
 
@@ -40,3 +40,18 @@
 - DB device:inode=`64771:2112440`；`PRAGMA quick_check=ok`
 - 精确 v0.8.1 回滚点存在且 version=0.8.1；已有 v0.8.2 release 数量为 0
 - My Mac 结论：源码与生产基础设施 READY；预检阶段未上传、未创建 release、未切 current、未重启、未修改 DB/配置或生产文件
+
+## 生产发布结果
+
+- 结论：v0.8.2 已保留，未触发回滚；唯一原子切换时间为 `2026-10-16T10:11:51Z`
+- 唯一源码：`7eef2f41de8cc97fdfd7f0b13470b165b0a18277`
+- 唯一工件：112 成员，SHA256=`94f6b6b7ba550d56f93f4e22055767be8610a2b3287c3d848fceba326a6ab52b`；排除 `.git`、`node_modules`、screenshots、artifacts、data/DB 与历史 tar
+- fresh 门禁：`npm run verify -- --release` PASS；40/40、390×844 E2E、M1 200 局、M4 1000 局、27 文件可复现构建均通过；fresh 解包固定使用已验证的 Node 22.23.2，未修改源码、lock 或工件
+- 生产 release/current：`/opt/hangzhou-partners/releases/v0.8.2-20261016T101038Z`
+- 生产依赖：仅 `ws@8.22.0`；production audit 为 0 vulnerabilities；`data` 为指向 `/opt/hangzhou-partners/data` 的绝对链接
+- 版本与健康：package/lock/app、styles、dice-renderer 三个 cache key 均为 `0.8.2`；service active；本机与公网 health 均为 200
+- 核心烟测房 `691235`：第二真人进入、双 Bot、开局、真人点击投掷、`DICE_ROLLED`、`PLAYER_MOVED`、`TURN_STARTED`、房主结束全部通过；game version `0→4`，最终状态 `finished`
+- 规则版本：`hangzhou-v5-streamlined-board`
+- 数据不变量：共享 data device:inode=`64771:2105925`，DB device:inode=`64771:2112440`，`PRAGMA quick_check=ok`
+- 回滚点：`/opt/hangzhou-partners/releases/v0.8.1-20261016T053327Z` 存在且 version=0.8.1
+- 启动说明：重启后的首个本机探针在启动窗口内短暂 connection refused，随后即时门与最终复核均稳定 200；切换后 journal 未发现 `level:error`、TypeError 或未处理异常
