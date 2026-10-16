@@ -13,7 +13,6 @@
     "build:celebrations": "node scripts/generate-celebration-sprites.js",
     "build:project-icons": "node scripts/generate-project-icons.js",
     "preview:backgrounds": "node scripts/generate-board-background-variants.js",
-    "preview:bgm": "node scripts/generate-bgm-preview.js",
     "build:dice": "node scripts/build-dice-renderer.js",
     "test": "node --test tests/*.test.js",
     "test:e2e": "node tests/e2e.js",

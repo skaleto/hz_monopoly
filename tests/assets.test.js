@@ -44,9 +44,6 @@ test("web client references versioned WebP instead of PNG", () => {
   assert.match(js, /visibilitychange/);
   assert.match(js, /sound\.rearm/);
   assert.match(js, /hc_music_enabled/);
-  assert.match(js, /city-drive-v2/);
-  assert.match(js, /masterGain:\.42/);
-  assert.match(js, /stepMs:260/);
   assert.match(js, /setGameActive/);
   assert.match(js, /pauseForVisibility/);
   assert.match(html, /id="musicToggle"/);
@@ -61,7 +58,6 @@ test("web client references versioned WebP instead of PNG", () => {
   assert.ok(fs.existsSync(path.join(__dirname, "..", "public", "audio", "dice-shake-short.v2.LICENSE.txt")));
   assert.ok(!fs.existsSync(path.join(__dirname, "..", "public", "audio", "dice-shake-heavy.v1.ogg")));
   assert.ok(fs.existsSync(path.join(__dirname,"..","scripts","generate-board-background-variants.js")));
-  assert.ok(fs.existsSync(path.join(__dirname,"..","scripts","generate-bgm-preview.js")));
 });
 
 test("short multi-dice shake audio keeps the vetted CC0 derivative and server MIME type", () => {

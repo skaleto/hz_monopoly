@@ -397,4 +397,6 @@ button,.player-copy strong,.player-metrics b,.tile-name,.tile-price,.turn-summar
   .game-active .player-metrics{gap:3px}.game-active .player-metrics span{font-size:8px}.game-active .player-metrics .coins{font-size:12px}
   .board-toolbar{min-height:30px;grid-template-columns:minmax(100px,1fr) minmax(0,.68fr) auto;gap:3px;padding:0 1px 0 6px}
   .board-toolbar-actions{gap:1px}.board-tool-button{min-width:0;min-height:28px;padding:0 3px;font-size:9px}#inventoryButton{padding:0 3px}.board-tool-icon{width:18px;height:18px;font-size:9px}
+  .game-active .game-view{grid-template-rows:auto auto minmax(0,auto);align-content:start}
+  .game-active .board-shell{height:calc(139.56044vw - 31px);max-height:100%;align-self:start}
 }

@@ -93,13 +93,6 @@ async function main() {
     await b.locator("#turnOrderBanner").waitFor({ state: "hidden", timeout: 3000 });
     assert.equal(await a.locator("#musicToggle").textContent(), "音乐开");
     await a.waitForFunction(() => (window.__musicTrace || []).some(item => item.type === "step"));
-    assert.deepEqual(await a.evaluate(() => window.__soundController.musicProfile()), {id:"city-drive-v2",masterGain:.42,stepMs:260});
-    const musicStepProfile=await a.evaluate(() => window.__musicTrace.find(item=>item.type==="step"));
-    assert.equal(musicStepProfile.profile,"city-drive-v2");
-    assert.equal(musicStepProfile.masterGain,.42);
-    assert.equal(musicStepProfile.stepMs,260);
-    assert.ok(musicStepProfile.voices.includes("lead"));
-    assert.ok(musicStepProfile.voices.includes("kick"));
     assert.equal(await a.evaluate(() => window.__soundController.isMusicPlaying()), true);
     assert.equal(await a.locator("#soundToggle").textContent(), "音效开");
     await a.locator("#soundToggle").click();
@@ -166,7 +159,8 @@ async function main() {
       return {viewport:[innerWidth,innerHeight],boardTop:board.top,boardHeight:board.height,mineWidth:mine.width,opponentWidths:opponents.map(item=>item.width),playerDom:bar.querySelectorAll("*").length,smallText:smallText.length,barRadius:parseFloat(getComputedStyle(bar).borderRadius),chipRadii:[...document.querySelectorAll(".player-chip")].map(node=>parseFloat(getComputedStyle(node).borderRadius)),coinFont:parseFloat(getComputedStyle(coins).fontSize),metricsFit:metrics.scrollWidth<=metrics.clientWidth};
     });
     assert.ok(hierarchy.boardTop<=125,`board crown must stay compact ${JSON.stringify(hierarchy)}`);
-    assert.ok(hierarchy.boardHeight>=hierarchy.viewport[1]-130,`board must reclaim vertical space ${JSON.stringify(hierarchy)}`);
+    const compactBoardTarget=(hierarchy.viewport[0]-28)*508/364+8;
+    assert.ok(Math.abs(hierarchy.boardHeight-compactBoardTarget)<=4,`board shell should follow canonical aspect ratio instead of filling viewport ${JSON.stringify({hierarchy,compactBoardTarget})}`);
     assert.ok(hierarchy.opponentWidths.every(width=>hierarchy.mineWidth>=width*1.35),`my summary must be visibly wider ${JSON.stringify(hierarchy)}`);
     assert.ok(hierarchy.playerDom<=25,`player rail DOM must stay simple ${JSON.stringify(hierarchy)}`);
     assert.ok(hierarchy.smallText<=2,`top chrome must not depend on sub-8px text ${JSON.stringify(hierarchy)}`);
@@ -361,7 +355,8 @@ async function main() {
       const shell=document.querySelector(".board-shell"),scroller=document.querySelector("#boardScroller"),shellRect=shell.getBoundingClientRect(),tiles=[...document.querySelectorAll(".board-tile")].map(tile=>tile.getBoundingClientRect());
       return { noHorizontalScroll:scroller.scrollWidth<=scroller.clientWidth+1,tilesInside:tiles.every(rect=>rect.left>=shellRect.left-2&&rect.right<=shellRect.right+2&&rect.top>=shellRect.top-2&&rect.bottom<=shellRect.bottom+2) };
     });
-    assert.deepEqual(mobileFit,{noHorizontalScroll:true,tilesInside:true});
+    assert.equal(mobileFit.noHorizontalScroll,true);
+    assert.equal(mobileFit.tilesInside,true);
     await a.screenshot({ path: path.join(screenshotDir, "03b-full-map-fitted.png"), fullPage: true });
 
     await a.bringToFront();
@@ -743,7 +738,7 @@ async function main() {
       upgradeSelector: "own turn only + explicit project/cost/rent",
       ownerEndGame: "owner-only confirmed settlement",
       soundEffects: "dice + step + city event + landmark + transit + review + vote + route + card + coin + partnership + investment",
-      backgroundMusic: "city-drive-v2 / master .42 / 260ms beat + independent toggle and game-only lifecycle",
+      backgroundMusic: "independent toggle + game-only lifecycle + production audio pending AI-composed asset",
       eventCashFeedback: "authoritative cashChanges + gain/loss sound and particles",
       readableCardReveal: ">=2.3s stable front face, no mirrored keyframe",
       consoleErrors: 0
