@@ -1,11 +1,11 @@
 # M5：v0.8.1
 
 - 日期：2026-10-16
-- 状态：已获发布授权，等待生产实时预检
+- 状态：D4 已通过，允许从最终锁定 SHA 进入生产准备
 - 规则版本：`hangzhou-v5-streamlined-board`（不改变 v0.8.0 玩法）
 - 用户验收：`1715d39` 的 375×667 / 390×844 最终候选已验收，用户要求“先按照这样开发并发布吧”
-- 发布源码：等待 D3 文档合入和生产执行者确认后锁定唯一完整 SHA
-- 生产基线：预期为 `/opt/hangzhou-partners/releases/v0.8.0-20261013T075801Z`，必须在任何生产写入前实时复核
+- 发布源码：本次 D4 提交推送后，以 origin/main 的唯一完整 SHA 锁定；不得沿用 D3 提交工件
+- 生产基线：`/opt/hangzhou-partners/releases/v0.8.0-20261013T075801Z`（My Mac 已实时只读复核）
 - 回滚点：精确生产 v0.8.0 release；不得用模糊版本或覆盖历史目录
 
 ## 主要变化
@@ -30,3 +30,12 @@
 3. 新 release 完成 production dependencies、共享 data 绝对链接、版本/cache 一致性后，才允许单次原子切换；启动/health 失败立即切回精确 v0.8.0。
 4. 切换后验证页面与 health、创建/进入房间、补双 Bot、开局、点击投掷、移动和回合推进；复核 DB quick_check 与回滚点。
 5. 任一硬门失败即停止并回滚；成功后回填本文件的完整 SHA、工件摘要、release 路径、烟测房间和 DB/回滚证据。
+
+## D4 实时预检
+
+- origin/main（D3 授权提交）：`14c9eca621b97c7bc6b7945c481bd83625ca6d07`；package/lock/cache 均为 0.8.1，ruleset=`hangzhou-v5-streamlined-board`
+- current：`/opt/hangzhou-partners/releases/v0.8.0-20261013T075801Z`，symbolic link，version=0.8.0
+- service：active，监听 `127.0.0.1:8427`；本机/public health 均为 200
+- data：`/opt/hangzhou-partners/data`；DB device:inode=`64771:2112440`；`PRAGMA quick_check=ok`
+- 精确 v0.8.0 回滚点存在且 version=0.8.0；releases 可用空间 `3823579136` bytes；已有 v0.8.1 release 数量为 0
+- My Mac 结论：源码与生产基础设施 READY，可满足“全新 release + 单次原子切换 + 失败精确回滚”；预检阶段生产零写入
