@@ -6,10 +6,10 @@ const sharp = require("sharp");
 const assets = path.join(__dirname, "..", "public", "assets");
 
 async function main() {
-  await sharp(path.join(assets, "board_base_integrated.png"))
-    .resize({ width: 1280, withoutEnlargement: true })
-    .webp({ quality: 78, effort: 6, smartSubsample: true })
-    .toFile(path.join(assets, "board.v3.webp"));
+  await sharp(path.join(assets, "board_water_garden.png"))
+    .resize({ width: 728, withoutEnlargement: true })
+    .webp({ quality: 82, effort: 6, smartSubsample: true })
+    .toFile(path.join(assets, "board.v4.webp"));
 
   for (const name of ["fox", "panda", "dolphin", "tiger"]) {
     await sharp(path.join(assets, `character_${name}.png`))

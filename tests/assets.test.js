@@ -8,7 +8,7 @@ const path = require("node:path");
 const assets = path.join(__dirname, "..", "public", "assets");
 
 test("versioned WebP game assets stay within first-game budget", () => {
-  const names = ["board.v3.webp", "character_fox.v3.webp", "character_panda.v3.webp", "character_dolphin.v3.webp", "character_tiger.v3.webp", "node_property.v2.webp", "node_landmark.v2.webp", "node_event.v2.webp", "node_transit.v2.webp", "node_special.v2.webp"];
+  const names = ["board.v4.webp", "character_fox.v3.webp", "character_panda.v3.webp", "character_dolphin.v3.webp", "character_tiger.v3.webp", "node_property.v2.webp", "node_landmark.v2.webp", "node_event.v2.webp", "node_transit.v2.webp", "node_special.v2.webp"];
   const sizes = names.map(name => fs.statSync(path.join(assets, name)).size);
   assert.ok(sizes[0] < 180_000, `board too large: ${sizes[0]}`);
   assert.ok(sizes.slice(1, 5).every(size => size < 25_000), `avatar too large: ${sizes.slice(1, 5)}`);
@@ -25,7 +25,7 @@ test("web client references versioned WebP instead of PNG", () => {
   const version = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf8")).version;
   const js = fs.readFileSync(path.join(__dirname, "..", "public", "app.js"), "utf8");
   const renderer = fs.readFileSync(path.join(__dirname, "..", "public", "dice-renderer.js"), "utf8");
-  assert.match(html, /board\.v3\.webp/);
+  assert.match(html, /board\.v4\.webp/);
   assert.doesNotMatch(html, /board_base_integrated\.png/);
   assert.match(js, /character_fox\.v3\.webp/);
   assert.doesNotMatch(js, /character_fox\.png/);
@@ -58,6 +58,7 @@ test("web client references versioned WebP instead of PNG", () => {
   assert.ok(fs.existsSync(path.join(__dirname, "..", "public", "audio", "dice-shake-short.v2.LICENSE.txt")));
   assert.ok(!fs.existsSync(path.join(__dirname, "..", "public", "audio", "dice-shake-heavy.v1.ogg")));
   assert.ok(fs.existsSync(path.join(__dirname,"..","scripts","generate-board-background-variants.js")));
+  assert.ok(fs.existsSync(path.join(assets,"board_water_garden.png")));
 });
 
 test("short multi-dice shake audio keeps the vetted CC0 derivative and server MIME type", () => {
