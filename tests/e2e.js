@@ -110,15 +110,22 @@ async function main() {
     await a.waitForFunction(() => window.__soundController.isMusicPlaying());
     assert.equal(await a.evaluate(() => window.__soundController.suspendForTest()), "suspended");
     await a.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
-    await a.locator(".player-chip").first().click();
+    await a.locator("#playerBar").dispatchEvent("pointerdown", { pointerType:"touch", isPrimary:true });
     await a.waitForFunction(() => window.__soundController.state() === "running");
     assert.equal(await a.locator(".player-chip").count(), 4);
-    assert.equal(await a.locator(".player-metrics").count(), 4);
-    assert.equal(await a.locator(".player-metrics span").count(), 16);
-    assert.match(await a.locator(".player-chip").first().textContent(), /金币/);
-    assert.match(await a.locator(".player-chip").first().textContent(), /影响力/);
-    assert.match(await a.locator(".player-chip").first().textContent(), /道具/);
-    assert.match(await a.locator(".player-chip").first().textContent(), /城市分/);
+    assert.equal(await a.locator(".player-chip.me").count(), 1);
+    assert.equal(await a.locator(".player-chip").first().evaluate(node => node.classList.contains("me")), true, "my summary must lead the player rail");
+    assert.equal(await a.locator(".player-metrics").count(), 1);
+    assert.equal(await a.locator(".player-metrics span").count(), 3);
+    assert.match(await a.locator(".player-chip.me").textContent(), /¥\d+.*势 \d+.*分 \d+/);
+    assert.equal(await a.locator(".player-chip.opponent").count(), 3);
+    assert.equal(await a.locator(".player-chip.opponent").evaluateAll(nodes => nodes.every(node => /¥\d+ · \d+分/.test(node.textContent))), true);
+    assert.match(await a.locator(".player-chip.opponent").first().getAttribute("aria-label"), /影响力 \d+，道具 \d+/);
+    await a.locator(".player-chip.opponent").first().click();
+    await a.locator("#playerDetailModal").waitFor({ state:"visible" });
+    assert.match(await a.locator("#playerDetailMetrics").textContent(), /金币.*影响力.*道具.*城市分/);
+    await a.locator("#playerDetailCloseButton").click();
+    await a.locator("#playerDetailModal").waitFor({ state:"hidden" });
     assert.equal(await a.locator("#sectorProgress,#sectorGuide,#sectorGuideToggle").count(), 0);
     assert.equal(await a.locator("#gameHomeButton").evaluate(button => button.parentElement.classList.contains("game-top-actions")), true);
     assert.equal(await a.locator(".game-bottom,.event-preview").count(), 0);
@@ -126,14 +133,30 @@ async function main() {
     assert.equal(await a.locator("#openLogButton").evaluate(button => button.parentElement.classList.contains("header-status")), true);
     assert.equal(await a.locator("#openLogButton").isVisible(), true);
     const quietControls = await a.evaluate(() => {
-      const styleSummary=selector=>{const node=document.querySelector(selector),style=getComputedStyle(node);return{radius:parseFloat(style.borderRadius),shadow:style.boxShadow,border:parseFloat(style.borderTopWidth)}};
-      return {home:styleSummary("#gameHomeButton"),music:styleSummary("#musicToggle"),sound:styleSummary("#soundToggle"),log:styleSummary("#openLogButton"),toolbar:styleSummary(".board-toolbar"),inventory:styleSummary("#inventoryButton"),upgrade:styleSummary("#upgradeButton")};
+      const styleSummary=selector=>{const node=document.querySelector(selector),style=getComputedStyle(node),rect=node.getBoundingClientRect();return{radius:parseFloat(style.borderRadius),shadow:style.boxShadow,border:parseFloat(style.borderTopWidth),width:rect.width,height:rect.height}};
+      return {home:styleSummary("#gameHomeButton"),music:styleSummary("#musicToggle"),sound:styleSummary("#soundToggle"),log:styleSummary("#openLogButton"),toolbar:styleSummary(".board-toolbar"),inventory:styleSummary("#inventoryButton"),upgrade:styleSummary("#upgradeButton"),connection:styleSummary("#connectionBadge")};
     });
     const box = { home:quietControls.home, music:quietControls.music, sound:quietControls.sound, log:quietControls.log };
-    for (const part of Object.values(box)) { assert.equal(part.radius, 10, `radius ${JSON.stringify(part)}`); assert.equal(part.border, 1, `border ${JSON.stringify(part)}`); assert.notEqual(part.shadow, "none", `shadow ${JSON.stringify(part)}`); }
-    assert.equal(quietControls.toolbar.radius, 10); assert.equal(quietControls.toolbar.border, 1);
-    assert.equal(quietControls.inventory.radius, 8); assert.equal(quietControls.inventory.border, 1);
-    assert.equal(quietControls.upgrade.radius, 8);
+    for (const part of Object.values(box)) { assert.equal(part.radius, 7, `radius ${JSON.stringify(part)}`); assert.equal(part.border, 1, `border ${JSON.stringify(part)}`); assert.equal(part.shadow, "none", `shadow ${JSON.stringify(part)}`); assert.equal(part.height,28); }
+    assert.equal(quietControls.toolbar.radius, 0); assert.equal(quietControls.toolbar.border, 0); assert.equal(quietControls.toolbar.shadow,"none");
+    assert.equal(quietControls.inventory.radius, 7); assert.equal(quietControls.inventory.border, 1);
+    assert.equal(quietControls.upgrade.radius, 7);
+    assert.equal(quietControls.connection.width,8);
+    assert.equal(quietControls.connection.height,8);
+    const hierarchy = await a.evaluate(() => {
+      const rect=selector=>document.querySelector(selector).getBoundingClientRect(),bar=document.querySelector("#playerBar"),mine=rect(".player-chip.me"),opponents=[...document.querySelectorAll(".player-chip.opponent")].map(node=>node.getBoundingClientRect()),board=rect(".board-shell"),smallText=[...document.querySelectorAll(".site-header button,.player-bar *,.board-toolbar *")].filter(node=>{const style=getComputedStyle(node),box=node.getBoundingClientRect();return box.width>0&&box.height>0&&parseFloat(style.fontSize)<8});
+      const metrics=document.querySelector(".player-chip.me .player-metrics"),coins=document.querySelector(".player-chip.me .coins");
+      return {viewport:[innerWidth,innerHeight],boardTop:board.top,boardHeight:board.height,mineWidth:mine.width,opponentWidths:opponents.map(item=>item.width),playerDom:bar.querySelectorAll("*").length,smallText:smallText.length,barRadius:parseFloat(getComputedStyle(bar).borderRadius),chipRadii:[...document.querySelectorAll(".player-chip")].map(node=>parseFloat(getComputedStyle(node).borderRadius)),coinFont:parseFloat(getComputedStyle(coins).fontSize),metricsFit:metrics.scrollWidth<=metrics.clientWidth};
+    });
+    assert.ok(hierarchy.boardTop<=125,`board crown must stay compact ${JSON.stringify(hierarchy)}`);
+    assert.ok(hierarchy.boardHeight>=hierarchy.viewport[1]-130,`board must reclaim vertical space ${JSON.stringify(hierarchy)}`);
+    assert.ok(hierarchy.opponentWidths.every(width=>hierarchy.mineWidth>=width*1.35),`my summary must be visibly wider ${JSON.stringify(hierarchy)}`);
+    assert.ok(hierarchy.playerDom<=25,`player rail DOM must stay simple ${JSON.stringify(hierarchy)}`);
+    assert.ok(hierarchy.smallText<=2,`top chrome must not depend on sub-8px text ${JSON.stringify(hierarchy)}`);
+    assert.ok(hierarchy.coinFont>=12,`my cash must lead the metric hierarchy ${JSON.stringify(hierarchy)}`);
+    assert.equal(hierarchy.metricsFit,true,`my metrics must not overflow ${JSON.stringify(hierarchy)}`);
+    assert.equal(hierarchy.barRadius,10);
+    assert.deepEqual(hierarchy.chipRadii,[0,0,0,0]);
     assert.equal(await a.locator("#rollButton").evaluate(button => button.parentElement.classList.contains("board-shell")), true);
     await a.waitForFunction(() => (window.__diceReadyTrace || []).length > 0);
     assert.equal(await a.locator("#rollButton .roll-die-face").count(), 0);
@@ -658,7 +681,7 @@ async function main() {
       fullEventLog: "pass",
       doubleTapZoomDisabled: "pass",
       mobileTurnLayout: "pass",
-      playerMetrics: "coins + influence + items",
+      playerMetrics: "self cash/influence/score + opponent cash/score + full tap details",
       openingTurnOrder: "non-blocking randomized order banner, auto-hides in 2.2s",
       projectCategoryBonuses: "removed",
       topBoardTools: "inventory + upgrade + full log",
@@ -669,7 +692,7 @@ async function main() {
       itemInventory: "pass",
       itemCardDrawAndUse: "pass",
       coinTransfer: "11-coin 2.1s avatar-to-avatar stream",
-      leaveGameCancellation: "socket + event queue + dice + toast + celebrations + coins + audio",
+      leaveGameCancellation: "socket + event queue + dice + toast + player detail + celebrations + coins + audio",
       overlapAudit: "player text / toast / coin rail / price rows / item badge / celebrations",
       partnershipCelebration: "two avatars + handshake sprite",
       investmentCelebration: "investor avatar + project sprite",

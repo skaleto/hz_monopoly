@@ -120,6 +120,17 @@
     </section>
   </div>
 
+  <div id="playerDetailModal" class="overlay player-detail-overlay" hidden>
+    <section class="modal-card player-detail-card" role="dialog" aria-modal="true" aria-labelledby="playerDetailName">
+      <span class="modal-tag">玩家详情</span>
+      <img id="playerDetailAvatar" class="player-detail-avatar" src="assets/character_fox.v3.webp" alt="玩家头像">
+      <h2 id="playerDetailName">玩家</h2>
+      <p id="playerDetailState">等待回合</p>
+      <div id="playerDetailMetrics" class="player-detail-metrics"></div>
+      <button id="playerDetailCloseButton" class="primary wide" type="button">返回棋盘</button>
+    </section>
+  </div>
+
   <div id="logModal" class="overlay log-overlay" hidden>
     <section class="modal-card log-card" role="dialog" aria-modal="true" aria-labelledby="logTitle">
       <span class="modal-tag">本局记录</span>
