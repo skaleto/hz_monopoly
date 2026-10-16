@@ -2,7 +2,7 @@
 
 - 需求包版本: v1
 - 成熟度: D3
-- 原始需求: 2026-10-14 飞书反馈“卡片旋转时会瞬间出现反字、停留太短；事件金币增减需要金币音效和动效；游戏缺少可开关背景音乐”
+- 原始需求: 2026-10-14 至 2026-10-16 飞书反馈“卡片旋转时会瞬间出现反字、停留太短；事件金币增减需要金币音效和动效；游戏缺少可开关背景音乐；骰子与点击投掷按钮不要紧贴，点击骰子时不能出现正方形暗部”
 - 知识源地图: 项目未提供 `.agents/requirement-sources.yaml`，采用 `HARNESS.md`、生产 v0.8.0 代码、当前 E2E 与用户现场反馈
 - 本次采用的知识源: `HARNESS.md`、`public/app.js`、`public/styles.css`、`public/index.html`、`game-core/index.js`、`tests/e2e.js`
 - 输入形态: IDEA
@@ -31,6 +31,7 @@
 | 城市事件缺少结构化金币变化 | `CITY_EVENT_RESOLVED` 只有文案/事件/choice/result，多人转账和风险选择无法由客户端可靠解析金额 | main@16901b9 | 已验证 | 无 |
 | 已有金币视觉和音色可复用 | `animateCoinTransfer`、`flying-coin` 与 `sound.play("coin")` 已在线使用 | main@16901b9 | 已验证 | 无 |
 | 背景音乐需独立开关 | 用户明确要求“背景音乐可以开关”；当前只有 `hc_sound_enabled` | 2026-10-14 | 已确认 | 不与音效开关绑定 |
+| 骰子提示间距与按压暗块需修正 | 375px 小屏骰子命中区与按钮仅约 7px；透明 button 未关闭移动端 tap highlight/appearance | v0.8.1 候选 / 2026-10-16 | 已验证 | 小屏间距 ≥15px；命中区无按压背景/阴影/滤镜 |
 
 ## 需求探索矩阵
 
@@ -38,7 +39,7 @@
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 对象锚定 | PASS | HIGH | 只改对局中的事件展示、金币反馈与音乐 | 用户反馈、生产 v0.8.0 | 背景音乐只在进行中的 game view 播放 | 切首页/切房/终局/隐藏页面专项 | 姚怡斌 | E2E + 真人试听 |
 | 术语和业务规则 | PASS | HIGH | 金币增减必须来自服务端结算，不从文案猜；音乐开关独立于音效 | game-core 与现有 sound controller | 城市事件 cashChanges 足以覆盖用户反馈范围 | 12 城市事件逐类单测/固定事件 E2E | Coding Agent（TRAE） | payload 与客户端 trace |
-| 验收样例 | PASS | HIGH | 正例为 +金币和 -金币各一例；反例为镜像字、卡片稳定态 <2 秒、关闭音乐后仍发声 | 用户原话 | 卡片总展示约 3.2 秒可读且不拖慢过多 | trace 时间戳、截图、生命周期测试 | 姚怡斌 | 375×667 实测 |
+| 验收样例 | PASS | HIGH | 正例为 +金币和 -金币各一例，以及骰子透明按压态；反例为镜像字、卡片稳定态 <2 秒、关闭音乐后仍发声、按骰子闪方形暗块 | 用户原话 | 卡片总展示约 3.2 秒；骰子与按钮留 16px 小屏间距 | trace、截图、生命周期与 pointerdown 样式测试 | 姚怡斌 | 375×667 实测 |
 | 上游数据准备度 | PASS | MEDIUM | 事件池、强制事件 ID、双真人 E2E 与 Web Audio trace 均可复现 | 当前测试夹具 | headless AudioContext trace 可验证调度语义 | 真实浏览器手动试听兜底音色 | Coding Agent（TRAE） | 自动门禁 + 真人试听 |
 | 活参考链路 | PASS | MEDIUM | 现有金币转账动效、骰子音效、visibility/rearm/stopAll 生命周期在用 | main@16901b9 | 复用其生命周期比新建第二套 audio context 稳定 | 离页后 trace/oscillator/timer 清零 | Coding Agent（TRAE） | E2E |
 | 失败半径和控制 | PASS | HIGH | C1 客户端反馈；可单提交回退，不改金额和 DB | `HARNESS.md` | 程序化原创 Web Audio 循环避免资产版权和首屏预算 | 静态扫描无新音频资产；音频开关持久化 | Coding Agent（TRAE） | verify + 资源预算 |
@@ -61,9 +62,9 @@
 ## 验收计划
 
 - 环境和数据: 375×667、390×844；强制 `rain_repair` 损失事件、`shopping_festival` 增益事件、道具卡展示；音效与音乐四种开关组合
-- 正例: 卡片正面无镜像；稳定态 ≥2000ms；本地玩家/全员/转账事件金额可见；增减音效和粒子方向匹配；音乐偏好持久化
-- 反例: 文案倒置、动画结束即隐藏、从字符串正则推断金额、音乐与音效共用一个开关、隐藏页面/离开游戏后继续调度
-- 比较字段/行为: CSS keyframes、card trace、cashChanges、cash feedback trace、music trace/state、localStorage、生命周期清理
+- 正例: 卡片正面无镜像；稳定态 ≥2000ms；本地玩家/全员/转账事件金额可见；增减音效和粒子方向匹配；音乐偏好持久化；小屏骰子与按钮间距 ≥15px，骰子 pointerdown 仍完全透明
+- 反例: 文案倒置、动画结束即隐藏、从字符串正则推断金额、音乐与音效共用一个开关、隐藏页面/离开游戏后继续调度、骰子按压时出现矩形 tap highlight/背景/阴影
+- 比较字段/行为: CSS keyframes、card trace、cashChanges、cash feedback trace、music trace/state、localStorage、生命周期清理、骰子/提示几何与 pointerdown 计算样式
 - 容差/性能目标: 卡片总展示 3000–3600ms，稳定阅读 ≥2000ms；金币反馈 ≤1400ms；BGM 单独可关且离页 300ms 内停止；无 console error、断图或布局回归
 - 验收证据工件: `screenshots/04b-city-event-reveal.png`、`screenshots/12b-item-card-effect-mobile.png`、`artifacts/verify/report.json`（均不提交）
 

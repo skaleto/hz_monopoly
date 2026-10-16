@@ -294,8 +294,10 @@ button,.player-copy strong,.player-metrics b,.tile-name,.tile-price,.turn-summar
 .board-tool-button:disabled { opacity:.42; }
 #inventoryButton { padding:0 19px 0 7px; }
 #inventoryButton .item-count { right:3px; min-width:14px; height:14px; border-width:1px; font-size:7px; }
-.board-roll-button:not([hidden]) { position:absolute; z-index:40; left:50%; top:50%; width:120px; height:120px; display:block; padding:0; transform:translate(-50%,-50%); border:0; background:transparent; box-shadow:none; }
-.roll-button-label { position:absolute; z-index:40; left:50%; top:calc(50% + 68px); min-height:28px; transform:translateX(-50%); padding:4px 10px; border:1px solid var(--ink); border-radius:999px; background:rgba(255,249,239,.94); box-shadow:0 2px 0 var(--ink); color:var(--ink); font-size:12px; font-weight:950; white-space:nowrap; backdrop-filter:blur(6px); }
+.board-roll-button:not([hidden]) { position:absolute; z-index:40; left:50%; top:50%; width:120px; height:120px; display:block; padding:0; transform:translate(-50%,-50%); border:0; border-radius:50%; outline:0; appearance:none; -webkit-appearance:none; -webkit-tap-highlight-color:transparent; background:transparent !important; box-shadow:none !important; filter:none !important; opacity:1; }
+.board-roll-button:not([hidden]):active { transform:translate(-50%,-50%); background:transparent !important; box-shadow:none !important; filter:none !important; }
+.board-roll-button:not([hidden]):focus-visible { outline:3px solid rgba(255,217,90,.92); outline-offset:3px; }
+.roll-button-label { position:absolute; z-index:40; left:50%; top:calc(50% + 78px); min-height:28px; transform:translateX(-50%); padding:4px 10px; border:1px solid var(--ink); border-radius:999px; background:rgba(255,249,239,.94); box-shadow:0 2px 0 var(--ink); color:var(--ink); font-size:12px; font-weight:950; white-space:nowrap; backdrop-filter:blur(6px); }
 .roll-button-label[hidden] { display:none; }
 
 /* M4 视觉层级：对局页控件 = 安静的游戏框——软矩形、细墨线、轻硬影；与棋盘同语言、低一级音量 */
@@ -313,5 +315,5 @@ button,.player-copy strong,.player-metrics b,.tile-name,.tile-price,.turn-summar
 
 @media(max-width:700px){
   .board-toolbar{grid-template-columns:minmax(72px,1fr) minmax(0,.8fr) auto;gap:3px;padding:2px 3px 2px 6px}.board-toolbar-actions{gap:3px}.board-tool-button{min-width:40px;min-height:25px;padding:0 6px;font-size:8px}#inventoryButton{padding:0 17px 0 5px}
-  .board-roll-button:not([hidden]){width:112px;height:112px}.roll-button-label{top:calc(50% + 63px);padding:4px 9px;font-size:11px}
+  .board-roll-button:not([hidden]){width:112px;height:112px}.roll-button-label{top:calc(50% + 72px);padding:4px 9px;font-size:11px}
 }

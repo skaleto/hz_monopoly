@@ -143,6 +143,12 @@ async function main() {
     assert.equal((await a.evaluate(() => window.__diceReadyTrace.at(-1))).canvasId,"diceCanvas");
     assert.deepEqual(await a.locator(".roll-button-label").evaluate(label=>{const style=getComputedStyle(label);return{tag:label.tagName,background:style.backgroundColor,border:style.borderTopWidth,text:label.textContent,pointerEvents:style.pointerEvents}}),{tag:"BUTTON",background:"rgba(255, 249, 239, 0.94)",border:"1px",text:"点击投掷",pointerEvents:"auto"});
     assert.deepEqual(await a.locator("#rollButton").evaluate(button=>{const style=getComputedStyle(button),rect=button.getBoundingClientRect();return{background:style.backgroundColor,border:style.borderTopWidth,text:button.textContent.trim(),aria:button.getAttribute("aria-label"),width:rect.width,height:rect.height}}),{background:"rgba(0, 0, 0, 0)",border:"0px",text:"",aria:"点击骰子掷骰",width:112,height:112});
+    const rollPromptGeometry = await a.evaluate(() => { const die=document.querySelector("#rollButton").getBoundingClientRect(),prompt=document.querySelector("#rollPromptButton").getBoundingClientRect(); return {gap:prompt.top-die.bottom,overlap:Math.max(0,Math.min(die.bottom,prompt.bottom)-Math.max(die.top,prompt.top))}; });
+    assert.ok(rollPromptGeometry.gap >= 15, `roll prompt gap ${JSON.stringify(rollPromptGeometry)}`);
+    assert.equal(rollPromptGeometry.overlap,0);
+    await a.locator("#rollButton").dispatchEvent("pointerdown", { pointerType:"touch", isPrimary:true });
+    assert.deepEqual(await a.locator("#rollButton").evaluate(button=>{const style=getComputedStyle(button);return{background:style.backgroundColor,shadow:style.boxShadow,filter:style.filter,appearance:style.appearance,tapHighlight:style.webkitTapHighlightColor}}),{background:"rgba(0, 0, 0, 0)",shadow:"none",filter:"none",appearance:"none",tapHighlight:"rgba(0, 0, 0, 0)"});
+    await a.locator("#rollButton").dispatchEvent("pointerup", { pointerType:"touch", isPrimary:true });
     await a.locator("#diceCanvas").evaluate(canvas => { canvas.dataset.rollContinuity="shared"; });
     assert.equal(await a.locator("#rollButton").isVisible(), true);
     assert.equal(await b.locator("#rollButton").isHidden(), true);
