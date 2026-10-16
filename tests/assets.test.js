@@ -8,7 +8,7 @@ const path = require("node:path");
 const assets = path.join(__dirname, "..", "public", "assets");
 
 test("versioned WebP game assets stay within first-game budget", () => {
-  const names = ["board.v3.webp", "character_fox.v3.webp", "character_panda.v3.webp", "character_dolphin.v3.webp", "character_tiger.v3.webp", "node_property.v1.webp", "node_landmark.v1.webp", "node_event.v1.webp", "node_transit.v1.webp", "node_special.v1.webp"];
+  const names = ["board.v3.webp", "character_fox.v3.webp", "character_panda.v3.webp", "character_dolphin.v3.webp", "character_tiger.v3.webp", "node_property.v2.webp", "node_landmark.v2.webp", "node_event.v2.webp", "node_transit.v2.webp", "node_special.v2.webp"];
   const sizes = names.map(name => fs.statSync(path.join(assets, name)).size);
   assert.ok(sizes[0] < 180_000, `board too large: ${sizes[0]}`);
   assert.ok(sizes.slice(1, 5).every(size => size < 25_000), `avatar too large: ${sizes.slice(1, 5)}`);
@@ -29,8 +29,8 @@ test("web client references versioned WebP instead of PNG", () => {
   assert.doesNotMatch(html, /board_base_integrated\.png/);
   assert.match(js, /character_fox\.v3\.webp/);
   assert.doesNotMatch(js, /character_fox\.png/);
-  assert.match(js, /node_property\.v1\.webp/);
-  assert.match(js, /project_expo\.v1\.webp/);
+  assert.match(js, /node_property\.v2\.webp/);
+  assert.match(js, /project_expo\.v2\.webp/);
   assert.doesNotMatch(js, /node_property\.png/);
   assert.match(html, /id="diceCanvas"/);
   assert.ok(html.includes(`dice-renderer.js?v=${version}`));
@@ -44,6 +44,9 @@ test("web client references versioned WebP instead of PNG", () => {
   assert.match(js, /visibilitychange/);
   assert.match(js, /sound\.rearm/);
   assert.match(js, /hc_music_enabled/);
+  assert.match(js, /city-drive-v2/);
+  assert.match(js, /masterGain:\.42/);
+  assert.match(js, /stepMs:260/);
   assert.match(js, /setGameActive/);
   assert.match(js, /pauseForVisibility/);
   assert.match(html, /id="musicToggle"/);
@@ -57,6 +60,8 @@ test("web client references versioned WebP instead of PNG", () => {
   assert.ok(fs.statSync(path.join(__dirname, "..", "public", "audio", "dice-shake-short.v2.ogg")).size < 25_000);
   assert.ok(fs.existsSync(path.join(__dirname, "..", "public", "audio", "dice-shake-short.v2.LICENSE.txt")));
   assert.ok(!fs.existsSync(path.join(__dirname, "..", "public", "audio", "dice-shake-heavy.v1.ogg")));
+  assert.ok(fs.existsSync(path.join(__dirname,"..","scripts","generate-board-background-variants.js")));
+  assert.ok(fs.existsSync(path.join(__dirname,"..","scripts","generate-bgm-preview.js")));
 });
 
 test("short multi-dice shake audio keeps the vetted CC0 derivative and server MIME type", () => {
@@ -71,7 +76,7 @@ test("four expanded-board projects have reproducible source PNG and compact WebP
   const names = ["project_expo", "project_sports", "project_community", "project_art"];
   for (const name of names) {
     const source = path.join(assets, `${name}.png`);
-    const runtime = path.join(assets, `${name}.v1.webp`);
+    const runtime = path.join(assets, `${name}.v2.webp`);
     assert.ok(fs.existsSync(source), `${name} source PNG missing`);
     assert.ok(fs.existsSync(runtime), `${name} runtime WebP missing`);
     assert.ok(fs.statSync(source).size < 40_000, `${name} source PNG too large`);

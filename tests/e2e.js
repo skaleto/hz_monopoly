@@ -22,6 +22,7 @@ process.env.TEST_CITY_EVENT_ID = "venture_window";
 const { server, store, close } = require("../server/server");
 const screenshotDir = path.join(__dirname, "..", "screenshots");
 const previewVideoDir = process.env.RECORD_E2E_DIR || "";
+const boardPreviewFiles = (process.env.E2E_BOARD_VARIANTS || "").split(path.delimiter).filter(Boolean);
 fs.mkdirSync(screenshotDir, { recursive: true });
 if (previewVideoDir) fs.mkdirSync(previewVideoDir, { recursive: true });
 
@@ -92,6 +93,13 @@ async function main() {
     await b.locator("#turnOrderBanner").waitFor({ state: "hidden", timeout: 3000 });
     assert.equal(await a.locator("#musicToggle").textContent(), "音乐开");
     await a.waitForFunction(() => (window.__musicTrace || []).some(item => item.type === "step"));
+    assert.deepEqual(await a.evaluate(() => window.__soundController.musicProfile()), {id:"city-drive-v2",masterGain:.42,stepMs:260});
+    const musicStepProfile=await a.evaluate(() => window.__musicTrace.find(item=>item.type==="step"));
+    assert.equal(musicStepProfile.profile,"city-drive-v2");
+    assert.equal(musicStepProfile.masterGain,.42);
+    assert.equal(musicStepProfile.stepMs,260);
+    assert.ok(musicStepProfile.voices.includes("lead"));
+    assert.ok(musicStepProfile.voices.includes("kick"));
     assert.equal(await a.evaluate(() => window.__soundController.isMusicPlaying()), true);
     assert.equal(await a.locator("#soundToggle").textContent(), "音效开");
     await a.locator("#soundToggle").click();
@@ -186,6 +194,11 @@ async function main() {
     assert.equal(await b.locator("#rollButton").isHidden(), true);
     assert.equal(await a.locator("#rollButton").evaluate(button=>{const die=button.getBoundingClientRect(),board=document.querySelector(".board-shell").getBoundingClientRect();return Math.abs((die.left+die.width/2)-(board.left+board.width/2))<2&&Math.abs((die.top+die.height/2)-(board.top+board.height/2))<2}),true);
     await a.screenshot({ path: path.join(screenshotDir, "03a-simplified-controls-mobile.png"), fullPage: true });
+    if (boardPreviewFiles.length) {
+      const image=a.locator("#boardImage"),original=await image.getAttribute("src");
+      for(const file of boardPreviewFiles){assert.ok(fs.existsSync(file),`board preview missing: ${file}`);const data=`data:image/webp;base64,${fs.readFileSync(file).toString("base64")}`;await image.evaluate((node,src)=>new Promise((resolve,reject)=>{node.onload=resolve;node.onerror=reject;node.src=src}),data);await a.screenshot({path:path.join(screenshotDir,`background-${path.basename(file,".webp")}-${viewport.width}x${viewport.height}.png`),fullPage:true})}
+      await image.evaluate((node,src)=>new Promise((resolve,reject)=>{node.onload=resolve;node.onerror=reject;node.src=src}),original);
+    }
     assert.equal(await a.locator("#endGameButton").isVisible(), true);
     assert.equal(await b.locator("#endGameButton").isVisible(), false);
     assert.equal(await b.locator("#upgradeButton").isDisabled(), true);
@@ -238,6 +251,8 @@ async function main() {
     assert.equal(boardReadability.regularIcon,22);
     assert.equal(boardReadability.nameFont,7);
     assert.equal(boardReadability.priceFont,7);
+    const iconContainmentIssues = await b.evaluate(() => [...document.querySelectorAll(".board-tile")].flatMap(tile => { const icon=tile.querySelector(".tile-icon"),name=tile.querySelector(".tile-name"),price=tile.querySelector(".tile-price"),i=icon.getBoundingClientRect(),t=tile.getBoundingClientRect(),n=name.getBoundingClientRect(),p=price?.getBoundingClientRect(),overlap=(a,b)=>Math.min(a.right,b.right)-Math.max(a.left,b.left)>.5&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>.5,inside=i.left>=t.left-1&&i.right<=t.right+1&&i.top>=t.top-1&&i.bottom<=t.bottom+1,clearName=!overlap(i,n),clearPrice=!p||!overlap(i,p);return inside&&clearName&&clearPrice?[]:[{name:tile.dataset.tileName,type:tile.dataset.tileType,inside,clearName,clearPrice,icon:{top:i.top,bottom:i.bottom},label:{top:n.top,bottom:n.bottom},price:p&&{top:p.top,bottom:p.bottom}}] }));
+    assert.deepEqual(iconContainmentIssues,[],`enlarged icons must stay inside tiles and clear names/prices: ${JSON.stringify(iconContainmentIssues)}`);
     assert.equal(await b.locator(".board-tile").evaluateAll(tiles => tiles.every(tile => { const rect=tile.getBoundingClientRect(); return Math.abs(rect.width-rect.height)<=0.5; })), true, "all board nodes must be square");
     const persistentLayoutCollisions = await b.evaluate(() => {
       const intersects = (a,b) => Math.min(a.right,b.right) > Math.max(a.left,b.left) && Math.min(a.bottom,b.bottom) > Math.max(a.top,b.top);
@@ -354,7 +369,12 @@ async function main() {
     await a.locator("#rollPromptButton").click();
     assert.equal(await a.locator("#rollButton").isHidden(), true);
     assert.equal(await a.locator("#rollPromptButton").isHidden(), true);
+    assert.equal(await b.locator("#rollButton").isHidden(), true);
+    assert.equal(await b.locator("#rollPromptButton").isHidden(), true);
     await a.locator("#diceStage").waitFor({ state: "visible" });
+    await a.waitForTimeout(120);
+    assert.equal(await a.locator("#rollPromptButton").isHidden(),true,"roller prompt must stay hidden while authoritative events play");
+    assert.equal(await b.locator("#rollPromptButton").isHidden(),true,"other player must never see roller prompt during movement");
     await a.waitForFunction(() => !document.querySelector("#diceStage").classList.contains("ready"));
     assert.equal(await a.locator("#diceCanvas").getAttribute("data-roll-continuity"),"shared");
     const diceVisual = await a.locator("#diceStage").evaluate(stage => ({ border: getComputedStyle(stage).borderTopWidth, background: getComputedStyle(stage).backgroundColor }));
@@ -420,9 +440,18 @@ async function main() {
     assert.equal(await a.locator("#eventModal").count(), 0);
     await b.locator("#rollButton").waitFor({ state: "visible" });
     await b.waitForFunction(() => !document.querySelector("#rollButton").disabled);
+    assert.equal(await a.locator("#rollButton").isHidden(),true);
+    assert.equal(await a.locator("#rollPromptButton").isHidden(),true);
 
     await b.evaluate(() => { window.__movementTrace = []; window.__soundTrace = []; });
     await b.locator("#rollButton").click();
+    assert.equal(await b.locator("#rollPromptButton").isHidden(),true);
+    assert.equal(await a.locator("#rollPromptButton").isHidden(),true);
+    await b.locator("#diceStage").waitFor({state:"visible"});
+    await b.waitForTimeout(120);
+    assert.equal(await a.locator("#rollPromptButton").isHidden(),true,"peer prompt must stay hidden during another player's dice animation");
+    await b.waitForFunction(() => (window.__movementTrace||[]).length>1,null,{timeout:5000});
+    assert.equal(await a.locator("#rollPromptButton").isHidden(),true,"peer prompt must stay hidden during another player's movement animation");
     await b.locator("#gameToast.visible").waitFor({ state: "visible" });
     assert.equal(await b.locator("#eventModal").count(), 0);
     assert.equal(await b.locator("#gameToast").evaluate(node => getComputedStyle(node).pointerEvents), "none");
@@ -432,6 +461,8 @@ async function main() {
       return toast.left>=panel.left&&toast.right<=panel.right&&toast.top>=panel.top&&toast.bottom<=panel.bottom;
     }), true, "game toast must stay in the prominent rail below player cards");
     await b.waitForTimeout(320);
+    assert.ok((await b.evaluate(() => window.__rollVisibilityTrace)).some(item=>item.reason==="roll-command-sent"));
+    assert.ok((await a.evaluate(() => window.__rollVisibilityTrace)).some(item=>item.reason==="events-received"));
     assert.equal(await b.locator("#gameToast").evaluate(node => {const toast=node.getBoundingClientRect(),board=document.querySelector("#gameBoard").getBoundingClientRect();return toast.left>=board.left&&toast.right<=board.right&&toast.top>=board.top&&toast.bottom<=board.bottom;}),true,"settled toast must stay inside the map");
     await b.waitForTimeout(260);
     await b.screenshot({ path: path.join(screenshotDir, "05-daily-event-popup.png"), fullPage: true });
@@ -607,6 +638,10 @@ async function main() {
     assert.match(await a.locator("#tileDetailStats").textContent(), new RegExp(`${rentOwner.nickname} 独资`));
     await a.locator("#tileDetailCloseButton").click();
     await a.evaluate(() => { window.__coinTrace = []; window.__soundTrace = []; });
+    await a.waitForTimeout(5000);
+    const rentRollState=await a.evaluate(()=>window.__rollVisibilityState());
+    assert.equal(rentRollState.canShow,true,`rent roll should become available after event playback: ${JSON.stringify(rentRollState)}`);
+    assert.equal(rentRollState.buttonHidden,false,`rent roll control should be visible after event playback: ${JSON.stringify(rentRollState)}`);
     await a.locator("#rollButton").click();
     await a.waitForFunction(() => (window.__coinTrace || []).length > 0);
     const coinTrace = await a.evaluate(() => window.__coinTrace);
@@ -708,7 +743,7 @@ async function main() {
       upgradeSelector: "own turn only + explicit project/cost/rent",
       ownerEndGame: "owner-only confirmed settlement",
       soundEffects: "dice + step + city event + landmark + transit + review + vote + route + card + coin + partnership + investment",
-      backgroundMusic: "independent toggle + game-only lifecycle + procedural loop",
+      backgroundMusic: "city-drive-v2 / master .42 / 260ms beat + independent toggle and game-only lifecycle",
       eventCashFeedback: "authoritative cashChanges + gain/loss sound and particles",
       readableCardReveal: ">=2.3s stable front face, no mirrored keyframe",
       consoleErrors: 0

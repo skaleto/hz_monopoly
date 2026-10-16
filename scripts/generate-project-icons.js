@@ -43,7 +43,7 @@ async function main() {
   for (const icon of icons) {
     const source = Buffer.from(svg(icon));
     await sharp(source).png().toFile(path.join(assets, `${icon.name}.png`));
-    await sharp(source).resize(256, 256).webp({ quality: 88, effort: 6 }).toFile(path.join(assets, `${icon.name}.v1.webp`));
+    await sharp(source).extract({left:28,top:28,width:456,height:456}).resize(256,256,{fit:"fill"}).webp({ quality:88, effort:6 }).toFile(path.join(assets, `${icon.name}.v2.webp`));
   }
 }
 
