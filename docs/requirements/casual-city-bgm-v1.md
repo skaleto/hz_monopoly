@@ -1,7 +1,7 @@
 # 需求包：休闲都市 BGM 定稿
 
 - 需求包版本：v1
-- 成熟度：D3
+- 成熟度：D4
 - 原始需求：用户认为 v0.8.3 BGM 过于劲爆、音量偏大且不符合休闲都市小游戏风格；在三首正规授权候选中选择 01 `Cassette Tape Dream`，明确要求修改并发布
 - 输入形态：明确选曲与发布授权
 - 证据截止时间：2026-10-17
@@ -44,9 +44,16 @@
 - `npm run verify -- --release` 必须全绿；发布后验证页面/health、正式音轨 SHA、核心房、DB quick_check 与精确 v0.8.3 回滚点。
 - 任一授权证据不一致、音频无法解码、生命周期回归、完整 verify 失败或用户试听仍不接受，停止/回滚。
 
+## D4 门禁证据
+
+- 隔离候选完整 `npm run verify -- --release`：PASS；41/41 测试、390×844 双真人+双 Bot E2E、M1 200 局、M4 1000 局、27 文件 fresh 可复现构建、production audit 0 vulnerabilities。
+- E2E 实测 `cassette-tape-dream-sharou.v1.ogg` 启动；正常音量 `0.18`，关键音效 duck `0.07` 后恢复；音乐/音效独立开关、AudioContext 恢复、回首页停止通过；console errors=0。
+- 第一阶段生产只读预检：current 精确 v0.8.3；service active/enabled；本机/public health=200；共享 data 与 DB 正确；`PRAGMA quick_check=ok`；精确 v0.8.3 回滚点存在；已有 v0.8.4 release=0。
+- D3 预检对象 `5fd20a268efddfbafc8eb0c70891b9a59375697e` 仅作证据，禁止生成或复用生产工件。唯一生产源码由本 D4 提交推送后的 origin/main 完整 SHA 与第二阶段正式放行消息共同锁定。
+
 ## 变更控制
 
 - 基线：origin/main@`1015ecb9be46b8b848c6a38d8d9bc5a9ae635838` / 生产 v0.8.3。
 - 范围：音频资产与许可、`public/app.js`、测试、package/lock/cache、当前需求包与 M8。
 - 回滚：恢复精确 v0.8.3 release；不得覆盖历史 release。
-- 当前状态：等待完整本地发布门禁；生产尚未写入。
+- 当前状态：D4 已通过，允许从新的唯一完整 SHA fresh 构建全新 v0.8.4 release；生产尚未写入。
