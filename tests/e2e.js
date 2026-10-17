@@ -419,7 +419,7 @@ async function main() {
     assert.equal(await a.locator("#cardEffectName").textContent(), "融资窗口");
     await a.waitForFunction(() => document.querySelector("#cardEffectCard").classList.contains("settled"));
     const cardMotion = await a.locator("#cardEffectCard").evaluate(node => { const front=node.querySelector(".card-effect-front"),back=node.querySelector(".card-effect-back"),frontAnimation=front.getAnimations()[0],backAnimation=back.getAnimations()[0];return{duration:frontAnimation?.effect?.getTiming?.().duration||0,frontTransforms:(frontAnimation?.effect?.getKeyframes?.()||[]).map(frame=>String(frame.transform||"")),backTransforms:(backAnimation?.effect?.getKeyframes?.()||[]).map(frame=>String(frame.transform||"")),frontBackface:getComputedStyle(front).backfaceVisibility,backBackface:getComputedStyle(back).backfaceVisibility,frontTransform:getComputedStyle(front).transform,backTransform:getComputedStyle(back).transform,backAriaHidden:back.getAttribute("aria-hidden")}; });
-    assert.ok(Number(cardMotion.duration) >= 430 && Number(cardMotion.duration) <= 520, `card reveal duration ${cardMotion.duration}`);
+    assert.ok(Number(cardMotion.duration) >= 580 && Number(cardMotion.duration) <= 660, `card reveal duration ${cardMotion.duration}`);
     const frontAngles=cardMotion.frontTransforms.flatMap(transform=>[...transform.matchAll(/rotateY\((-?[\d.]+)deg\)/g)].map(match=>Number(match[1]))),backAngles=cardMotion.backTransforms.flatMap(transform=>[...transform.matchAll(/rotateY\((-?[\d.]+)deg\)/g)].map(match=>Number(match[1])));
     assert.ok(frontAngles.some(angle=>angle<=-180)&&frontAngles.some(angle=>Math.abs(angle)<=10), `front must flip from hidden back to upright ${JSON.stringify(cardMotion.frontTransforms)}`);
     assert.ok(backAngles.some(angle=>Math.abs(angle)<=10)&&backAngles.some(angle=>angle>=180), `back must flip away horizontally ${JSON.stringify(cardMotion.backTransforms)}`);
@@ -436,7 +436,7 @@ async function main() {
     await a.screenshot({ path: path.join(screenshotDir, "04b-city-event-reveal.png"), fullPage: true });
     await a.locator("#cardEffectOverlay").waitFor({ state: "hidden", timeout: 3000 });
     const cardTrace = await a.evaluate(() => window.__cardRevealTrace.at(-1));
-    assert.ok(cardTrace.duration >= 1850 && cardTrace.duration <= 2250, `card total duration ${cardTrace.duration}`);
+    assert.ok(cardTrace.duration >= 2000 && cardTrace.duration <= 2350, `card total duration ${cardTrace.duration}`);
     assert.ok(cardTrace.stableDuration >= 1400 && cardTrace.stableDuration <= 1700, `card stable duration ${cardTrace.stableDuration}`);
     await a.waitForFunction(() => document.querySelector("#gameToast.visible")?.textContent.includes("融资窗口"));
     assert.ok((await a.evaluate(() => window.__soundTrace)).some(item => item.name === "opportunity"));
@@ -751,7 +751,7 @@ async function main() {
       soundEffects: "dice + step + city event + landmark + transit + review + vote + route + card + coin + partnership + investment",
       backgroundMusic: "independent toggle + game-only lifecycle + licensed casual city-pop loop + lower mix + effect ducking",
       eventCashFeedback: "authoritative cashChanges + gain/loss sound and particles",
-      readableCardReveal: "0.48s two-face horizontal flip + 1.5s stable front face, mirrored text impossible via hidden backfaces",
+      readableCardReveal: "0.62s inertial two-face horizontal flip + 1.5s stable front face, mirrored text impossible via hidden backfaces",
       consoleErrors: 0
     }, null, 2));
   } finally {
