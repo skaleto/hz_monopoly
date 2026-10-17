@@ -1,9 +1,9 @@
 # M8：v0.8.4
 
 - 日期：2026-10-17
-- 状态：D4 已通过，等待从唯一完整 SHA fresh 准备并切换生产
+- 状态：D4 已通过，v0.8.4 已发布并保留
 - 规则版本：`hangzhou-v5-streamlined-board`（不改玩法）
-- 源码基线：origin/main@`1015ecb9be46b8b848c6a38d8d9bc5a9ae635838`
+- 源码基线：origin/main@`7f50960d0d8eca02cbdc8a1829644d09d894626c`
 - 生产基线：v0.8.3
 - 回滚点：精确 v0.8.3 release；不得覆盖 current 或任何历史 release
 
@@ -37,8 +37,21 @@
 - 精确 v0.8.3 回滚点存在且 version=0.8.3；已有 v0.8.4 release=0；第一阶段生产零写入。
 - 唯一生产源码：以本 D4 提交推送后的 origin/main 完整 SHA 为准，由第二阶段正式放行消息显式给出；不得沿用 D3 SHA 或其产物。
 
-## 待回填
+## 生产发布结果
 
-- 唯一 D4 源码 SHA：待提交后锁定
-- 唯一工件 SHA/成员数：待 fresh 构建
-- 生产 release/current、核心烟测房、DB 与回滚结果：待执行
+- 唯一 D4 源码 SHA：`7f50960d0d8eca02cbdc8a1829644d09d894626c`；发布前已复核 origin/main 与 GitHub main 一致，D3 `5fd20a268efddfbafc8eb0c70891b9a59375697e` 及其产物未作为生产输入。
+- 唯一工件：118 个文件成员，禁入项为 0，SHA256=`a1fe1f0abbfa415d6a5dcf78cd271a833be6fc31a64d35e78193854a0c7f308f`；fresh 解包完整 release verify 通过，远端原包与本地原包一致。
+- 生产 release/current：`/opt/hangzhou-partners/releases/v0.8.4-20261017T121932Z`；package/lock/cache=`0.8.4`，production audit 0 vulnerabilities，data 绝对链接为 `/opt/hangzhou-partners/data`。
+- 正式音轨：`public/audio/cassette-tape-dream-sharou.v1.ogg`，公网认证会话与 release 文件 SHA256 均为 `1b0b65d50e14dec10d6fe0ac456e8335baf9d61d6a5718bdeb22259ce567010a`；许可证 SHA256=`c7b6622d489ee2955b3625265d37e75ed5af3b2ec52b96b6b0620fea0dd7c11e`，官方 MP3 SHA256=`8287e4597866bfdd4a677e82b95a631d8e7fd6580bedcb0593b299285395d553`；mix=`0.18/0.07`，旧 `city-loop` 文件为 0。
+- 最终服务门禁：service active；配置 `PORT=8427`、`BASE_PATH=/hangzhou-partners`，本机与公网 health 均为 200；认证 bootstrap/page/BGM=`302/200/200`。
+- 核心烟测房 `774558`：第二真人、双 Bot、开局、headed Chromium 点击 `rollPromptButton`、移动、回合推进和房主结束全部通过；实时 `DICE_ROLLED` seq 1、`PLAYER_MOVED` seq 2、`TURN_STARTED` seq 6，玩家字段均按 `event.payload.playerId` 校验，browser issues=0；round `1→2`、game version `0→4→5`，终局 status=`finished`。
+- 同房 DB 双证据：真人点击 action 为 seq 1–4（`DICE_ROLLED→PLAYER_MOVED→PLAYER_LANDED→PROPERTY_OFFERED`），同一真人决策 action 为 seq 5–6（`PROPERTY_SKIPPED→TURN_STARTED`），房主结束 action 为 seq 13–14（`GAME_ENDED_EARLY→GAME_FINISHED`）；ruleset=`hangzhou-v5-streamlined-board`。
+- 共享 data dev:inode=`64771:2105925`，DB dev:inode=`64771:2112440`，`PRAGMA quick_check=ok`；环境与 Nginx SHA 未漂移。
+- 精确回滚点 `/opt/hangzhou-partners/releases/v0.8.3-20261017T100808Z` 存在且 version=`0.8.3`；最终保留 v0.8.4，未触发最终回滚。
+
+## 发布过程中的探针与临时 harness 修正
+
+- 首次切换后页面/BGM 探针未建立 `hc_demo_access` Cookie，403 被按契约处理并回滚到精确 v0.8.3。只读对比证明 403 与版本无关；用户重新放行后复用同一 immutable release，并改为先通过 `?access=<DEMO_ACCESS_KEY>` 建立 Secure/HttpOnly Cookie、再访问清洁 URL。密钥未写入日志，非 2xx 响应未计算资产 SHA。
+- 临时烟测房 `289209` 暴露采集器过早读取 Bot 行动前 snapshot；修正为等待双方 snapshot 达到开局版本且当前玩家为真人。该修正仅在 ignored harness 中，未修改源码、工件或 release。
+- 临时烟测房 `529445` 暴露 `pending` union 映射的 eager 求值：非 route 的 `partner` 状态仍读取 `choices[0]`。DB 证明真人点击与 Bot partner timeout 均正常；回归用例先 RED 后 GREEN，harness 改为按 `pending.type` 分支，partner 使用 `targetPlayerId`。该修正同样未进入产品或 release。
+- 本机默认 Node 因 Homebrew `simdutf` 动态库失配无法启动；临时 harness 改用已验证的独立 Node 绝对路径。另两次只读假阴性分别来自硬编码本机 3000 端口和未匹配 minified mix 字面量，均按生产配置/源码纠正后复测通过，不计为产品门禁失败。
