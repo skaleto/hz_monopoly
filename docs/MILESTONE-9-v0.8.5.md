@@ -1,7 +1,7 @@
-# M9：v0.8.5 候选
+# M9：v0.8.5
 
 - 日期：2026-10-17
-- 状态：D4 验证与用户授权通过，等待单轮轻量发布
+- 状态：已发布并保留
 - 生产基线/回滚点：v0.8.4
 - 规则版本：`hangzhou-v5-streamlined-board`（不改玩法）
 
@@ -18,3 +18,12 @@
 - 卡片门禁：390×844 E2E 与最终完整 `npm run verify` PASS；0.62 秒完成 0→194→174→180°惯性回摆、两面 backface hidden、稳定阅读约 1.5 秒、总展示约 2.12 秒。
 - 音乐门禁：正式 01 音轨不变；正常/duck 音量 `0.10/0.025`；音乐/音效独立开关、后台恢复与回首页停止回归通过。
 - 用户已查看惯性版视频并明确说“发布”；按 HARNESS 单轮轻量流程执行，不再追加 D3/D4 双阶段或重复 full verify。
+
+## 生产发布结果
+
+- 发布源码：`328fb2ff3b69a9f3445cc33227b8c0485ae19e7e`。
+- release/current：`/opt/hangzhou-partners/releases/v0.8.5-20261017T142752Z`；version/cache=`0.8.5`。
+- service active；本机与公网 health 均为 200；正确访问认证后的页面为 200。
+- 核心烟测房 `766352`：第二真人、双 Bot、开局、headed Chromium 点击投掷、移动、回合推进和房主结束通过；终局 `finished`，game version=`6`，round=`2`。
+- 发布后 `PRAGMA quick_check=ok`。
+- 回滚点 `/opt/hangzhou-partners/releases/v0.8.4-20261017T121932Z` 存在且 version=`0.8.4`；本次未触发回滚，最终保留 v0.8.5。
