@@ -418,12 +418,16 @@ async function main() {
     assert.equal(await a.locator("#cardEffectKicker").textContent(), "城市事件");
     assert.equal(await a.locator("#cardEffectName").textContent(), "融资窗口");
     await a.waitForFunction(() => document.querySelector("#cardEffectCard").classList.contains("settled"));
-    const cardMotion = await a.locator("#cardEffectCard").evaluate(node => { const style=getComputedStyle(node),animation=node.getAnimations()[0],frames=animation?.effect?.getKeyframes?.()||[];return{backface:style.backfaceVisibility,duration:animation?.effect?.getTiming?.().duration||0,transforms:frames.map(frame=>String(frame.transform||""))}; });
-    assert.equal(cardMotion.backface, "hidden");
+    const cardMotion = await a.locator("#cardEffectCard").evaluate(node => { const front=node.querySelector(".card-effect-front"),back=node.querySelector(".card-effect-back"),frontAnimation=front.getAnimations()[0],backAnimation=back.getAnimations()[0];return{duration:frontAnimation?.effect?.getTiming?.().duration||0,frontTransforms:(frontAnimation?.effect?.getKeyframes?.()||[]).map(frame=>String(frame.transform||"")),backTransforms:(backAnimation?.effect?.getKeyframes?.()||[]).map(frame=>String(frame.transform||"")),frontBackface:getComputedStyle(front).backfaceVisibility,backBackface:getComputedStyle(back).backfaceVisibility,frontTransform:getComputedStyle(front).transform,backTransform:getComputedStyle(back).transform,backAriaHidden:back.getAttribute("aria-hidden")}; });
     assert.ok(Number(cardMotion.duration) >= 600 && Number(cardMotion.duration) <= 700, `card reveal duration ${cardMotion.duration}`);
-    const cardYAngles=cardMotion.transforms.flatMap(transform=>[...transform.matchAll(/rotateY\((-?[\d.]+)deg\)/g)].map(match=>Number(match[1])));
-    assert.ok(cardYAngles.some(angle=>Math.abs(angle)>=70), `card must visibly rotate ${JSON.stringify(cardMotion.transforms)}`);
-    assert.equal(cardYAngles.every(angle=>Math.abs(angle)<90), true, `mirrored card frame ${JSON.stringify(cardMotion.transforms)}`);
+    const frontAngles=cardMotion.frontTransforms.flatMap(transform=>[...transform.matchAll(/rotateY\((-?[\d.]+)deg\)/g)].map(match=>Number(match[1]))),backAngles=cardMotion.backTransforms.flatMap(transform=>[...transform.matchAll(/rotateY\((-?[\d.]+)deg\)/g)].map(match=>Number(match[1])));
+    assert.ok(frontAngles.some(angle=>angle<=-180)&&frontAngles.some(angle=>Math.abs(angle)<=10), `front must flip from hidden back to upright ${JSON.stringify(cardMotion.frontTransforms)}`);
+    assert.ok(backAngles.some(angle=>Math.abs(angle)<=10)&&backAngles.some(angle=>angle>=180), `back must flip away horizontally ${JSON.stringify(cardMotion.backTransforms)}`);
+    assert.equal(cardMotion.frontBackface,"hidden");
+    assert.equal(cardMotion.backBackface,"hidden");
+    assert.match(cardMotion.frontTransform,/matrix/);
+    assert.match(cardMotion.backTransform,/matrix/);
+    assert.equal(cardMotion.backAriaHidden,"true");
     assert.equal(await a.locator("#cardEffectCash").textContent(), "金币 +60");
     assert.match(await a.locator("#cardEffectCash").getAttribute("class"), /gain/);
     assert.ok(await a.locator(".event-cash-coin.gain").count() > 0);
@@ -747,7 +751,7 @@ async function main() {
       soundEffects: "dice + step + city event + landmark + transit + review + vote + route + card + coin + partnership + investment",
       backgroundMusic: "independent toggle + game-only lifecycle + licensed casual city-pop loop + lower mix + effect ducking",
       eventCashFeedback: "authoritative cashChanges + gain/loss sound and particles",
-      readableCardReveal: "0.68s visible rotation + 1.7s stable front face, every rotateY frame under 90deg",
+      readableCardReveal: "0.68s two-face horizontal flip + 1.7s stable front face, mirrored text impossible via hidden backfaces",
       consoleErrors: 0
     }, null, 2));
   } finally {
