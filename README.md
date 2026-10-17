@@ -1,12 +1,12 @@
 # 杭城合伙局
 
-当前稳定里程碑：**M5 / v0.8.1（已发布）**
+当前稳定里程碑：**M8 / v0.8.4（已发布）**
 
 - 公网入口：<https://skbaby.top/hangzhou-partners/>
-- 生产 release：`/opt/hangzhou-partners/releases/v0.8.1-20261016T053327Z`
+- 生产 release：`/opt/hangzhou-partners/releases/v0.8.4-20261017T121932Z`
 - 形态：H5 熟人私密房，2–4 个席位，可补 Bot
-- 里程碑证据：[docs/MILESTONE-5-v0.8.1.md](docs/MILESTONE-5-v0.8.1.md)
-- 当前体验合同：[docs/requirements/turn-clarity-visual-audio-v1.md](docs/requirements/turn-clarity-visual-audio-v1.md)
+- 里程碑证据：[docs/MILESTONE-8-v0.8.4.md](docs/MILESTONE-8-v0.8.4.md)
+- 当前发布规约：[HARNESS.md](HARNESS.md#4-改动分级与验证)
 
 ## 当前能力
 
@@ -69,4 +69,4 @@ npm run verify
 - 正式开放前需接入短信供应商、账号删除、验证码/IP 限流与隐私政策；
 - 当前单机 SQLite 适合小范围联调，扩容前需完成正式数据库和备份恢复方案。
 
-部署必须使用全新 release、共享 data 绝对链接和原子 `current` 切换；不得直接覆盖生产目录。
+部署必须使用全新 release、共享 data 绝对链接和原子 `current` 切换；不得直接覆盖生产目录。Demo 发布采用 [HARNESS.md](HARNESS.md#4-改动分级与验证) 的单轮轻量流程：一次交接、一次预检、一次切换、一次核心烟测，群内只同步开始/真实阻塞/最终结果。
