@@ -1,0 +1,30 @@
+Cassette Tape Dream - Track 2 (loop version)
+Composer: Sharou / しゃろう
+Source page: https://opentracks.com/bgm/detail/13963
+Official download page: https://opentracks.com/bgm/detail/13963/download
+Site license: https://opentracks.com/help/articles/license/
+Composer terms: https://opentracks.com/creator/detail/101#terms-of-use
+Retrieved from the official download flow: 2026-10-17
+
+License summary at retrieval time:
+- OpenTracks (formerly DOVA-SYNDROME) permits the music as background
+  music in commercial and non-commercial productions, including paid or
+  free apps, web services, and games.
+- No copyright usage fee or mandatory credit is required.
+- File-format conversion and loop editing are permitted.
+- The composer states that the site license applies and adds no extra
+  restrictions.
+- Standalone redistribution of the music file is prohibited.
+
+Official loop MP3 SHA256:
+8287e4597866bfdd4a677e82b95a631d8e7fd6580bedcb0593b299285395d553
+
+Runtime derivative: cassette-tape-dream-sharou.v1.ogg
+Runtime SHA256:
+1b0b65d50e14dec10d6fe0ac456e8335baf9d61d6a5718bdeb22259ce567010a
+
+Derivative notes:
+- The official Track 2 loop MP3 was converted to Ogg Vorbis for browser
+  playback. No musical content or arrangement was changed.
+- The application loads the file only as in-game background music and
+  does not expose a standalone download UI.

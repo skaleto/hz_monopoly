@@ -15,7 +15,7 @@
   const sound=(()=>{
     let context=null,resumePromise=null,enabled=localStorage.getItem("hc_sound_enabled")!=="0",musicEnabled=localStorage.getItem("hc_music_enabled")!=="0",gameActive=false,musicStartPending=false,musicDuckTimer=null;const activeOscillators=new Set();
     const diceShakeAudio=new Audio(`${basePath}/audio/dice-shake-short.v2.ogg`);diceShakeAudio.preload="auto";diceShakeAudio.volume=.88;
-    const musicFile="city-loop-cc0.v1.ogg",musicBaseVolume=.34,musicDuckVolume=.12,musicAudio=new Audio(`${basePath}/audio/${musicFile}`);musicAudio.preload="none";musicAudio.loop=true;musicAudio.volume=musicBaseVolume;
+    const musicFile="cassette-tape-dream-sharou.v1.ogg",musicBaseVolume=.18,musicDuckVolume=.07,musicAudio=new Audio(`${basePath}/audio/${musicFile}`);musicAudio.preload="none";musicAudio.loop=true;musicAudio.volume=musicBaseVolume;
     window.__soundTrace=[];window.__musicTrace=[];
     function musicTrace(entry){window.__musicTrace.push({at:performance.now(),...entry});if(window.__musicTrace.length>240)window.__musicTrace.splice(0,window.__musicTrace.length-240)}
     function isMusicPlaying(){return!musicAudio.paused&&!musicAudio.ended}

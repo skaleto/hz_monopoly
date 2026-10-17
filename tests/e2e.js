@@ -92,13 +92,13 @@ async function main() {
     await a.locator("#turnOrderBanner").waitFor({ state: "hidden", timeout: 3000 });
     await b.locator("#turnOrderBanner").waitFor({ state: "hidden", timeout: 3000 });
     assert.equal(await a.locator("#musicToggle").textContent(), "音乐开");
-    await a.waitForFunction(() => (window.__musicTrace || []).some(item => item.type === "track-start" && item.file === "city-loop-cc0.v1.ogg"));
+    await a.waitForFunction(() => (window.__musicTrace || []).some(item => item.type === "track-start" && item.file === "cassette-tape-dream-sharou.v1.ogg"));
     assert.equal(await a.evaluate(() => window.__soundController.isMusicPlaying()), true);
-    assert.equal(await a.evaluate(() => window.__soundController.musicFile()), "city-loop-cc0.v1.ogg");
-    assert.equal(await a.evaluate(() => window.__soundController.musicVolume()), .34);
+    assert.equal(await a.evaluate(() => window.__soundController.musicFile()), "cassette-tape-dream-sharou.v1.ogg");
+    assert.equal(await a.evaluate(() => window.__soundController.musicVolume()), .18);
     await a.evaluate(() => window.__soundController.play("coin"));
-    assert.equal(await a.evaluate(() => window.__soundController.musicVolume()), .12, "key effects must duck the background track");
-    await a.waitForFunction(() => window.__soundController.musicVolume() === .34);
+    assert.equal(await a.evaluate(() => window.__soundController.musicVolume()), .07, "key effects must duck the background track");
+    await a.waitForFunction(() => window.__soundController.musicVolume() === .18);
     assert.equal(await a.locator("#soundToggle").textContent(), "音效开");
     await a.locator("#soundToggle").click();
     assert.equal(await a.locator("#soundToggle").textContent(), "音效关");
@@ -743,7 +743,7 @@ async function main() {
       upgradeSelector: "own turn only + explicit project/cost/rent",
       ownerEndGame: "owner-only confirmed settlement",
       soundEffects: "dice + step + city event + landmark + transit + review + vote + route + card + coin + partnership + investment",
-      backgroundMusic: "independent toggle + game-only lifecycle + licensed CC0 loop + effect ducking",
+      backgroundMusic: "independent toggle + game-only lifecycle + licensed casual city-pop loop + lower mix + effect ducking",
       eventCashFeedback: "authoritative cashChanges + gain/loss sound and particles",
       readableCardReveal: ">=2.3s stable front face, no mirrored keyframe",
       consoleErrors: 0
