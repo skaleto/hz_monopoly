@@ -44,6 +44,8 @@ test("web client references versioned WebP instead of PNG", () => {
   assert.match(js, /visibilitychange/);
   assert.match(js, /sound\.rearm/);
   assert.match(js, /hc_music_enabled/);
+  assert.match(js, /city-loop-cc0\.v1\.ogg/);
+  assert.doesNotMatch(js, /musicChords|scheduleMusicStep/);
   assert.match(js, /setGameActive/);
   assert.match(js, /pauseForVisibility/);
   assert.match(html, /id="musicToggle"/);
@@ -56,6 +58,8 @@ test("web client references versioned WebP instead of PNG", () => {
   assert.match(html, /id="celebrationOverlay"/);
   assert.ok(fs.statSync(path.join(__dirname, "..", "public", "audio", "dice-shake-short.v2.ogg")).size < 25_000);
   assert.ok(fs.existsSync(path.join(__dirname, "..", "public", "audio", "dice-shake-short.v2.LICENSE.txt")));
+  assert.ok(fs.existsSync(path.join(__dirname, "..", "public", "audio", "city-loop-cc0.v1.LICENSE.txt")));
+  assert.ok(fs.statSync(path.join(__dirname, "..", "public", "audio", "city-loop-cc0.v1.ogg")).size < 1_500_000);
   assert.ok(!fs.existsSync(path.join(__dirname, "..", "public", "audio", "dice-shake-heavy.v1.ogg")));
   assert.ok(fs.existsSync(path.join(__dirname,"..","scripts","generate-board-background-variants.js")));
   assert.ok(fs.existsSync(path.join(assets,"board_water_garden.png")));
@@ -67,6 +71,16 @@ test("short multi-dice shake audio keeps the vetted CC0 derivative and server MI
   const server = fs.readFileSync(path.join(__dirname, "..", "server", "server.js"), "utf8");
   assert.equal(crypto.createHash("sha256").update(audio).digest("hex"), "589aa5853285445648b47d49e443b02e09a62e9f6099f3b9acbae4bb766f6848");
   assert.match(server, /"\.ogg": "audio\/ogg"/);
+});
+
+test("background music keeps the reviewed CC0 loop and license evidence", () => {
+  const crypto = require("node:crypto");
+  const audio = fs.readFileSync(path.join(__dirname, "..", "public", "audio", "city-loop-cc0.v1.ogg"));
+  const license = fs.readFileSync(path.join(__dirname, "..", "public", "audio", "city-loop-cc0.v1.LICENSE.txt"), "utf8");
+  assert.equal(crypto.createHash("sha256").update(audio).digest("hex"), "869e66edb03f03f88babe071053a9b3c92208da6524478d3787ed35a942828f4");
+  assert.match(license, /CC0 1\.0 Universal/);
+  assert.match(license, /opengameart\.org\/content\/city-loop-0/);
+  assert.match(license, /9349982fb8e365167bc5c89f2ac50d3b5376b9f627d506ba30a9b26c8230597e/);
 });
 
 test("four expanded-board projects have reproducible source PNG and compact WebP icons", () => {

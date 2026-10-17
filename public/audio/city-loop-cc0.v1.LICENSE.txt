@@ -1,0 +1,25 @@
+City Loop
+Author: wipics
+Source page: https://opengameart.org/content/city-loop-0
+Source file: https://opengameart.org/sites/default/files/city-loop_0.mp3
+Retrieved: 2026-10-17
+
+License: Creative Commons CC0 1.0 Universal
+License URL: https://creativecommons.org/publicdomain/zero/1.0/
+
+The source page marks this music CC0. It may be copied, modified,
+distributed, and used commercially without attribution. Attribution is
+retained here for provenance.
+
+Source MP3 SHA256:
+9349982fb8e365167bc5c89f2ac50d3b5376b9f627d506ba30a9b26c8230597e
+
+Runtime derivative: city-loop-cc0.v1.ogg
+Runtime SHA256:
+869e66edb03f03f88babe071053a9b3c92208da6524478d3787ed35a942828f4
+
+Derivative notes:
+- Removed the source's trailing silence.
+- Rotated the musical loop to start at 1.000 seconds.
+- Crossfaded the final second into the first second for a clean HTMLAudio loop.
+- Encoded as Ogg Vorbis for browser playback.

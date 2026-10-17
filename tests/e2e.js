@@ -92,8 +92,13 @@ async function main() {
     await a.locator("#turnOrderBanner").waitFor({ state: "hidden", timeout: 3000 });
     await b.locator("#turnOrderBanner").waitFor({ state: "hidden", timeout: 3000 });
     assert.equal(await a.locator("#musicToggle").textContent(), "音乐开");
-    await a.waitForFunction(() => (window.__musicTrace || []).some(item => item.type === "step"));
+    await a.waitForFunction(() => (window.__musicTrace || []).some(item => item.type === "track-start" && item.file === "city-loop-cc0.v1.ogg"));
     assert.equal(await a.evaluate(() => window.__soundController.isMusicPlaying()), true);
+    assert.equal(await a.evaluate(() => window.__soundController.musicFile()), "city-loop-cc0.v1.ogg");
+    assert.equal(await a.evaluate(() => window.__soundController.musicVolume()), .34);
+    await a.evaluate(() => window.__soundController.play("coin"));
+    assert.equal(await a.evaluate(() => window.__soundController.musicVolume()), .12, "key effects must duck the background track");
+    await a.waitForFunction(() => window.__soundController.musicVolume() === .34);
     assert.equal(await a.locator("#soundToggle").textContent(), "音效开");
     await a.locator("#soundToggle").click();
     assert.equal(await a.locator("#soundToggle").textContent(), "音效关");
@@ -667,7 +672,7 @@ async function main() {
     await a.locator("#gameHomeButton").click();
     await a.locator("#homeView").waitFor({ state:"visible" });
     const soundCountAfterHome = await a.evaluate(() => window.__soundTrace.length);
-    const musicStepsAfterHome = await a.evaluate(() => window.__musicTrace.filter(item => item.type === "step").length);
+    const musicStartsAfterHome = await a.evaluate(() => window.__musicTrace.filter(item => item.type === "track-start").length);
     assert.equal(await a.evaluate(() => window.__soundController.isMusicPlaying()), false);
     await a.waitForTimeout(1600);
     assert.equal(await a.locator(".flying-coin").count(), 0);
@@ -675,7 +680,7 @@ async function main() {
     assert.equal(await a.locator("#diceStage").isHidden(), true);
     assert.equal(await a.locator("#celebrationOverlay").isHidden(), true);
     assert.equal(await a.evaluate(() => window.__soundTrace.length), soundCountAfterHome, "no queued game sound may play after returning home");
-    assert.equal(await a.evaluate(() => window.__musicTrace.filter(item => item.type === "step").length), musicStepsAfterHome, "background music scheduler must stop after returning home");
+    assert.equal(await a.evaluate(() => window.__musicTrace.filter(item => item.type === "track-start").length), musicStartsAfterHome, "background music track must stay stopped after returning home");
 
     if (errors.length) throw new Error(errors.join("\n"));
     console.log(JSON.stringify({
@@ -738,7 +743,7 @@ async function main() {
       upgradeSelector: "own turn only + explicit project/cost/rent",
       ownerEndGame: "owner-only confirmed settlement",
       soundEffects: "dice + step + city event + landmark + transit + review + vote + route + card + coin + partnership + investment",
-      backgroundMusic: "independent toggle + game-only lifecycle + production audio pending AI-composed asset",
+      backgroundMusic: "independent toggle + game-only lifecycle + licensed CC0 loop + effect ducking",
       eventCashFeedback: "authoritative cashChanges + gain/loss sound and particles",
       readableCardReveal: ">=2.3s stable front face, no mirrored keyframe",
       consoleErrors: 0
