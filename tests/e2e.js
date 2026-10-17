@@ -95,10 +95,10 @@ async function main() {
     await a.waitForFunction(() => (window.__musicTrace || []).some(item => item.type === "track-start" && item.file === "cassette-tape-dream-sharou.v1.ogg"));
     assert.equal(await a.evaluate(() => window.__soundController.isMusicPlaying()), true);
     assert.equal(await a.evaluate(() => window.__soundController.musicFile()), "cassette-tape-dream-sharou.v1.ogg");
-    assert.equal(await a.evaluate(() => window.__soundController.musicVolume()), .18);
+    assert.equal(await a.evaluate(() => window.__soundController.musicVolume()), .1);
     await a.evaluate(() => window.__soundController.play("coin"));
-    assert.equal(await a.evaluate(() => window.__soundController.musicVolume()), .07, "key effects must duck the background track");
-    await a.waitForFunction(() => window.__soundController.musicVolume() === .18);
+    assert.equal(await a.evaluate(() => window.__soundController.musicVolume()), .025, "key effects must duck the background track");
+    await a.waitForFunction(() => window.__soundController.musicVolume() === .1);
     assert.equal(await a.locator("#soundToggle").textContent(), "音效开");
     await a.locator("#soundToggle").click();
     assert.equal(await a.locator("#soundToggle").textContent(), "音效关");
@@ -420,8 +420,10 @@ async function main() {
     await a.waitForFunction(() => document.querySelector("#cardEffectCard").classList.contains("settled"));
     const cardMotion = await a.locator("#cardEffectCard").evaluate(node => { const style=getComputedStyle(node),animation=node.getAnimations()[0],frames=animation?.effect?.getKeyframes?.()||[];return{backface:style.backfaceVisibility,duration:animation?.effect?.getTiming?.().duration||0,transforms:frames.map(frame=>String(frame.transform||""))}; });
     assert.equal(cardMotion.backface, "hidden");
-    assert.ok(Number(cardMotion.duration) <= 850, `card reveal duration ${cardMotion.duration}`);
-    assert.equal(cardMotion.transforms.some(transform => /rotateY\((?:-?1[89]0|360|1080)deg\)/.test(transform)), false, `mirrored card frame ${JSON.stringify(cardMotion.transforms)}`);
+    assert.ok(Number(cardMotion.duration) >= 600 && Number(cardMotion.duration) <= 700, `card reveal duration ${cardMotion.duration}`);
+    const cardYAngles=cardMotion.transforms.flatMap(transform=>[...transform.matchAll(/rotateY\((-?[\d.]+)deg\)/g)].map(match=>Number(match[1])));
+    assert.ok(cardYAngles.some(angle=>Math.abs(angle)>=70), `card must visibly rotate ${JSON.stringify(cardMotion.transforms)}`);
+    assert.equal(cardYAngles.every(angle=>Math.abs(angle)<90), true, `mirrored card frame ${JSON.stringify(cardMotion.transforms)}`);
     assert.equal(await a.locator("#cardEffectCash").textContent(), "金币 +60");
     assert.match(await a.locator("#cardEffectCash").getAttribute("class"), /gain/);
     assert.ok(await a.locator(".event-cash-coin.gain").count() > 0);
@@ -430,8 +432,8 @@ async function main() {
     await a.screenshot({ path: path.join(screenshotDir, "04b-city-event-reveal.png"), fullPage: true });
     await a.locator("#cardEffectOverlay").waitFor({ state: "hidden", timeout: 3000 });
     const cardTrace = await a.evaluate(() => window.__cardRevealTrace.at(-1));
-    assert.ok(cardTrace.duration >= 3100, `card total duration ${cardTrace.duration}`);
-    assert.ok(cardTrace.stableDuration >= 2300, `card stable duration ${cardTrace.stableDuration}`);
+    assert.ok(cardTrace.duration >= 2250 && cardTrace.duration <= 2700, `card total duration ${cardTrace.duration}`);
+    assert.ok(cardTrace.stableDuration >= 1600 && cardTrace.stableDuration <= 1950, `card stable duration ${cardTrace.stableDuration}`);
     await a.waitForFunction(() => document.querySelector("#gameToast.visible")?.textContent.includes("融资窗口"));
     assert.ok((await a.evaluate(() => window.__soundTrace)).some(item => item.name === "opportunity"));
     await a.evaluate(async () => { window.__cashFeedbackTrace=[];window.__soundTrace=[];const playerId=window.__renderedPlayerIds[0];await window.__cashFeedbackForTest([{playerId,delta:-180}]); });
@@ -745,7 +747,7 @@ async function main() {
       soundEffects: "dice + step + city event + landmark + transit + review + vote + route + card + coin + partnership + investment",
       backgroundMusic: "independent toggle + game-only lifecycle + licensed casual city-pop loop + lower mix + effect ducking",
       eventCashFeedback: "authoritative cashChanges + gain/loss sound and particles",
-      readableCardReveal: ">=2.3s stable front face, no mirrored keyframe",
+      readableCardReveal: "0.68s visible rotation + 1.7s stable front face, every rotateY frame under 90deg",
       consoleErrors: 0
     }, null, 2));
   } finally {
