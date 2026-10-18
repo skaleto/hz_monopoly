@@ -2,7 +2,7 @@
 
 const crypto = require("node:crypto");
 
-const CURRENT_RULESET_VERSION = "hangzhou-v5-streamlined-board";
+const CURRENT_RULESET_VERSION = "hangzhou-v6-readable-board";
 
 const BOARD = [
   { type: "start", name: "我的公寓", next: [1] },

@@ -2,7 +2,7 @@
 
 /**
  * 棋盘布局生成器 —— 主环弧长均匀 + 双支线贝塞尔，一套数据源同时输出：
- *   1. 主环 33 个节点的坐标（圆角矩形轨道，弧长等距，起点=我的公寓，方向：底边→右边→顶边→左边）
+ *   1. 主环节点的坐标（圆角矩形轨道，弧长等距，起点=我的公寓，方向：底边→右边→顶边→左边）
  *   2. 水线/地铁两条支线各 8 个内部节点（三次贝塞尔，弧长等距采样，端点锚定在主环节点）
  *   3. 约束自检报告：任意两节点最小间距、支线-主环间距、支线间间距
  *
@@ -11,13 +11,15 @@
  *
  * 用法：node scripts/generate-board-layout.js           # 打印报告 + JSON
  *       node scripts/generate-board-layout.js --write   # 直接改写 sims/board-layout.json
+ *       node scripts/generate-board-layout.js --write-compact # 生成 36 节点可读性候选
  */
 
+const COMPACT = process.argv.includes("--compact") || process.argv.includes("--write-compact");
 const CANVAS = { width: 364, height: 508 };   // 规范棋盘像素（390×844 视口实测）
-const TILE = 42;                               // 节点渲染尺寸（含描边）
+const TILE = COMPACT ? 50 : 42;                // 节点渲染尺寸（含描边）
 const MIN_GAP = TILE + 2;                      // 同向相邻节点最小中心距（直线段防重叠）
 const MIN_CROSS_GAP = TILE + 4;                // 支线与主环 / 支线之间的最小间距
-const RING_COUNT = 34;
+const RING_COUNT = COMPACT ? 26 : 34;
 const TRACK_MARGIN = TILE / 2 + 1;             // 节点中心离棋盘边缘
 const CORNER_RADIUS = 48;
 
@@ -105,10 +107,10 @@ function generateLayout() {
   const ringGap = track.total / RING_COUNT;
 
   // 主环节点序（棋序），对应 fiveSectorsOfFive 中的主路节点表
-  const ringOrder = [
-    0, 1, 2, 47, 3, 4, 5, 32, 6, 7, 8, 46, 9, 10, 11, 12, 13, 14,
-    15, 35, 16, 17, 18, 19, 20, 21, 22, 23, 24, 43, 25, 26, 42, 27
-  ];
+  const ringOrder = COMPACT
+    ? [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18, 20, 21, 22, 23, 24, 25, 26, 42, 27]
+    : [0, 1, 2, 47, 3, 4, 5, 32, 6, 7, 8, 46, 9, 10, 11, 12, 13, 14,
+      15, 35, 16, 17, 18, 19, 20, 21, 22, 23, 24, 43, 25, 26, 42, 27];
   if (ringOrder.length !== RING_COUNT) throw new Error(`ring order has ${ringOrder.length} nodes, expected ${RING_COUNT}`);
 
   const ring = ringOrder.map((index, position) => ({ index, ...pointOnTrack(track, position * ringGap) }));
@@ -122,9 +124,13 @@ function generateLayout() {
   const metroEntry = byIndex.get(10), metroExit = byIndex.get(17);
   if (!waterEntry || !waterExit || !metroEntry || !metroExit) throw new Error("missing branch anchor on ring");
 
-  // 两条支线 = 圆弧，各弓向自己的象限；8 内部节点 + 端点锚定，9 段 × ≥44px
-  const water = sampleArcEvenly(waterEntry, waterExit, 390, 8, { x: 182, y: 268 });
-  const metro = sampleArcEvenly(metroEntry, metroExit, 358, 7, { x: 218, y: 178 });
+  // 两条支线各弓向自己的象限；紧凑候选用更疏的 5 节点曲线，给 50px 卡片留足空间。
+  const water = COMPACT
+    ? { interior: [{ x:85,y:130 },{ x:100,y:190 },{ x:125,y:255 },{ x:150,y:330 },{ x:175,y:410 }], length:440 }
+    : sampleArcEvenly(waterEntry, waterExit, 390, 8, { x: 182, y: 268 });
+  const metro = COMPACT
+    ? { interior: [{ x:280,y:220 },{ x:230,y:230 },{ x:185,y:190 },{ x:150,y:135 },{ x:178,y:80 }], length:370 }
+    : sampleArcEvenly(metroEntry, metroExit, 358, 7, { x: 218, y: 178 });
 
   // 全局最小间距自检（含主环、两支线全体 49 节点）
   const all = [
@@ -149,8 +155,8 @@ function toPercent(point) {
 
 function main() {
   const layout = generateLayout();
-  const waterOrder = [28, 29, 30, 45, 31, 33, 34, 36];   // 水线内部 8 节点（棋序）
-  const metroOrder = [37, 38, 48, 39, 41, 40, 44];       // 地铁内部 7 节点（棋序；42 地铁补给站留在主路）
+  const waterOrder = COMPACT ? [28, 29, 31, 33, 36] : [28, 29, 30, 45, 31, 33, 34, 36];
+  const metroOrder = COMPACT ? [37, 38, 48, 41, 44] : [37, 38, 48, 39, 41, 40, 44];
   const data = {
     ring: Object.fromEntries(layout.ring.map(node => [node.index, toPercent(node)])),
     water: Object.fromEntries(waterOrder.map((index, i) => [index, toPercent(layout.water.interior[i])])),
@@ -164,9 +170,10 @@ function main() {
     }
   };
   const json = JSON.stringify(data, null, 2);
-  if (process.argv.includes("--write")) {
-    require("node:fs").writeFileSync(require("node:path").join(__dirname, "../sims/board-layout.json"), json + "\n");
-    console.log("written sims/board-layout.json");
+  if (process.argv.includes("--write") || process.argv.includes("--write-compact")) {
+    const filename = COMPACT ? "compact-board-layout.json" : "board-layout.json";
+    require("node:fs").writeFileSync(require("node:path").join(__dirname, `../sims/${filename}`), json + "\n");
+    console.log(`written sims/${filename}`);
   }
   console.log(json);
 }

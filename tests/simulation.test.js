@@ -2,7 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { profiles, expandedBoard } = require("../sims/profiles");
+const { profiles, expandedBoard, compactBoard } = require("../sims/profiles");
 const { simulateProfile, assertHardGates, assertCandidateGates } = require("../sims/run");
 
 test("expanded board keeps 25 categorized projects with a 34-node ring plus 8+7 branch lines", () => {
@@ -32,6 +32,16 @@ test("expanded board keeps 25 categorized projects with a 34-node ring plus 8+7 
   const ringNext = ringOrder.map(index => { const next = board[index].next[0]; return typeof next === "object" ? next.to : next; });
   assert.deepEqual(ringNext, [...ringOrder.slice(1), 0]);
   assert.equal(ringOrder.every(index => !board[index].inner), true);
+});
+
+test("readable board keeps every remaining node illustrated on a 26 + 5 + 5 topology", () => {
+  const board = compactBoard();
+  assert.equal(board.length,36);
+  assert.equal(board.filter(tile=>tile.type==="property").length,20);
+  assert.equal(board.filter(tile=>tile.inner==="water").length,5);
+  assert.equal(board.filter(tile=>tile.inner==="metro").length,5);
+  assert.equal(board.filter(tile=>Array.isArray(tile.next)&&tile.next.length>1).length,2);
+  assert.equal(board.every(tile=>Number.isFinite(tile.x)&&Number.isFinite(tile.y)),true);
 });
 
 test("M4 streamlined board candidate passes cash tension and pacing gates", () => {

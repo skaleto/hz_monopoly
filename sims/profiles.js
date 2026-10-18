@@ -63,6 +63,42 @@ function expandedBoard() {
   return candidateBoard;
 }
 
+function compactBoard() {
+  const source = expandedBoard();
+  const ringOrder = [0,1,2,3,4,5,7,8,9,10,11,12,13,14,15,17,18,20,21,22,23,24,25,26,42,27];
+  const waterOrder = [28,29,31,33,36];
+  const metroOrder = [37,38,48,41,44];
+  const sourceOrder = [...ringOrder, ...waterOrder, ...metroOrder];
+  const indexBySource = new Map(sourceOrder.map((sourceIndex, index) => [sourceIndex, index]));
+  const layout = require("./compact-board-layout.json");
+  const positionFor = sourceIndex => layout.ring[sourceIndex] || layout.water[sourceIndex] || layout.metro[sourceIndex];
+  const board = sourceOrder.map(sourceIndex => {
+    const tile = source[sourceIndex], position = positionFor(sourceIndex);
+    if (!tile || !position) throw new Error(`COMPACT_BOARD_SOURCE_MISSING:${sourceIndex}`);
+    return { ...tile, ...position, next: [] };
+  });
+  const target = sourceIndex => {
+    const index = indexBySource.get(sourceIndex);
+    if (!Number.isInteger(index)) throw new Error(`COMPACT_BOARD_TARGET_MISSING:${sourceIndex}`);
+    return index;
+  };
+  ringOrder.forEach((sourceIndex, position) => {
+    const tile = board[target(sourceIndex)];
+    tile.next = [target(ringOrder[(position + 1) % ringOrder.length])];
+    delete tile.inner;
+  });
+  board[target(22)].next = [{ to: target(23), label: "外环·运河线" }, { to: target(waterOrder[0]), label: "水上巴士线" }];
+  board[target(10)].next = [{ to: target(11), label: "外环·钱塘线" }, { to: target(metroOrder[0]), label: "地铁快线" }];
+  waterOrder.forEach((sourceIndex, position) => {
+    Object.assign(board[target(sourceIndex)], { inner:"water", next:[target(position === waterOrder.length - 1 ? 2 : waterOrder[position + 1])] });
+  });
+  metroOrder.forEach((sourceIndex, position) => {
+    Object.assign(board[target(sourceIndex)], { inner:"metro", next:[target(position === metroOrder.length - 1 ? 17 : metroOrder[position + 1])] });
+  });
+  if (board.length !== 36 || board.filter(tile => tile.type === "property").length !== 20) throw new Error("INVALID_COMPACT_BOARD");
+  return board;
+}
+
 const sharedCandidate = {
   startIncomeByRound: [
     { through: 4, amount: 200 },
@@ -80,9 +116,9 @@ const profiles = {
     botPolicy: { partnershipRate: 0, upgradeEnabled: false, upgradeAfterRound: 99, maxUpgradesPerPlayer: 0, reserveCash: 400 }
   },
   cautious: {
-    label: "M4 streamlined board candidate",
-    rulesetVersion: "hangzhou-v5-streamlined-board",
-    board: expandedBoard(),
+    label: "v0.8.6 readable 36-node board candidate",
+    rulesetVersion: "hangzhou-v6-readable-board",
+    board: compactBoard(),
     balance: {
       ...sharedCandidate,
       startingCashByTurn: [1200, 1200, 1200, 1200],
@@ -99,4 +135,4 @@ const profiles = {
   }
 };
 
-module.exports = { profiles, expandedBoard };
+module.exports = { profiles, expandedBoard, compactBoard };
