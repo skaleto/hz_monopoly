@@ -6,12 +6,12 @@
   <meta name="theme-color" content="#53c7a2">
   <base href="__BASE_PATH__/">
   <title>杭城合伙局 · 好友联机</title>
-  <link rel="stylesheet" href="styles.css?v=0.8.5">
+  <link rel="stylesheet" href="styles.css?v=0.8.6">
 </head>
 <body>
   <header class="site-header">
     <div><span class="season">H5 好友联机</span><h1>杭城合伙局</h1></div>
-    <div class="header-status"><button id="musicToggle" class="sound-toggle" type="button" aria-pressed="true" hidden>音乐开</button><button id="soundToggle" class="sound-toggle" type="button" aria-pressed="true">音效开</button><div id="connectionBadge" class="connection offline">未连接</div><button id="openLogButton" class="game-header-button" type="button" hidden>记录</button></div>
+    <div class="header-status"><div id="connectionBadge" class="connection offline">未连接</div><button id="gameSoundMenuButton" class="game-header-button" type="button" aria-expanded="false" aria-controls="gameSoundMenu" hidden>声音</button><button id="gameMoreMenuButton" class="game-header-button" type="button" aria-expanded="false" aria-controls="gameMoreMenu" hidden>更多</button></div>
   </header>
 
   <main>
@@ -64,8 +64,7 @@
 
     <section id="gameView" class="view game-view" hidden>
       <div class="game-top-actions">
-        <button id="gameHomeButton" class="game-corner-button" type="button">← 首页</button>
-        <button id="endGameButton" class="game-corner-button danger" type="button" hidden>结束本局</button>
+        <button id="gameHomeButton" class="game-corner-button" type="button" aria-label="返回首页">←</button>
       </div>
       <section id="playerBar" class="player-bar"></section>
       <section class="board-toolbar" aria-label="对局操作">
@@ -73,7 +72,7 @@
         <div id="decisionActions" class="decision-actions"></div>
         <div class="board-toolbar-actions">
           <button id="inventoryButton" class="board-tool-button" type="button" aria-label="查看我的道具"><span class="board-tool-icon item-icon" aria-hidden="true">卡</span><span class="button-label">道具</span><span id="itemCount">0</span></button>
-          <button id="upgradeButton" class="board-tool-button" type="button"><span class="board-tool-icon build-icon" aria-hidden="true">建</span><span class="button-label">建设</span></button>
+          <button id="upgradeButton" class="board-tool-button" type="button" aria-label="建设项目"><span class="board-tool-icon build-icon" aria-hidden="true">建</span><span class="button-label">建设</span></button>
         </div>
       </section>
       <section class="board-shell">
@@ -99,6 +98,17 @@
       </section>
     </section>
   </main>
+
+  <div id="gameSoundMenu" class="game-quick-menu" hidden>
+    <strong>声音设置</strong>
+    <button id="musicToggle" class="sound-toggle" type="button" aria-pressed="true">音乐开</button>
+    <button id="soundToggle" class="sound-toggle" type="button" aria-pressed="true">音效开</button>
+  </div>
+  <div id="gameMoreMenu" class="game-quick-menu" hidden>
+    <strong>对局菜单</strong>
+    <button id="openLogButton" class="game-header-button" type="button">对局记录</button>
+    <button id="endGameButton" class="game-header-button danger" type="button" hidden>结束本局</button>
+  </div>
 
   <div id="decisionModal" class="overlay" hidden>
     <section class="modal-card decision-card" role="dialog" aria-modal="true" aria-labelledby="decisionTitle">
@@ -195,7 +205,7 @@
   </div>
 
   <div id="toast" class="toast" aria-live="polite"></div>
-  <script src="dice-renderer.js?v=0.8.5"></script>
-  <script src="app.js?v=0.8.5"></script>
+  <script src="dice-renderer.js?v=0.8.6"></script>
+  <script src="app.js?v=0.8.6"></script>
 </body>
 </html>

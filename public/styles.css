@@ -399,3 +399,22 @@ button,.player-copy strong,.player-metrics b,.tile-name,.tile-price,.turn-summar
   .game-active .game-view{grid-template-rows:auto auto minmax(0,auto);align-content:start}
   .game-active .board-shell{height:calc(139.56044vw - 31px);max-height:100%;align-self:start}
 }
+
+/* v0.8.6 density prototype: focus on the current area and disclose detail on demand. */
+.game-quick-menu{position:fixed;z-index:190;right:8px;top:38px;width:154px;display:grid;gap:6px;padding:9px;border:1px solid rgba(23,48,79,.35);border-radius:12px;background:rgba(255,249,239,.98);box-shadow:0 10px 26px rgba(10,35,60,.24)}
+.game-quick-menu[hidden]{display:none}.game-quick-menu strong{font-size:11px}.game-quick-menu button{min-height:36px;border:1px solid rgba(23,48,79,.3);border-radius:8px;background:white;box-shadow:none;font-size:11px;font-weight:800}.game-quick-menu button.danger{background:#ffe2df;color:#8c312d}
+.game-active #gameHomeButton{width:36px;min-width:36px;height:32px;padding:0;font-size:19px;line-height:1}.game-active #gameSoundMenuButton,.game-active #gameMoreMenuButton{min-width:44px;height:32px;padding:0 9px;font-size:11px}.game-active .header-status{gap:5px}
+.game-active .player-bar{min-height:52px;grid-template-columns:minmax(120px,1.38fr) repeat(3,minmax(0,1fr))}
+.game-active .player-chip{min-height:50px;padding:4px 6px}.game-active .player-chip.me{grid-template-columns:32px minmax(0,1fr);grid-template-rows:23px 19px;column-gap:7px}.game-active .player-chip.me img{width:32px;height:36px}.game-active .player-chip.opponent{grid-template-columns:23px minmax(0,1fr);gap:5px;padding:4px}.game-active .player-chip.opponent img{width:23px;height:27px}
+.game-active .player-copy strong{font-size:10px}.game-active .player-chip.me .player-copy strong{font-size:12px}.game-active .player-copy small{margin-top:4px!important;font-size:10px!important;font-weight:850!important}.game-active .player-metrics{gap:0}.game-active .player-metrics .coins{font-size:14px;line-height:1.1}
+.board-toolbar{min-height:34px;grid-template-columns:minmax(0,1fr) minmax(0,.7fr) auto;padding:0 2px 0 7px}.board-toolbar .turn-summary{display:flex;align-items:baseline;gap:5px;overflow:hidden;white-space:nowrap}.board-toolbar .turn-meta{display:flex;gap:5px}.board-toolbar .turn-meta small{font-size:11px}.board-toolbar .turn-summary strong{font-size:11px}.board-toolbar .turn-summary strong::before{content:"·";margin-right:5px;color:rgba(23,48,79,.4)}.board-toolbar .decision-actions{font-size:10px}.board-toolbar-actions{gap:4px}.board-tool-button{width:34px;min-width:34px;height:32px;min-height:32px;padding:0;border-radius:7px;background:rgba(255,249,239,.82)}.board-tool-button[hidden]{display:none}#inventoryButton .button-label,#upgradeButton .button-label{display:none}.board-tool-icon{width:24px;height:24px;border-radius:7px;font-size:11px}#inventoryButton{position:relative;padding:0}#inventoryButton .item-count{position:absolute;right:1px;top:1px;min-width:15px;height:15px;display:grid;place-items:center;border:1px solid rgba(23,48,79,.45);border-radius:999px;background:#ff8fb4;color:#17304f;font-size:8px}#inventoryButton .item-count::before{content:""}
+.game-board .board-tile{row-gap:1px}.board-shell .tile-name{font-size:7.5px;line-height:1.08}.game-board .tile-icon{width:20px;height:20px}.board-view-toggle{min-width:42px;min-height:30px;font-size:10px}
+
+@media(max-width:400px){
+  .game-active .player-bar{grid-template-columns:minmax(108px,1.35fr) repeat(3,minmax(0,1fr))}
+  .game-active .player-chip.me{grid-template-columns:29px minmax(0,1fr);column-gap:5px;padding-left:5px}.game-active .player-chip.me img{width:29px;height:33px}
+  .game-active .player-chip.opponent{grid-template-columns:20px minmax(0,1fr);gap:3px;padding:3px}.game-active .player-chip.opponent img{width:20px;height:24px}
+  .game-active .player-copy strong{font-size:9.5px}.game-active .player-chip.me .player-copy strong{font-size:11px}.game-active .player-copy small{font-size:9px!important}.game-active .player-metrics .coins{font-size:13px}
+}
+
+@media(max-width:700px){.game-active .board-shell{height:min(640px,calc(100dvh - 136px));max-height:calc(100dvh - 136px)}}

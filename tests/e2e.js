@@ -91,10 +91,15 @@ async function main() {
     assert.equal(await a.locator("#turnOrderBanner button").count(), 0);
     await a.locator("#turnOrderBanner").waitFor({ state: "hidden", timeout: 3000 });
     await b.locator("#turnOrderBanner").waitFor({ state: "hidden", timeout: 3000 });
+    assert.equal(await a.locator("#gameSoundMenuButton").isVisible(), true);
+    assert.equal(await a.locator("#gameMoreMenuButton").isVisible(), true);
+    await a.locator("#gameSoundMenuButton").click();
+    await a.locator("#gameSoundMenu").waitFor({ state:"visible" });
     assert.equal(await a.locator("#musicToggle").textContent(), "音乐开");
     await a.waitForFunction(() => (window.__musicTrace || []).some(item => item.type === "track-start" && item.file === "cassette-tape-dream-sharou.v1.ogg"));
     assert.equal(await a.evaluate(() => window.__soundController.isMusicPlaying()), true);
     assert.equal(await a.evaluate(() => window.__soundController.musicFile()), "cassette-tape-dream-sharou.v1.ogg");
+    await a.waitForFunction(() => window.__soundController.musicVolume() === .1);
     assert.equal(await a.evaluate(() => window.__soundController.musicVolume()), .1);
     await a.evaluate(() => window.__soundController.play("coin"));
     assert.equal(await a.evaluate(() => window.__soundController.musicVolume()), .025, "key effects must duck the background track");
@@ -114,6 +119,8 @@ async function main() {
     await a.locator("#musicToggle").click();
     assert.equal(await a.locator("#musicToggle").getAttribute("aria-pressed"), "true");
     await a.waitForFunction(() => window.__soundController.isMusicPlaying());
+    await a.locator("#gameSoundMenuButton").click();
+    await a.locator("#gameSoundMenu").waitFor({ state:"hidden" });
     assert.equal(await a.evaluate(() => window.__soundController.suspendForTest()), "suspended");
     await a.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
     await a.locator("#playerBar").dispatchEvent("pointerdown", { pointerType:"touch", isPrimary:true });
@@ -122,10 +129,11 @@ async function main() {
     assert.equal(await a.locator(".player-chip.me").count(), 1);
     assert.equal(await a.locator(".player-chip").first().evaluate(node => node.classList.contains("me")), true, "my summary must lead the player rail");
     assert.equal(await a.locator(".player-metrics").count(), 1);
-    assert.equal(await a.locator(".player-metrics span").count(), 3);
-    assert.match(await a.locator(".player-chip.me").textContent(), /¥\d+.*势 \d+.*分 \d+/);
+    assert.equal(await a.locator(".player-metrics span").count(), 1);
+    assert.match(await a.locator(".player-chip.me").textContent(), /¥\d+/);
+    assert.doesNotMatch(await a.locator(".player-chip.me").textContent(), /势 \d+|分 \d+/);
     assert.equal(await a.locator(".player-chip.opponent").count(), 3);
-    assert.equal(await a.locator(".player-chip.opponent").evaluateAll(nodes => nodes.every(node => /¥\d+ · \d+分/.test(node.textContent))), true);
+    assert.equal(await a.locator(".player-chip.opponent").evaluateAll(nodes => nodes.every(node => /¥\d+/.test(node.textContent)&&!/\d+分/.test(node.textContent))), true);
     assert.match(await a.locator(".player-chip.opponent").first().getAttribute("aria-label"), /影响力 \d+，道具 \d+/);
     await a.locator(".player-chip.opponent").first().click();
     await a.locator("#playerDetailModal").waitFor({ state:"visible" });
@@ -136,40 +144,25 @@ async function main() {
     assert.equal(await a.locator("#gameHomeButton").evaluate(button => button.parentElement.classList.contains("game-top-actions")), true);
     assert.equal(await a.locator(".game-bottom,.event-preview").count(), 0);
     assert.deepEqual(await a.locator(".board-toolbar-actions > button").evaluateAll(buttons => buttons.map(button => button.id)), ["inventoryButton","upgradeButton"]);
-    assert.equal(await a.locator("#openLogButton").evaluate(button => button.parentElement.classList.contains("header-status")), true);
-    assert.equal(await a.locator("#openLogButton").isVisible(), true);
-    const quietControls = await a.evaluate(() => {
-      const styleSummary=selector=>{const node=document.querySelector(selector),style=getComputedStyle(node),rect=node.getBoundingClientRect();return{radius:parseFloat(style.borderRadius),shadow:style.boxShadow,border:parseFloat(style.borderTopWidth),width:rect.width,height:rect.height}};
-      return {home:styleSummary("#gameHomeButton"),music:styleSummary("#musicToggle"),sound:styleSummary("#soundToggle"),log:styleSummary("#openLogButton"),toolbar:styleSummary(".board-toolbar"),inventory:styleSummary("#inventoryButton"),upgrade:styleSummary("#upgradeButton"),connection:styleSummary("#connectionBadge")};
-    });
-    const box = { home:quietControls.home, music:quietControls.music, sound:quietControls.sound, log:quietControls.log };
-    for (const part of Object.values(box)) { assert.equal(part.radius, 7, `radius ${JSON.stringify(part)}`); assert.equal(part.border, 1, `border ${JSON.stringify(part)}`); assert.equal(part.shadow, "none", `shadow ${JSON.stringify(part)}`); assert.equal(part.height,28); }
-    assert.equal(quietControls.toolbar.radius, 0); assert.equal(quietControls.toolbar.border, 0); assert.equal(quietControls.toolbar.shadow,"none");
-    assert.equal(quietControls.inventory.radius, 4); assert.equal(quietControls.inventory.border, 0); assert.equal(quietControls.inventory.shadow,"none");
-    assert.equal(quietControls.upgrade.radius, 4); assert.equal(quietControls.upgrade.border,0); assert.equal(quietControls.upgrade.shadow,"none");
-    const boardActions = await a.evaluate(() => {
-      const summary=selector=>{const node=document.querySelector(selector),style=getComputedStyle(node),rect=node.getBoundingClientRect();return{tag:node.tagName,text:node.textContent.trim(),width:rect.width,height:rect.height,border:parseFloat(style.borderTopWidth),radius:parseFloat(style.borderRadius),background:style.backgroundColor,shadow:style.boxShadow,position:style.position,transform:style.transform}};
-      return {inventory:summary("#inventoryButton"),upgrade:summary("#upgradeButton"),itemIcon:summary("#inventoryButton .board-tool-icon"),buildIcon:summary("#upgradeButton .board-tool-icon"),count:summary("#itemCount")};
-    });
-    assert.deepEqual({inventory:[boardActions.inventory.border,boardActions.inventory.radius,boardActions.inventory.background,boardActions.inventory.shadow],upgrade:[boardActions.upgrade.border,boardActions.upgrade.radius,boardActions.upgrade.background,boardActions.upgrade.shadow]}, {inventory:[0,4,"rgba(0, 0, 0, 0)","none"],upgrade:[0,4,"rgba(0, 0, 0, 0)","none"]});
-    assert.equal(boardActions.itemIcon.width,18); assert.equal(boardActions.itemIcon.height,18); assert.equal(boardActions.itemIcon.radius,5); assert.equal(boardActions.itemIcon.border,1);
-    assert.equal(boardActions.buildIcon.width,18); assert.equal(boardActions.buildIcon.height,18); assert.equal(boardActions.buildIcon.radius,5); assert.equal(boardActions.buildIcon.border,1);
-    assert.notEqual(boardActions.itemIcon.background,"rgba(0, 0, 0, 0)"); assert.notEqual(boardActions.buildIcon.background,"rgba(0, 0, 0, 0)");
-    assert.equal(boardActions.count.position,"static"); assert.equal(boardActions.count.border,0); assert.equal(boardActions.count.background,"rgba(0, 0, 0, 0)"); assert.equal(boardActions.count.shadow,"none"); assert.match(boardActions.count.text,/^\d+$/);
-    assert.equal(quietControls.connection.width,8);
-    assert.equal(quietControls.connection.height,8);
+    assert.equal(await a.locator("#openLogButton").evaluate(button => button.parentElement.id), "gameMoreMenu");
+    assert.equal(await a.locator("#openLogButton").isHidden(), true);
+    assert.deepEqual(await a.locator(".game-top-actions button:visible,.header-status button:visible").evaluateAll(buttons=>buttons.map(button=>button.id).sort()),["gameHomeButton","gameMoreMenuButton","gameSoundMenuButton"]);
+    const contextualActions=await a.evaluate(()=>({items:Number(document.querySelector("#itemCount").textContent),inventoryHidden:document.querySelector("#inventoryButton").hidden,upgradeHidden:document.querySelector("#upgradeButton").hidden,inventoryLabel:getComputedStyle(document.querySelector("#inventoryButton .button-label")).display,upgradeLabel:getComputedStyle(document.querySelector("#upgradeButton .button-label")).display}));
+    assert.equal(contextualActions.inventoryHidden,contextualActions.items===0);
+    assert.equal(contextualActions.inventoryLabel,"none");
+    assert.equal(contextualActions.upgradeLabel,"none");
     const hierarchy = await a.evaluate(() => {
       const rect=selector=>document.querySelector(selector).getBoundingClientRect(),bar=document.querySelector("#playerBar"),mine=rect(".player-chip.me"),opponents=[...document.querySelectorAll(".player-chip.opponent")].map(node=>node.getBoundingClientRect()),board=rect(".board-shell"),smallText=[...document.querySelectorAll(".site-header button,.player-bar *,.board-toolbar *")].filter(node=>{const style=getComputedStyle(node),box=node.getBoundingClientRect();return box.width>0&&box.height>0&&parseFloat(style.fontSize)<8});
       const metrics=document.querySelector(".player-chip.me .player-metrics"),coins=document.querySelector(".player-chip.me .coins");
       return {viewport:[innerWidth,innerHeight],boardTop:board.top,boardHeight:board.height,mineWidth:mine.width,opponentWidths:opponents.map(item=>item.width),playerDom:bar.querySelectorAll("*").length,smallText:smallText.length,barRadius:parseFloat(getComputedStyle(bar).borderRadius),chipRadii:[...document.querySelectorAll(".player-chip")].map(node=>parseFloat(getComputedStyle(node).borderRadius)),coinFont:parseFloat(getComputedStyle(coins).fontSize),metricsFit:metrics.scrollWidth<=metrics.clientWidth};
     });
-    assert.ok(hierarchy.boardTop<=125,`board crown must stay compact ${JSON.stringify(hierarchy)}`);
-    const compactBoardTarget=(hierarchy.viewport[0]-28)*508/364+8;
-    assert.ok(Math.abs(hierarchy.boardHeight-compactBoardTarget)<=4,`board shell should follow canonical aspect ratio instead of filling viewport ${JSON.stringify({hierarchy,compactBoardTarget})}`);
-    assert.ok(hierarchy.opponentWidths.every(width=>hierarchy.mineWidth>=width*1.35),`my summary must be visibly wider ${JSON.stringify(hierarchy)}`);
-    assert.ok(hierarchy.playerDom<=25,`player rail DOM must stay simple ${JSON.stringify(hierarchy)}`);
-    assert.ok(hierarchy.smallText<=2,`top chrome must not depend on sub-8px text ${JSON.stringify(hierarchy)}`);
-    assert.ok(hierarchy.coinFont>=12,`my cash must lead the metric hierarchy ${JSON.stringify(hierarchy)}`);
+    assert.ok(hierarchy.boardTop<=130,`board crown must stay compact ${JSON.stringify(hierarchy)}`);
+    const compactBoardTarget=Math.min(640,hierarchy.viewport[1]-136);
+    assert.ok(Math.abs(hierarchy.boardHeight-compactBoardTarget)<=4,`board shell should use the available vertical space ${JSON.stringify({hierarchy,compactBoardTarget})}`);
+    assert.ok(hierarchy.opponentWidths.every(width=>hierarchy.mineWidth>=width*1.25),`my summary must be visibly wider ${JSON.stringify(hierarchy)}`);
+    assert.ok(hierarchy.playerDom<=22,`player rail DOM must stay simple ${JSON.stringify(hierarchy)}`);
+    assert.equal(hierarchy.smallText,0,`top chrome must not depend on sub-8px text ${JSON.stringify(hierarchy)}`);
+    assert.ok(hierarchy.coinFont>=13,`my cash must lead the metric hierarchy ${JSON.stringify(hierarchy)}`);
     assert.equal(hierarchy.metricsFit,true,`my metrics must not overflow ${JSON.stringify(hierarchy)}`);
     assert.equal(hierarchy.barRadius,10);
     assert.deepEqual(hierarchy.chipRadii,[0,0,0,0]);
@@ -198,10 +191,12 @@ async function main() {
       for(const file of boardPreviewFiles){assert.ok(fs.existsSync(file),`board preview missing: ${file}`);const data=`data:image/webp;base64,${fs.readFileSync(file).toString("base64")}`;await image.evaluate((node,src)=>new Promise((resolve,reject)=>{node.onload=resolve;node.onerror=reject;node.src=src}),data);await a.screenshot({path:path.join(screenshotDir,`background-${path.basename(file,".webp")}-${viewport.width}x${viewport.height}.png`),fullPage:true})}
       await image.evaluate((node,src)=>new Promise((resolve,reject)=>{node.onload=resolve;node.onerror=reject;node.src=src}),original);
     }
+    await a.locator("#gameMoreMenuButton").click();
+    await a.locator("#gameMoreMenu").waitFor({state:"visible"});
     assert.equal(await a.locator("#endGameButton").isVisible(), true);
-    assert.equal(await b.locator("#endGameButton").isVisible(), false);
-    assert.equal(await b.locator("#upgradeButton").isDisabled(), true);
-    assert.match(await b.locator("#upgradeButton").getAttribute("title"), /自己的回合/);
+    await b.locator("#gameMoreMenuButton").click();
+    await b.locator("#gameMoreMenu").waitFor({state:"visible"});
+    assert.equal(await b.locator("#endGameButton").isHidden(), true);
     await a.locator("#endGameButton").click();
     await a.locator("#endGameModal").waitFor({ state: "visible" });
     await a.screenshot({ path: path.join(screenshotDir, "18-owner-end-game-confirm-mobile.png"), fullPage: true });
@@ -209,47 +204,34 @@ async function main() {
     await a.locator("#endGameModal").waitFor({ state: "hidden" });
     const boardNavigation = await b.evaluate(() => {
       const scroller=document.querySelector("#boardScroller"),toggle=document.querySelector("#boardViewToggle");
-      return {canZoom:Boolean(window.__boardCanZoom),scale:Number((window.__boardScale||1).toFixed(4)),overviewScale:Number((window.__boardOverviewScale||1).toFixed(4)),readableScale:Number((window.__boardReadableScale||1).toFixed(4)),toggleHidden:toggle.hidden,toggleText:toggle.textContent,scrollableY:scroller.scrollHeight>scroller.clientHeight+1};
+      return {canZoom:Boolean(window.__boardCanZoom),scale:Number((window.__boardScale||1).toFixed(4)),overviewScale:Number((window.__boardOverviewScale||1).toFixed(4)),readableScale:Number((window.__boardReadableScale||1).toFixed(4)),toggleHidden:toggle.hidden,toggleText:toggle.textContent,scrollableX:scroller.scrollWidth>scroller.clientWidth+1,scrollableY:scroller.scrollHeight>scroller.clientHeight+1};
     });
-    if (boardNavigation.canZoom) {
-      assert.equal(boardNavigation.toggleHidden,false);
-      assert.equal(boardNavigation.toggleText,"全览");
-      assert.ok(boardNavigation.scale>=.89,`readable board scale ${boardNavigation.scale}`);
-      assert.equal(boardNavigation.scrollableY,true);
-      await a.screenshot({ path: path.join(screenshotDir, "03a-readable-board-mobile.png"), fullPage: true });
-      await Promise.all([a.locator("#boardViewToggle").click(),b.locator("#boardViewToggle").click()]);
-      await Promise.all([a.waitForFunction(()=>Math.abs(window.__boardScale-window.__boardOverviewScale)<.001),b.waitForFunction(()=>Math.abs(window.__boardScale-window.__boardOverviewScale)<.001)]);
-      assert.equal(await b.locator("#boardViewToggle").textContent(),"放大");
-    } else {
-      assert.equal(boardNavigation.toggleHidden,true);
-    }
+    assert.equal(boardNavigation.canZoom,true);
+    assert.equal(boardNavigation.toggleHidden,false);
+    assert.equal(boardNavigation.toggleText,"全览");
+    assert.equal(boardNavigation.scale,1.2);
+    assert.equal(boardNavigation.scrollableX,true);
+    await a.screenshot({ path: path.join(screenshotDir, "03a-readable-board-mobile.png"), fullPage: true });
+    await Promise.all([a.locator("#boardViewToggle").click(),b.locator("#boardViewToggle").click()]);
+    await Promise.all([a.waitForFunction(()=>Math.abs(window.__boardScale-window.__boardOverviewScale)<.001),b.waitForFunction(()=>Math.abs(window.__boardScale-window.__boardOverviewScale)<.001)]);
+    assert.equal(await b.locator("#boardViewToggle").textContent(),"放大");
     assert.equal(await b.locator(".board-tile").count(), 49);
     assert.equal(await b.locator(".board-tile .tile-icon").count(), 49);
     assert.equal(await b.locator(".board-tile .type-mark").count(), 0);
-    assert.equal(await b.locator('.board-tile[data-tile-type="property"] .tile-price').count(), 25);
-    assert.match(await b.locator('.board-tile[data-tile-type="property"] .tile-price').first().textContent(), /^¥\d+$/);
-    assert.equal(await b.locator(".board-tile.has-price").evaluateAll(tiles => tiles.every(tile => {
-      const parts = [tile.querySelector(".tile-icon"), tile.querySelector(".tile-name"), tile.querySelector(".tile-price")].map(node => node.getBoundingClientRect());
-      return parts.every((rect, index) => index === 0 || rect.top >= parts[index - 1].bottom - 0.5);
-    })), true, "project icon, name and price must use separate rows");
+    assert.equal(await b.locator(".board-tile .tile-price,.board-tile.has-price").count(), 0);
 
     const truncatedNames = await b.evaluate(() => [...document.querySelectorAll(".board-tile .tile-name")].filter(n => n.scrollHeight > n.clientHeight + 1 || n.scrollWidth > n.clientWidth + 1).map(n => n.textContent));
     assert.deepEqual(truncatedNames, [], `tile names truncated: ${truncatedNames.join(",")}`);
-    assert.deepEqual(await b.locator(".board-tile.has-price").evaluateAll(tiles => {
-      const pairs=tiles.map(tile=>[tile.querySelector(".tile-name"),tile.querySelector(".tile-price")].map(node=>{const style=getComputedStyle(node);return`${style.fontSize}/${style.fontWeight}`}));
-      return {nameStyles:[...new Set(pairs.map(pair=>pair[0]))],priceStyles:[...new Set(pairs.map(pair=>pair[1]))],sameLevel:pairs.every(pair=>pair[0]===pair[1])};
-    }), { nameStyles:["7px/950"],priceStyles:["7px/950"],sameLevel:true });
     const boardReadability = await b.evaluate(() => {
-      const tile=document.querySelector(".board-tile"),project=document.querySelector(".board-tile.has-price"),regular=document.querySelector(".board-tile:not(.has-price)"),name=project.querySelector(".tile-name"),price=project.querySelector(".tile-price");
+      const tile=document.querySelector(".board-tile"),project=document.querySelector('.board-tile[data-tile-type="property"]'),regular=document.querySelector('.board-tile:not([data-tile-type="property"])'),name=project.querySelector(".tile-name");
       const px=(node,property)=>parseFloat(getComputedStyle(node)[property]);
-      return {viewport:[innerWidth,innerHeight],boardScale:Number((window.__boardScale||1).toFixed(4)),overviewScale:Number((window.__boardOverviewScale||1).toFixed(4)),readableScale:Number((window.__boardReadableScale||1).toFixed(4)),tileBorder:px(tile,"borderTopWidth"),tileShadow:getComputedStyle(tile).boxShadow,projectIcon:px(project.querySelector(".tile-icon"),"width"),regularIcon:px(regular.querySelector(".tile-icon"),"width"),nameFont:px(name,"fontSize"),priceFont:px(price,"fontSize")};
+      return {viewport:[innerWidth,innerHeight],boardScale:Number((window.__boardScale||1).toFixed(4)),overviewScale:Number((window.__boardOverviewScale||1).toFixed(4)),readableScale:Number((window.__boardReadableScale||1).toFixed(4)),tileBorder:px(tile,"borderTopWidth"),tileShadow:getComputedStyle(tile).boxShadow,projectIcon:px(project.querySelector(".tile-icon"),"width"),regularIcon:px(regular.querySelector(".tile-icon"),"width"),nameFont:px(name,"fontSize")};
     });
     assert.equal(boardReadability.tileBorder,1);
     assert.ok(boardReadability.tileShadow.includes("1px"));
-    assert.equal(boardReadability.projectIcon,17);
-    assert.equal(boardReadability.regularIcon,22);
-    assert.equal(boardReadability.nameFont,7);
-    assert.equal(boardReadability.priceFont,7);
+    assert.equal(boardReadability.projectIcon,20);
+    assert.equal(boardReadability.regularIcon,20);
+    assert.equal(boardReadability.nameFont,7.5);
     const iconContainmentIssues = await b.evaluate(() => [...document.querySelectorAll(".board-tile")].flatMap(tile => { const icon=tile.querySelector(".tile-icon"),name=tile.querySelector(".tile-name"),price=tile.querySelector(".tile-price"),i=icon.getBoundingClientRect(),t=tile.getBoundingClientRect(),n=name.getBoundingClientRect(),p=price?.getBoundingClientRect(),overlap=(a,b)=>Math.min(a.right,b.right)-Math.max(a.left,b.left)>.5&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>.5,inside=i.left>=t.left-1&&i.right<=t.right+1&&i.top>=t.top-1&&i.bottom<=t.bottom+1,clearName=!overlap(i,n),clearPrice=!p||!overlap(i,p);return inside&&clearName&&clearPrice?[]:[{name:tile.dataset.tileName,type:tile.dataset.tileType,inside,clearName,clearPrice,icon:{top:i.top,bottom:i.bottom},label:{top:n.top,bottom:n.bottom},price:p&&{top:p.top,bottom:p.bottom}}] }));
     assert.deepEqual(iconContainmentIssues,[],`enlarged icons must stay inside tiles and clear names/prices: ${JSON.stringify(iconContainmentIssues)}`);
     assert.equal(await b.locator(".board-tile").evaluateAll(tiles => tiles.every(tile => { const rect=tile.getBoundingClientRect(); return Math.abs(rect.width-rect.height)<=0.5; })), true, "all board nodes must be square");
@@ -347,7 +329,8 @@ async function main() {
     assert.match(await b.locator("#tileDetailStats").textContent(), /投资/);
     await b.screenshot({ path: path.join(screenshotDir, "09-tile-detail-mobile.png"), fullPage: true });
     await b.locator("#tileDetailCloseButton").click();
-    await b.locator("#inventoryButton").click();
+    assert.equal(await b.locator("#inventoryButton").isHidden(),true);
+    await b.locator("#inventoryButton").evaluate(button=>button.click());
     await b.locator("#itemModal").waitFor({ state: "visible" });
     assert.match(await b.locator("#itemList").textContent(), /道具补给站/);
     await b.locator("#itemCloseButton").click();
@@ -484,6 +467,8 @@ async function main() {
     assert.ok(soundTrace.some(item => item.name === "tap"));
     assert.ok(soundTrace.some(item => item.name === "confirm"));
 
+    await b.locator("#gameMoreMenuButton").click();
+    await b.locator("#gameMoreMenu").waitFor({state:"visible"});
     await b.locator("#openLogButton").click();
     await b.locator("#logModal").waitFor({ state: "visible" });
     assert.ok(await b.locator("#fullEventLog li").count() >= 4);
