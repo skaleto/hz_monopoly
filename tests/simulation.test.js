@@ -34,12 +34,12 @@ test("expanded board keeps 25 categorized projects with a 34-node ring plus 8+7 
   assert.equal(ringOrder.every(index => !board[index].inner), true);
 });
 
-test("readable board keeps every remaining node illustrated on a 26 + 5 + 5 topology", () => {
+test("readable board keeps every remaining node illustrated on a 28 + 4 + 4 topology", () => {
   const board = compactBoard();
   assert.equal(board.length,36);
   assert.equal(board.filter(tile=>tile.type==="property").length,20);
-  assert.equal(board.filter(tile=>tile.inner==="water").length,5);
-  assert.equal(board.filter(tile=>tile.inner==="metro").length,5);
+  assert.equal(board.filter(tile=>tile.inner==="water").length,4);
+  assert.equal(board.filter(tile=>tile.inner==="metro").length,4);
   assert.equal(board.filter(tile=>Array.isArray(tile.next)&&tile.next.length>1).length,2);
   assert.equal(board.every(tile=>Number.isFinite(tile.x)&&Number.isFinite(tile.y)),true);
 });

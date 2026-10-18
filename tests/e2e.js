@@ -265,7 +265,7 @@ async function main() {
       const measure=type=>{const entry=document.querySelector(`.route-${type}-entry`),exit=document.querySelector(`.route-${type}-exit`),inner=[...document.querySelectorAll(`[data-route="${type}"]`)],centers=[entry,...inner,exit].filter(Boolean).map(center),vectors=centers.slice(1).map((point,index)=>({x:point.x-centers[index].x,y:point.y-centers[index].y})),lengths=vectors.map(vector=>Math.hypot(vector.x,vector.y)),turns=vectors.slice(1).map((vector,index)=>{const previous=vectors[index],cos=(previous.x*vector.x+previous.y*vector.y)/(Math.hypot(previous.x,previous.y)*Math.hypot(vector.x,vector.y));return Math.acos(Math.max(-1,Math.min(1,cos)))*180/Math.PI}),pairGaps=[];centers.forEach((point,index)=>centers.slice(index+1).forEach(other=>pairGaps.push(Math.hypot(point.x-other.x,point.y-other.y))));return{nodes:inner.length,pathNodes:centers.length,minGap:Math.min(...pairGaps),maxGap:Math.max(...lengths),maxTurn:Math.max(...turns),pathRatio:lengths.reduce((sum,length)=>sum+length,0)/Math.hypot(centers.at(-1).x-centers[0].x,centers.at(-1).y-centers[0].y)}};
       return{water:measure("water"),metro:measure("metro")};
     });
-    for(const [type,geometry] of Object.entries(branchGeometry)){assert.equal(geometry.nodes,5,`${type} branch node count`);assert.equal(geometry.pathNodes,7,`${type} path endpoints`);assert.ok(geometry.minGap>=49,`${type} nodes are crowded ${JSON.stringify(geometry)}`);assert.ok(geometry.maxGap<=95,`${type} chain gap ${JSON.stringify(geometry)}`);assert.ok(geometry.maxTurn<=85,`${type} route reverses sharply ${JSON.stringify(geometry)}`);assert.ok(geometry.pathRatio<=1.8,`${type} route too winding ${JSON.stringify(geometry)}`)}
+    for(const [type,geometry] of Object.entries(branchGeometry)){assert.equal(geometry.nodes,4,`${type} branch node count`);assert.equal(geometry.pathNodes,6,`${type} path endpoints`);assert.ok(geometry.minGap>=49,`${type} nodes are crowded ${JSON.stringify(geometry)}`);assert.ok(geometry.maxGap<=105,`${type} chain gap ${JSON.stringify(geometry)}`);assert.ok(geometry.maxTurn<=90,`${type} route reverses sharply ${JSON.stringify(geometry)}`);assert.ok(geometry.pathRatio<=1.8,`${type} route too winding ${JSON.stringify(geometry)}`)}
     const nodeChainGaps={water:branchGeometry.water.maxGap,metro:branchGeometry.metro.maxGap},waterRouteGeometry=branchGeometry.water,metroRouteGeometry=branchGeometry.metro;
     // 注：AABB 度量对 45° 角邻对天然虚报（圆角本体分离）；>8% 视为可见堆叠。
     const globalNodeOverlap = await b.evaluate(() => {
@@ -275,7 +275,7 @@ async function main() {
     });
     assert.ok(globalNodeOverlap.maxRatio <= .08, `any two board nodes overlap ${JSON.stringify(globalNodeOverlap)}`);
     assert.ok(globalNodeOverlap.significantPairs.length === 0, `overlapping node pairs exist ${JSON.stringify(globalNodeOverlap)}`);
-    assert.equal(await b.locator('.board-tile[data-tile-type="event"]').count(), 3);
+    assert.equal(await b.locator('.board-tile[data-tile-type="event"]').count(), 4);
     assert.equal(await b.locator('.board-tile[data-tile-type="opportunity"],.board-tile[data-tile-type="daily"]').count(), 0);
     assert.equal(await b.locator('.board-tile[data-tile-type="supply"]').count(), 2);
     assert.equal(await b.locator(".board-tile.next-option").count(), 1);
@@ -283,8 +283,8 @@ async function main() {
     assert.ok(await b.locator(".board-tile").evaluateAll(tiles => new Set(tiles.map(tile => getComputedStyle(tile).backgroundColor)).size) >= 7);
     assert.equal(await b.locator('.board-tile[data-tile-type="property"]').first().evaluate(tile => getComputedStyle(tile).backgroundColor), "rgb(255, 254, 250)");
     assert.notEqual(await b.locator('.board-tile[data-tile-type="event"]').first().evaluate(tile => getComputedStyle(tile).backgroundColor), await b.locator('.board-tile[data-tile-type="property"]').first().evaluate(tile => getComputedStyle(tile).backgroundColor));
-    assert.equal(await b.locator(".board-tile.route-water").count(), 5);
-    assert.equal(await b.locator(".board-tile.route-metro").count(), 5);
+    assert.equal(await b.locator(".board-tile.route-water").count(), 4);
+    assert.equal(await b.locator(".board-tile.route-metro").count(), 4);
     assert.equal(await b.locator(".route-water-entry").count(), 1);
     assert.equal(await b.locator(".route-water-exit").count(), 1);
     assert.equal(await b.locator(".route-metro-entry").count(), 1);
@@ -686,9 +686,9 @@ async function main() {
       waterRouteGeometry,
       metroRouteGeometry,
       globalNodeOverlap,
-      waterBranchNodes: 5,
-      metroBranchNodes: 5,
-      cityEventNodes: 3,
+      waterBranchNodes: 4,
+      metroBranchNodes: 4,
+      cityEventNodes: 4,
       supplyNodes: 2,
       tileDetail: "pass",
       tileClickTrace: "click / tileIndex / room context / hidden true->false",

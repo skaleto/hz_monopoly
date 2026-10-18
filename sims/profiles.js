@@ -65,9 +65,9 @@ function expandedBoard() {
 
 function compactBoard() {
   const source = expandedBoard();
-  const ringOrder = [0,1,2,3,4,5,7,8,9,10,11,12,13,14,15,17,18,20,21,22,23,24,25,26,42,27];
-  const waterOrder = [28,29,31,33,36];
-  const metroOrder = [37,38,48,41,44];
+  const ringOrder = [0,1,2,3,4,5,7,8,46,9,10,11,12,13,14,15,17,18,19,20,21,22,23,24,25,26,42,27];
+  const waterOrder = [28,29,33,36];
+  const metroOrder = [37,38,41,44];
   const sourceOrder = [...ringOrder, ...waterOrder, ...metroOrder];
   const indexBySource = new Map(sourceOrder.map((sourceIndex, index) => [sourceIndex, index]));
   const layout = require("./compact-board-layout.json");

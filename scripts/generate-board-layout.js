@@ -19,7 +19,7 @@ const CANVAS = { width: 364, height: 508 };   // 规范棋盘像素（390×844 �
 const TILE = COMPACT ? 50 : 42;                // 节点渲染尺寸（含描边）
 const MIN_GAP = TILE + 2;                      // 同向相邻节点最小中心距（直线段防重叠）
 const MIN_CROSS_GAP = TILE + 4;                // 支线与主环 / 支线之间的最小间距
-const RING_COUNT = COMPACT ? 26 : 34;
+const RING_COUNT = COMPACT ? 28 : 34;
 const TRACK_MARGIN = TILE / 2 + 1;             // 节点中心离棋盘边缘
 const CORNER_RADIUS = 48;
 
@@ -108,7 +108,7 @@ function generateLayout() {
 
   // 主环节点序（棋序），对应 fiveSectorsOfFive 中的主路节点表
   const ringOrder = COMPACT
-    ? [0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18, 20, 21, 22, 23, 24, 25, 26, 42, 27]
+    ? [0, 1, 2, 3, 4, 5, 7, 8, 46, 9, 10, 11, 12, 13, 14, 15, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 42, 27]
     : [0, 1, 2, 47, 3, 4, 5, 32, 6, 7, 8, 46, 9, 10, 11, 12, 13, 14,
       15, 35, 16, 17, 18, 19, 20, 21, 22, 23, 24, 43, 25, 26, 42, 27];
   if (ringOrder.length !== RING_COUNT) throw new Error(`ring order has ${ringOrder.length} nodes, expected ${RING_COUNT}`);
@@ -124,12 +124,12 @@ function generateLayout() {
   const metroEntry = byIndex.get(10), metroExit = byIndex.get(17);
   if (!waterEntry || !waterExit || !metroEntry || !metroExit) throw new Error("missing branch anchor on ring");
 
-  // 两条支线各弓向自己的象限；紧凑候选用更疏的 5 节点曲线，给 50px 卡片留足空间。
+  // 两条支线各自收成规整侧廊，中间为骰子与反馈留白。
   const water = COMPACT
-    ? { interior: [{ x:85,y:130 },{ x:100,y:190 },{ x:125,y:255 },{ x:150,y:330 },{ x:175,y:410 }], length:440 }
+    ? { interior: [{ x:91,y:178 },{ x:98,y:244 },{ x:109,y:315 },{ x:131,y:406 }], length:360 }
     : sampleArcEvenly(waterEntry, waterExit, 390, 8, { x: 182, y: 268 });
   const metro = COMPACT
-    ? { interior: [{ x:280,y:220 },{ x:230,y:230 },{ x:185,y:190 },{ x:150,y:135 },{ x:178,y:80 }], length:370 }
+    ? { interior: [{ x:273,y:213 },{ x:262,y:152 },{ x:244,y:102 },{ x:190,y:80 }], length:310 }
     : sampleArcEvenly(metroEntry, metroExit, 358, 7, { x: 218, y: 178 });
 
   // 全局最小间距自检（含主环、两支线全体 49 节点）
@@ -155,8 +155,8 @@ function toPercent(point) {
 
 function main() {
   const layout = generateLayout();
-  const waterOrder = COMPACT ? [28, 29, 31, 33, 36] : [28, 29, 30, 45, 31, 33, 34, 36];
-  const metroOrder = COMPACT ? [37, 38, 48, 41, 44] : [37, 38, 48, 39, 41, 40, 44];
+  const waterOrder = COMPACT ? [28, 29, 33, 36] : [28, 29, 30, 45, 31, 33, 34, 36];
+  const metroOrder = COMPACT ? [37, 38, 41, 44] : [37, 38, 48, 39, 41, 40, 44];
   const data = {
     ring: Object.fromEntries(layout.ring.map(node => [node.index, toPercent(node)])),
     water: Object.fromEntries(waterOrder.map((index, i) => [index, toPercent(layout.water.interior[i])])),
